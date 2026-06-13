@@ -35,4 +35,7 @@ public class Product {
 
     @Column(name = "create_time", length = 19)
     private String createTime;
+
+    @Column(name = "data_hash", length = 64)
+    private String dataHash;
 }

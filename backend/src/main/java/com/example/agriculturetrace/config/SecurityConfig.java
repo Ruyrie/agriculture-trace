@@ -44,6 +44,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/user/login", "/api/trace/**", "/uploads/**").permitAll()
                         .requestMatchers("/api/users/**").hasRole("ADMIN")
                         .requestMatchers("/api/dashboard/reports").hasAnyRole("ADMIN", "INSPECTOR")
+                        .requestMatchers("/api/blockchain/**").hasAnyRole("ADMIN", "INSPECTOR")
                         .anyRequest().authenticated()
                 )
                 .formLogin(login -> login

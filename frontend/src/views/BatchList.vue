@@ -50,7 +50,13 @@
         </el-table-column>
         <el-table-column prop="productName" label="产品名称" min-width="120" />
         <el-table-column prop="productionDate" label="生产日期" width="120" align="center" />
-        <el-table-column label="操作" width="180" align="center">
+        <el-table-column label="数据指纹" min-width="150" align="center">
+          <template #default="{ row }">
+            <el-tag v-if="row.dataHash" type="success" size="small">{{ shortHash(row.dataHash) }}</el-tag>
+            <el-tag v-else type="warning" size="small">未生成</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="250" align="center">
           <template #default="{ row }">
             <el-button type="primary" link size="small" @click="handleEdit(row)">
               <el-icon><Edit /></el-icon> 编辑
@@ -58,6 +64,10 @@
             <el-divider direction="vertical" />
             <el-button type="success" link size="small" @click="viewTrace(row)">
               <el-icon><View /></el-icon> 溯源
+            </el-button>
+            <el-divider direction="vertical" />
+            <el-button type="warning" link size="small" @click="handleVerify(row)">
+              <el-icon><CircleCheck /></el-icon> 验证
             </el-button>
             <el-divider direction="vertical" />
             <el-button type="danger" link size="small" @click="handleDelete(row)">
@@ -193,10 +203,11 @@
 import { nextTick, ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Search, Edit, Delete, View } from '@element-plus/icons-vue'
+import { Plus, Search, Edit, Delete, View, CircleCheck } from '@element-plus/icons-vue'
 import { getBatchList, addBatch, updateBatch, deleteBatch } from '@/api/batch'
 import { getProductList } from '@/api/product'
 import { getBatchTraceInfo } from '@/api/trace'
+import { verifyBatchHash } from '@/api/integrity'
 
 const router = useRouter()
 const tableData = ref([])
@@ -242,6 +253,8 @@ const currentDateTimeText = () => {
   const pad = (value) => String(value).padStart(2, '0')
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:00`
 }
+
+const shortHash = (hash) => `${hash.slice(0, 8)}...${hash.slice(-6)}`
 
 const onProductChange = (productId) => {
   const product = productOptions.value.find(p => p.id === productId)
@@ -431,6 +444,15 @@ const handleDelete = (row) => {
 const viewTrace = (row) => {
   if (!row.id) { ElMessage.warning('无法获取批次信息'); return }
   router.push(`/trace/batch/${row.id}`)
+}
+
+const handleVerify = async (row) => {
+  const res = await verifyBatchHash(row.id)
+  if (res.code === 200 && res.data?.valid) {
+    ElMessage.success('批次哈希一致，数据未发现篡改')
+  } else {
+    ElMessage.warning('批次哈希不一致，数据可能被改动')
+  }
 }
 
 onMounted(() => {

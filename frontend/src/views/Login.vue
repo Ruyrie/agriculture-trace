@@ -3,53 +3,78 @@
     <!-- 左侧品牌区 -->
     <div class="login-brand">
       <div class="brand-content">
-        <div class="brand-icon">
+        <div class="brand-logo">
           <el-icon><Goods /></el-icon>
         </div>
         <h1 class="brand-title">农产品溯源系统</h1>
         <p class="brand-subtitle">从田间到餐桌，每一步都可追溯</p>
-        <div class="brand-features">
-          <div class="feature-item">
+        <ul class="brand-features">
+          <li class="feature-item">
             <el-icon class="feature-icon"><CircleCheck /></el-icon>
             <span>全程追溯，安全透明</span>
-          </div>
-          <div class="feature-item">
+          </li>
+          <li class="feature-item">
             <el-icon class="feature-icon"><TrendCharts /></el-icon>
             <span>数据可视化，一目了然</span>
-          </div>
-          <div class="feature-item">
+          </li>
+          <li class="feature-item">
             <el-icon class="feature-icon"><Lock /></el-icon>
             <span>权限管理，安全可靠</span>
-          </div>
-        </div>
+          </li>
+        </ul>
       </div>
     </div>
 
     <!-- 右侧登录区 -->
     <div class="login-form-area">
       <div class="login-card">
+        <!-- 移动端品牌头（仅窄屏显示） -->
+        <div class="login-brand-mobile">
+          <el-icon class="mobile-logo"><Goods /></el-icon>
+          <span class="mobile-name">农产品溯源系统</span>
+        </div>
+
         <div class="login-header">
           <h2>欢迎登录</h2>
           <p>请输入您的账号信息</p>
         </div>
 
-        <el-form :model="form" :rules="rules" ref="formRef" class="login-form">
+        <el-form
+          :model="form"
+          :rules="rules"
+          ref="formRef"
+          class="login-form"
+          @submit.prevent="handleLogin"
+        >
           <el-form-item prop="username">
             <el-input
+              ref="usernameRef"
               v-model="form.username"
               placeholder="请输入用户名"
-              prefix-icon="User"
+              :prefix-icon="User"
               size="large"
+              name="username"
+              autocomplete="username"
+              autocapitalize="off"
+              autocorrect="off"
+              spellcheck="false"
+              clearable
+              aria-label="用户名"
+              @keyup.enter="focusPassword"
             />
           </el-form-item>
           <el-form-item prop="password">
             <el-input
+              ref="passwordRef"
               v-model="form.password"
               type="password"
               placeholder="请输入密码"
-              prefix-icon="Lock"
+              :prefix-icon="Lock"
               show-password
               size="large"
+              name="password"
+              autocomplete="current-password"
+              aria-label="密码"
               @keyup.enter="handleLogin"
             />
           </el-form-item>
@@ -60,8 +85,8 @@
           <el-form-item>
             <el-button
               type="primary"
+              native-type="submit"
               class="login-btn"
-              @click="handleLogin"
               :loading="loading"
               size="large"
             >
@@ -80,14 +105,16 @@
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
-import { CircleCheck, Goods, Lock, TrendCharts } from '@element-plus/icons-vue'
+import { CircleCheck, Goods, Lock, TrendCharts, User } from '@element-plus/icons-vue'
 import { login } from '@/api/user'
 
 const router = useRouter()
 const formRef = ref()
+const usernameRef = ref()
+const passwordRef = ref()
 const loading = ref(false)
 const form = reactive({
   username: '',
@@ -100,8 +127,22 @@ const rules = {
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
 }
 
+onMounted(() => {
+  // 进入页面自动聚焦用户名，减少一次点击
+  usernameRef.value?.focus()
+})
+
+const focusPassword = () => {
+  passwordRef.value?.focus()
+}
+
 const handleLogin = async () => {
-  await formRef.value.validate()
+  if (loading.value) return
+  try {
+    await formRef.value.validate()
+  } catch {
+    return
+  }
   loading.value = true
   try {
     // 后端使用 Spring Security formLogin，因此这里提交 x-www-form-urlencoded。
@@ -127,7 +168,8 @@ const handleLogin = async () => {
 
 <style scoped>
 .login-page {
-  height: 100vh;
+  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   overflow: hidden;
 }
@@ -170,12 +212,13 @@ const handleLogin = async () => {
   color: #fff;
   z-index: 1;
   padding: 40px;
+  animation: fade-up 0.6s ease both;
 }
 
 .brand-icon {
   font-size: 72px;
   margin-bottom: 20px;
-  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
 }
 
 .brand-icon :deep(.el-icon) {
@@ -188,7 +231,7 @@ const handleLogin = async () => {
   font-weight: 700;
   margin: 0 0 12px;
   letter-spacing: 2px;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .brand-subtitle {
@@ -199,11 +242,13 @@ const handleLogin = async () => {
 }
 
 .brand-features {
-  display: flex;
+  display: inline-flex;
   flex-direction: column;
   gap: 16px;
   align-items: flex-start;
-  display: inline-flex;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .feature-item {
@@ -236,6 +281,27 @@ const handleLogin = async () => {
   border-radius: 16px;
   padding: 40px 36px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  animation: fade-up 0.5s ease both;
+}
+
+/* 移动端品牌头：默认隐藏，窄屏显示 */
+.login-brand-mobile {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 24px;
+  color: #2d9e4f;
+}
+
+.mobile-logo {
+  font-size: 30px;
+}
+
+.mobile-name {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 1px;
 }
 
 .login-header {
@@ -306,6 +372,15 @@ const handleLogin = async () => {
   box-shadow: 0 4px 12px rgba(45, 158, 79, 0.4);
 }
 
+.login-btn:active {
+  transform: translateY(0);
+}
+
+.login-btn:focus-visible {
+  outline: 2px solid #1a6b2a;
+  outline-offset: 2px;
+}
+
 .login-tips {
   margin-top: 24px;
   padding: 12px 16px;
@@ -319,5 +394,71 @@ const handleLogin = async () => {
   font-size: 12px;
   color: #67c23a;
   margin: 2px 0;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 平板：收窄右侧栏，避免品牌区被过度压缩 */
+@media (max-width: 992px) {
+  .login-form-area {
+    width: 420px;
+    padding: 32px 24px;
+  }
+}
+
+/* 移动端：隐藏左侧品牌区，登录卡片占满 */
+@media (max-width: 768px) {
+  .login-brand {
+    display: none;
+  }
+
+  .login-form-area {
+    width: 100%;
+    padding: 24px 16px;
+    background: linear-gradient(160deg, #f0f9f0 0%, #f5f7fa 60%);
+  }
+
+  .login-card {
+    max-width: 420px;
+    padding: 32px 24px;
+    border-radius: 14px;
+  }
+
+  .login-brand-mobile {
+    display: flex;
+  }
+}
+
+/* 小屏手机：进一步压缩留白 */
+@media (max-width: 360px) {
+  .login-card {
+    padding: 24px 18px;
+  }
+
+  .login-header {
+    margin-bottom: 24px;
+  }
+}
+
+/* 尊重用户的减弱动画偏好 */
+@media (prefers-reduced-motion: reduce) {
+  .brand-content,
+  .login-card {
+    animation: none;
+  }
+
+  .login-btn,
+  .login-form :deep(.el-input__wrapper) {
+    transition: none;
+  }
 }
 </style>

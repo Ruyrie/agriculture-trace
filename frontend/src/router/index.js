@@ -36,6 +36,18 @@ const routes = [
         component: () => import('@/views/BatchList.vue'), 
         meta: { requiresAuth: true, title: '批次管理', icon: 'List' } 
       }, 
+      {
+        path: 'integrity',
+        name: 'IntegrityReport',
+        component: () => import('@/views/IntegrityReport.vue'),
+        meta: { requiresAuth: true, title: '数据指纹', icon: 'Key' }
+      },
+      {
+        path: 'blockchain/audit-log',
+        name: 'AuditLog',
+        component: () => import('@/views/blockchain/AuditLog.vue'),
+        meta: { requiresAuth: true, title: '审计日志', icon: 'Lock', roles: ['ROLE_ADMIN', 'ROLE_INSPECTOR'] }
+      },
       { 
         path: 'users', 
         name: 'UserManagement', 

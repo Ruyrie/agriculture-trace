@@ -156,6 +156,16 @@ const allMenus = [
     roles: ['ROLE_ADMIN', 'ROLE_FARMER']
   },
   {
+    path: '/integrity',
+    meta: { title: '数据指纹', icon: 'Key' },
+    roles: ['ROLE_ADMIN', 'ROLE_FARMER', 'ROLE_INSPECTOR']
+  },
+  {
+    path: '/blockchain/audit-log',
+    meta: { title: '审计日志', icon: 'Lock' },
+    roles: ['ROLE_ADMIN', 'ROLE_INSPECTOR']
+  },
+  {
     path: '/statistics',
     meta: { title: '统计分析', icon: 'DataAnalysis' },
     roles: ['ROLE_ADMIN', 'ROLE_INSPECTOR']

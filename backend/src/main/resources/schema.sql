@@ -4,6 +4,7 @@ DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 USE `agriculture_trace`;
 
 DROP TABLE IF EXISTS `trace_record`;
+DROP TABLE IF EXISTS `blockchain_log`;
 DROP TABLE IF EXISTS `logistics_record`;
 DROP TABLE IF EXISTS `inspection_record`;
 DROP TABLE IF EXISTS `production_record`;
@@ -49,6 +50,7 @@ CREATE TABLE `product` (
   `origin` varchar(128) DEFAULT NULL COMMENT '产地',
   `price` decimal(10,2) DEFAULT NULL,
   `create_time` varchar(19) DEFAULT NULL COMMENT '创建时间',
+  `data_hash` varchar(64) DEFAULT NULL COMMENT '产品数据哈希(SHA-256)',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -59,9 +61,26 @@ CREATE TABLE `batch` (
   `production_date` date DEFAULT NULL COMMENT '生产日期',
   `remark` varchar(256) DEFAULT NULL COMMENT '备注',
   `create_time` varchar(19) DEFAULT NULL COMMENT '创建时间',
+  `data_hash` varchar(64) DEFAULT NULL COMMENT '批次数据哈希(SHA-256)',
   PRIMARY KEY (`id`),
   UNIQUE KEY `batch_no` (`batch_no`),
   FOREIGN KEY (`product_id`) REFERENCES `product`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `blockchain_log` (
+  `id` varchar(32) NOT NULL COMMENT '日志ID (时间前缀UUID)',
+  `action_type` varchar(20) NOT NULL COMMENT '操作类型: CREATE/UPDATE/DELETE',
+  `target_type` varchar(20) NOT NULL COMMENT '目标类型: PRODUCT/BATCH',
+  `target_id` varchar(32) NOT NULL COMMENT '目标ID',
+  `operator` varchar(64) NOT NULL COMMENT '操作人用户名',
+  `data_before` text COMMENT '操作前数据JSON',
+  `data_after` text COMMENT '操作后数据JSON',
+  `data_hash` varchar(64) NOT NULL COMMENT '本条日志哈希',
+  `previous_hash` varchar(64) DEFAULT NULL COMMENT '上一条日志哈希',
+  `timestamp` varchar(19) NOT NULL COMMENT '操作时间 yyyy-MM-dd HH:mm:ss',
+  PRIMARY KEY (`id`),
+  KEY `idx_blockchain_target` (`target_type`,`target_id`),
+  KEY `idx_blockchain_timestamp` (`timestamp`,`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE `production_record` (
@@ -134,6 +153,20 @@ INSERT INTO `product` (`id`, `name`, `category`, `origin`, `price`, `create_time
 ('prod_4', '有机西兰花', '蔬菜', '云南昆明', 6.50, '2026-01-01 10:00:00'),
 ('prod_5', '土鸡蛋', '禽蛋', '河北保定', 1.20, '2026-01-01 10:00:00');
 
+UPDATE `product`
+SET `data_hash` = SHA2(CONCAT(
+  IFNULL(`id`, ''), '|',
+  IFNULL(`name`, ''), '|',
+  IFNULL(`category`, ''), '|',
+  IFNULL(`origin`, ''), '|',
+  CASE
+    WHEN `price` IS NULL THEN ''
+    WHEN `price` = 0 THEN '0'
+    ELSE TRIM(TRAILING '.' FROM TRIM(TRAILING '0' FROM CAST(`price` AS CHAR)))
+  END, '|',
+  IFNULL(`create_time`, '')
+), 256);
+
 INSERT INTO `batch` (`id`, `batch_no`, `product_id`, `production_date`, `remark`, `create_time`) VALUES
 ('batch_1', 'B202601001', 'prod_1', '2026-01-10', '一级果，糖度≥14%', '2026-01-11 09:00:00'),
 ('batch_2', 'B202602001', 'prod_2', '2026-02-15', '当季新米', '2026-02-16 09:00:00'),
@@ -158,6 +191,16 @@ INSERT INTO `batch` (`id`, `batch_no`, `product_id`, `production_date`, `remark`
 ('batch_21', 'B202605006', 'prod_5', '2026-05-18', '30枚家庭装', '2026-05-19 09:00:00'),
 ('batch_22', 'B202606004', 'prod_5', '2026-06-01', '端午礼盒装', '2026-06-02 09:00:00'),
 ('batch_23', 'B202606005', 'prod_5', '2026-06-10', '当日鲜蛋批次', '2026-06-11 09:00:00');
+
+UPDATE `batch`
+SET `data_hash` = SHA2(CONCAT(
+  IFNULL(`id`, ''), '|',
+  IFNULL(`batch_no`, ''), '|',
+  IFNULL(`product_id`, ''), '|',
+  IFNULL(DATE_FORMAT(`production_date`, '%Y-%m-%d'), ''), '|',
+  IFNULL(`remark`, ''), '|',
+  IFNULL(`create_time`, '')
+), 256);
 
 INSERT INTO `production_record` (`id`, `batch_id`, `activity_name`, `operator`, `activity_date`, `remark`, `sort_order`) VALUES
 ('prodrec_1', 'batch_1', '果园采摘', '张三', '2026-01-10', '晴天采摘，糖度抽检达标', 1),

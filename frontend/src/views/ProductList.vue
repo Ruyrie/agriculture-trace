@@ -30,7 +30,7 @@
       </div>
 
       <!-- 表格 -->
-      <ProductTable :data="tableData" @edit="handleEdit" @delete="handleDelete" @trace="viewTrace" />
+      <ProductTable :data="tableData" @edit="handleEdit" @delete="handleDelete" @trace="viewTrace" @verify="handleVerify" />
 
       <!-- 分页 -->
       <div class="pagination-wrapper">
@@ -61,6 +61,7 @@ import { useRouter } from 'vue-router'
 import { Plus, Search } from '@element-plus/icons-vue'
 import { getProductList, addProduct, updateProduct, deleteProduct, addProductWithTrace } from '@/api/product'
 import { updateBatch } from '@/api/batch'
+import { verifyProductHash } from '@/api/integrity'
 import SearchBar from '@/components/SearchBar.vue'
 import ProductTable from '@/components/ProductTable.vue'
 import Pagination from '@/components/Pagination.vue'
@@ -145,6 +146,15 @@ const handleDelete = (row) => {
 
 const viewTrace = (row) => {
   router.push(`/trace/${row.id}`)
+}
+
+const handleVerify = async (row) => {
+  const res = await verifyProductHash(row.id)
+  if (res.code === 200 && res.data?.valid) {
+    ElMessage.success('产品哈希一致，数据未发现篡改')
+  } else {
+    ElMessage.warning('产品哈希不一致，数据可能被改动')
+  }
 }
 
 fetchData()
