@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.agriculturetrace.mapper.StatisticsMapper">
+    <select id="countProducts" resultType="long">
+        SELECT COUNT(*) FROM product
+    </select>
+
+    <select id="countBatches" resultType="long">
+        SELECT COUNT(*) FROM batch
+    </select>
+
+    <select id="countTraceRecords" resultType="long">
+        SELECT COUNT(*) FROM trace_record
+    </select>
+
+    <select id="categoryDistribution" resultType="map">
+        SELECT COALESCE(category, '未分类') AS name, COUNT(*) AS value
+        FROM product
+        GROUP BY COALESCE(category, '未分类')
+        ORDER BY value DESC
+    </select>
+
+    <select id="traceTrend" resultType="map">
+        SELECT DATE(trace_time) AS date, COUNT(*) AS count
+        FROM trace_record
+        WHERE trace_time >= DATE_SUB(CURRENT_DATE(), INTERVAL 6 DAY)
+        GROUP BY DATE(trace_time)
+        ORDER BY DATE(trace_time)
+    </select>
+
+    <select id="monthlyBatchOutput" resultType="map">
+        SELECT DATE_FORMAT(production_date, '%Y-%m') AS month,
+               COUNT(*) AS batchCount,
+               COUNT(DISTINCT product_id) AS productCount
+        FROM batch
+        WHERE production_date IS NOT NULL
+        GROUP BY DATE_FORMAT(production_date, '%Y-%m')
+        ORDER BY month
+    </select>
+
+    <select id="traceRanking" resultType="map">
+        SELECT p.id AS productId,
+               p.name AS productName,
+               COALESCE(p.category, '未分类') AS category,
+               COALESCE(p.origin, '未填写') AS origin,
+               COUNT(t.id) AS traceCount,
+               MAX(t.trace_time) AS lastTraceTime
+        FROM product p
+        LEFT JOIN trace_record t ON t.product_id = p.id
+        GROUP BY p.id, p.name, p.category, p.origin
+        ORDER BY traceCount DESC, p.name ASC
+        LIMIT 10
+    </select>
+
+    <select id="originDistribution" resultType="map">
+        SELECT COALESCE(origin, '未填写') AS name, COUNT(*) AS value
+        FROM product
+        GROUP BY COALESCE(origin, '未填写')
+        ORDER BY value DESC
+    </select>
+
+    <select id="productBatchOutput" resultType="map">
+        SELECT p.name AS productName,
+               COALESCE(p.category, '未分类') AS category,
+               COUNT(b.id) AS batchCount,
+               MIN(b.production_date) AS firstProductionDate,
+               MAX(b.production_date) AS lastProductionDate
+        FROM product p
+        LEFT JOIN batch b ON b.product_id = p.id
+        GROUP BY p.id, p.name, p.category
+        ORDER BY batchCount DESC, p.name ASC
+    </select>
+</mapper>

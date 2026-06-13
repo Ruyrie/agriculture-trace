@@ -1,0 +1,51 @@
+# ===== 系统与编辑器本地文件 =====
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*.tmp
+*.bak
+
+# IntelliJ IDEA / WebStorm 本地项目配置，换电脑后应由 IDE 重新生成。
+.idea/
+*.iml
+out/
+
+# VS Code 个人设置；保留推荐插件清单。
+.vscode/*
+!.vscode/extensions.json
+
+# ===== 日志与临时文件 =====
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ===== 前端依赖与构建产物 =====
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/.vite/
+frontend/*.local
+
+# ===== 后端构建产物与运行时文件 =====
+backend/target/
+backend/uploads/
+backend/logs/
+
+# ===== GitNexus / AI 工具本地缓存 =====
+.gitnexus/
+.claude/
+AGENTS.md
+CLAUDE.md
+
+# ===== 必须上传的项目描述文件 =====
+# 这些文件是别人拉取后安装依赖、运行项目的入口，不要忽略。
+!backend/pom.xml
+!frontend/package.json
+!frontend/package-lock.json
+!frontend/vite.config.js
+!frontend/.env.development
+!frontend/.env.production

@@ -1,0 +1,363 @@
+<template>
+  <div class="dashboard">
+    <!-- 欢迎横幅 -->
+    <div class="welcome-banner">
+      <div class="welcome-text">
+        <h2>你好，{{ username }}</h2>
+        <p>今天是 {{ today }}，欢迎使用农产品溯源系统</p>
+      </div>
+      <div class="banner-actions">
+        <el-button type="primary" @click="$router.push('/products')" size="large">
+          <el-icon><Box /></el-icon> 产品管理
+        </el-button>
+        <el-button @click="$router.push('/batches')" size="large" plain>
+          <el-icon><List /></el-icon> 批次管理
+        </el-button>
+      </div>
+    </div>
+
+    <!-- 统计卡片 -->
+    <el-row :gutter="20" class="stats-row">
+      <el-col :span="8">
+        <div class="stat-card stat-card--green">
+          <div class="stat-icon"><el-icon><Goods /></el-icon></div>
+          <div class="stat-body">
+            <div class="stat-value">{{ stats.productCount ?? '--' }}</div>
+            <div class="stat-label">产品总数</div>
+          </div>
+          <div class="stat-trend">↑ 较上周</div>
+        </div>
+      </el-col>
+      <el-col :span="8">
+        <div class="stat-card stat-card--blue">
+          <div class="stat-icon"><el-icon><Tickets /></el-icon></div>
+          <div class="stat-body">
+            <div class="stat-value">{{ stats.batchCount ?? '--' }}</div>
+            <div class="stat-label">批次总数</div>
+          </div>
+          <div class="stat-trend">↑ 较上周</div>
+        </div>
+      </el-col>
+      <el-col :span="8">
+        <div class="stat-card stat-card--orange">
+          <div class="stat-icon"><el-icon><Search /></el-icon></div>
+          <div class="stat-body">
+            <div class="stat-value">{{ stats.traceCount ?? '--' }}</div>
+            <div class="stat-label">溯源查询次数</div>
+          </div>
+          <div class="stat-trend">↑ 较昨日</div>
+        </div>
+      </el-col>
+    </el-row>
+
+    <!-- 图表区域 -->
+    <el-row :gutter="20" class="charts-row">
+      <el-col :span="12">
+        <el-card class="chart-card" shadow="never">
+          <template #header>
+            <div class="card-header">
+              <span class="card-title">产品类别分布</span>
+              <el-tag type="success" size="small">实时</el-tag>
+            </div>
+          </template>
+          <div ref="pieChartRef" style="height: 280px"></div>
+        </el-card>
+      </el-col>
+      <el-col :span="12">
+        <el-card class="chart-card" shadow="never">
+          <template #header>
+            <div class="card-header">
+              <span class="card-title">近一周溯源趋势</span>
+              <el-tag type="primary" size="small">近7天</el-tag>
+            </div>
+          </template>
+          <div ref="lineChartRef" style="height: 280px"></div>
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <!-- 加载遮罩 -->
+    <div v-if="loading" class="loading-overlay">
+      <el-icon class="is-loading" size="32"><Loading /></el-icon>
+      <span>数据加载中...</span>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import { Box, Goods, List, Loading, Search, Tickets } from '@element-plus/icons-vue'
+import * as echarts from 'echarts'
+import { getStatistics, getCategoryDistribution, getTraceTrend } from '@/api/dashboard'
+
+const router = useRouter()
+const loading = ref(true)
+const stats = ref({ productCount: 0, batchCount: 0, traceCount: 0 })
+const pieChartRef = ref(null)
+const lineChartRef = ref(null)
+let pieChart = null
+let lineChart = null
+
+const username = computed(() => {
+  const info = JSON.parse(localStorage.getItem('userInfo') || '{}')
+  return info.username || '用户'
+})
+
+const today = computed(() => {
+  return new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })
+})
+
+const fetchStatistics = async () => {
+  try {
+    const res = await getStatistics()
+    if (res.code === 200) stats.value = res.data
+  } catch { ElMessage.error('获取统计数据失败') }
+}
+
+const fetchCategoryDistribution = async () => {
+  try {
+    const res = await getCategoryDistribution()
+    if (res.code === 200) {
+      const data = res.data
+      if (pieChart) {
+        pieChart.setOption({ series: [{ data }] })
+      } else {
+        pieChart = echarts.init(pieChartRef.value)
+        pieChart.setOption({
+          tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+          legend: { bottom: 0, itemWidth: 12, itemHeight: 12 },
+          color: ['#4caf50', '#81c784', '#a5d6a7', '#ff9800', '#64b5f6', '#f06292'],
+          series: [{
+            name: '产品类别',
+            type: 'pie',
+            radius: ['35%', '60%'],
+            center: ['50%', '45%'],
+            data,
+            label: { show: true, formatter: '{b}\n{d}%', fontSize: 12 },
+            emphasis: {
+              itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.2)' }
+            }
+          }]
+        })
+      }
+    }
+  } catch { ElMessage.error('获取类别分布失败') }
+}
+
+const fetchTraceTrend = async () => {
+  try {
+    const res = await getTraceTrend()
+    if (res.code === 200) {
+      const { dates, counts } = res.data
+      if (lineChart) {
+        lineChart.setOption({ xAxis: { data: dates }, series: [{ data: counts }] })
+      } else {
+        lineChart = echarts.init(lineChartRef.value)
+        lineChart.setOption({
+          tooltip: { trigger: 'axis' },
+          grid: { top: 20, right: 20, bottom: 40, left: 50 },
+          xAxis: { type: 'category', data: dates, axisLine: { lineStyle: { color: '#e0e0e0' } } },
+          yAxis: { type: 'value', splitLine: { lineStyle: { color: '#f0f0f0' } } },
+          series: [{
+            name: '溯源查询次数',
+            type: 'line',
+            data: counts,
+            smooth: true,
+            symbol: 'circle',
+            symbolSize: 6,
+            lineStyle: { color: '#4caf50', width: 3 },
+            itemStyle: { color: '#4caf50' },
+            areaStyle: {
+              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                { offset: 0, color: 'rgba(76, 175, 80, 0.3)' },
+                { offset: 1, color: 'rgba(76, 175, 80, 0.02)' }
+              ])
+            }
+          }]
+        })
+      }
+    }
+  } catch { ElMessage.error('获取趋势数据失败') }
+}
+
+const loadDashboardData = async () => {
+  loading.value = true
+  try {
+    await Promise.all([fetchStatistics(), fetchCategoryDistribution(), fetchTraceTrend()])
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => { loadDashboardData() })
+onUnmounted(() => {
+  pieChart?.dispose()
+  lineChart?.dispose()
+})
+</script>
+
+<style scoped>
+.dashboard {
+  padding: 0;
+  position: relative;
+}
+
+/* 欢迎横幅 */
+.welcome-banner {
+  background: linear-gradient(135deg, #1b5e20, #2e7d32);
+  border-radius: 12px;
+  padding: 24px 28px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  color: #fff;
+}
+
+.welcome-text h2 {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 6px;
+  color: #fff;
+}
+
+.welcome-text p {
+  font-size: 14px;
+  opacity: 0.85;
+  margin: 0;
+}
+
+.banner-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.banner-actions .el-button {
+  border-radius: 8px;
+}
+
+/* 统计卡片 */
+.stats-row {
+  margin-bottom: 20px;
+}
+
+.stat-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  border-radius: 12px 0 0 12px;
+}
+
+.stat-card--green::before { background: #4caf50; }
+.stat-card--blue::before { background: #2196f3; }
+.stat-card--orange::before { background: #ff9800; }
+
+.stat-icon {
+  font-size: 36px;
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.stat-icon :deep(.el-icon) {
+  width: 34px;
+  height: 34px;
+}
+
+.stat-card--green .stat-icon { background: rgba(76, 175, 80, 0.1); }
+.stat-card--blue .stat-icon { background: rgba(33, 150, 243, 0.1); }
+.stat-card--orange .stat-icon { background: rgba(255, 152, 0, 0.1); }
+
+.stat-body {
+  flex: 1;
+}
+
+.stat-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: #1a1a2e;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: #909399;
+}
+
+.stat-trend {
+  font-size: 12px;
+  color: #67c23a;
+  white-space: nowrap;
+}
+
+/* 图表卡片 */
+.charts-row {
+  margin-bottom: 20px;
+}
+
+.chart-card {
+  border-radius: 12px;
+  border: 1px solid #f0f0f0;
+}
+
+.chart-card :deep(.el-card__header) {
+  padding: 16px 20px;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #303133;
+}
+
+/* 加载遮罩 */
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  z-index: 1000;
+  font-size: 14px;
+  color: #4caf50;
+  backdrop-filter: blur(2px);
+}
+</style>
