@@ -1,6 +1,6 @@
 # 农产品溯源系统后端
 
-本模块按照需求规格说明书实现：Spring Boot 3.5.13、JDK 17、MySQL 8、Spring Security Session 认证、JPA 业务 CRUD、MyBatis 统计查询。
+后端基于 Spring Boot 3.5.13、JDK 17、MySQL 8 实现，使用 Spring Security Session 认证、Spring Data JPA 处理业务 CRUD、MyBatis 处理统计查询。
 
 ## 启动前准备
 
@@ -12,3 +12,73 @@
 3. 启动：`mvn spring-boot:run`
 
 测试账号均为 `123456`：`admin`、`farmer`、`inspector`。
+
+## 区块链增强
+
+本模块已接入《系统模拟区块链增强功能》文档中的核心能力，并按当前项目表结构适配：
+
+- `HashUtil.java`：SHA-256 哈希工具。
+- `Product.dataHash`：产品数据指纹，对应数据库 `product.data_hash`。
+- `Batch.dataHash`：批次数据指纹，对应数据库 `batch.data_hash`。
+- `BlockchainLog.java`：审计日志实体，对应数据库 `blockchain_log`。
+- `BlockchainLogRepository.java`：日志查询，包含 `findAllByOrderByTimestampAsc()` 和 `findLastLog()`。
+- `IntegrityController.java`：数据指纹、根哈希、产品/批次单项验证接口。
+- `BlockchainLogController.java`：审计日志分页列表和链条完整性验证接口。
+- `BlockchainSchemaInitializer.java`：兼容已有数据库，启动时补齐哈希字段、日志表和初始化日志。
+
+## 哈希规则
+
+产品指纹由以下字段计算：
+
+```text
+id | name | category | origin | price | create_time
+```
+
+批次指纹由以下字段计算：
+
+```text
+id | batch_no | product_id | production_date | remark | create_time
+```
+
+审计日志哈希由以下内容计算：
+
+```text
+action_type + target_id + operator + timestamp + previous_hash + data_after
+```
+
+第一条审计日志的 `previous_hash` 为 `"0"`，后续每条日志的 `previous_hash` 必须等于上一条日志的 `data_hash`。
+
+## 主要接口
+
+```text
+GET  /api/product/list
+POST /api/product
+PUT  /api/product
+DELETE /api/product/{id}
+
+GET  /api/batch/list
+POST /api/batch
+PUT  /api/batch
+DELETE /api/batch/{id}
+
+GET  /api/integrity/fingerprints
+GET  /api/integrity/root-hash
+GET  /api/integrity/verify/{id}
+GET  /api/integrity/batch/{id}/verify
+
+GET  /api/blockchain/logs?page=1&pageSize=10
+GET  /api/blockchain/logs/verify
+```
+
+## 校验说明
+
+- 正常通过系统新增/编辑产品或批次，会自动重新计算 `data_hash`，因此校验应为一致。
+- 直接修改数据库业务字段但不更新 `data_hash`，会触发数据指纹异常。
+- 只修改 `product` 或 `batch` 不会破坏日志链，因为日志链校验的是 `blockchain_log` 表自身。
+- `/api/blockchain/logs/verify` 会先校验日志链，再联动检查当前产品/批次业务数据指纹。
+
+## 运行测试
+
+```bash
+mvn test
+```

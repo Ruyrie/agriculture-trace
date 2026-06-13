@@ -1,31 +1,80 @@
 # 农产品溯源系统
 
-农产品溯源系统包含 Spring Boot 后端和 Vue 3 前端，支持产品管理、批次管理、生产记录、质检记录、物流轨迹、统计分析、Session/Cookie 登录和头像上传。
+本项目是一个前后端分离的农产品溯源系统，包含 Spring Boot 后端和 Vue 3 前端。系统支持产品管理、批次管理、生产/质检/物流溯源、统计分析、用户权限、Session/Cookie 登录、头像上传，并已按《系统模拟区块链增强功能》文档接入模拟区块链能力。
+
+## 核心功能
+
+- 数据概览：统计产品、批次、溯源记录和近期趋势。
+- 产品管理：产品增删改查、分页搜索、产品数据指纹 `data_hash`、单个产品哈希验证。
+- 批次管理：批次增删改查、按产品筛选、批次数据指纹、批次哈希验证。
+- 溯源详情：展示生产记录、质检记录、物流记录和二维码访问入口。
+- 数据指纹：展示所有产品的存储指纹、当前指纹、全局根哈希和异常状态。
+- 审计日志：记录产品/批次 CREATE、UPDATE、DELETE 操作，形成 `previous_hash -> data_hash` 的链式日志，并支持分页展示和完整性验证。
+- 用户管理：管理员维护用户、角色、状态和密码。
+
+## 区块链增强说明
+
+本项目结合现有数据库结构实现文档中的区块链模拟功能。文档示例中的 `t_product`、`t_blockchain_log` 在当前项目中对应为：
+
+```text
+t_product          -> product
+t_blockchain_log   -> blockchain_log
+```
+
+实现点：
+
+- `product.data_hash`：产品数据 SHA-256 指纹。
+- `batch.data_hash`：批次数据 SHA-256 指纹。
+- `blockchain_log.previous_hash`：上一条审计日志哈希，第一条日志为 `"0"`。
+- `blockchain_log.data_hash`：当前日志哈希。
+- 全局根哈希：由当前产品指纹组合后计算，用于模拟整体数据完整性校验。
+
+注意：
+
+- “数据指纹”验证的是当前业务表数据是否和存储指纹一致。
+- “审计日志链”验证的是日志表本身是否连续、是否被篡改。
+- 当前审计日志验证已同时返回业务数据指纹状态：如果日志链完整但产品/批次被直接改库，会提示业务数据指纹异常。
+- 通过系统正常新增/编辑产品或批次时会自动重算指纹，所以要模拟篡改，需要直接修改数据库业务字段但不更新 `data_hash`。
+
+示例：
+
+```sql
+UPDATE product
+SET name = '篡改'
+WHERE id = 'prod_1';
+```
+
+然后在“数据指纹”页刷新，或在“审计日志”页点击“验证链条完整性”，即可看到异常提示。
 
 ## 项目结构
 
 ```text
 class01/
-  backend/   Spring Boot 后端服务
-  frontend/  Vue 3 + Vite 前端项目
+  backend/                 Spring Boot 后端服务
+    src/main/java/...      控制器、服务、实体、仓库、配置
+    src/main/resources/    application.yml、schema.sql、MyBatis mapper
+  frontend/                Vue 3 + Vite 前端项目
+    src/api/               前端接口封装
+    src/views/             页面
+    src/views/blockchain/  区块链审计日志页面
 ```
 
 ## 环境要求
 
-- JDK 17 或更高版本（JDK 21 可直接运行）
+- JDK 17 或更高版本
 - Maven 3.8+
 - Node.js 18+
 - MySQL 8+
 
 ## 数据库初始化
 
-1. 创建并导入数据库脚本：
+创建并导入数据库脚本：
 
 ```bash
 mysql -uroot -p < backend/src/main/resources/schema.sql
 ```
 
-2. 默认数据库配置在 `backend/src/main/resources/application.yml`：
+默认数据库配置位于 `backend/src/main/resources/application.yml`：
 
 ```text
 数据库：agriculture_trace
@@ -41,6 +90,8 @@ MYSQL_URL=jdbc:mysql://localhost:3306/agriculture_trace?useUnicode=true&characte
 MYSQL_USERNAME=root
 MYSQL_PASSWORD=123456
 ```
+
+当前项目 `ddl-auto` 为 `none`。为兼容已有数据库，后端启动时会检查并补齐 `product.data_hash`、`batch.data_hash` 和 `blockchain_log` 表，并在审计日志为空时为已有产品/批次生成初始化日志。
 
 ## 启动后端
 
@@ -61,6 +112,12 @@ npm run dev
 
 前端默认地址：`http://localhost:5173`
 
+前端开发环境接口地址配置在 `frontend/.env.development`：
+
+```text
+VITE_API_BASE_URL=http://localhost:8080
+```
+
 ## 测试账号
 
 密码均为：`123456`
@@ -69,6 +126,49 @@ npm run dev
 admin      管理员
 farmer     农户
 inspector  监管员
+```
+
+## 主要页面
+
+```text
+/dashboard                  数据概览
+/products                   产品管理
+/batches                    批次管理
+/integrity                  数据指纹
+/blockchain/audit-log       审计日志
+/statistics                 统计分析
+/users                      用户管理
+/trace/:id                  产品溯源详情
+/trace/batch/:batchId       批次溯源详情
+```
+
+## 主要接口
+
+```text
+GET  /api/integrity/fingerprints       产品指纹列表和全局根哈希
+GET  /api/integrity/root-hash          全局根哈希
+GET  /api/integrity/verify/{id}        单个产品哈希验证
+GET  /api/integrity/batch/{id}/verify  单个批次哈希验证
+GET  /api/blockchain/logs              审计日志分页列表
+GET  /api/blockchain/logs/verify       审计日志链和业务数据指纹验证
+```
+
+`/api/blockchain/**` 仅管理员和监管员可访问。
+
+## 验证命令
+
+后端：
+
+```bash
+cd backend
+mvn test
+```
+
+前端：
+
+```bash
+cd frontend
+npm run build
 ```
 
 ## 提交说明
