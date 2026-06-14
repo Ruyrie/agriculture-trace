@@ -18,7 +18,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -104,6 +106,30 @@ public class ProductService {
         result.put("storedHash", product.getDataHash());
         result.put("currentHash", currentHash);
         result.put("valid", currentHash.equals(product.getDataHash()));
+        return result;
+    }
+
+    public Map<String, Object> verifyAllProductHashes() {
+        List<Map<String, Object>> invalidItems = new ArrayList<>();
+        List<Product> products = productRepository.findAll();
+        for (Product product : products) {
+            String currentHash = computeProductHash(product);
+            if (!currentHash.equals(product.getDataHash())) {
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("id", product.getId());
+                item.put("name", product.getName());
+                item.put("category", product.getCategory());
+                item.put("origin", product.getOrigin());
+                item.put("storedHash", product.getDataHash());
+                item.put("currentHash", currentHash);
+                invalidItems.add(item);
+            }
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("valid", invalidItems.isEmpty());
+        result.put("total", products.size());
+        result.put("invalidCount", invalidItems.size());
+        result.put("invalidItems", invalidItems);
         return result;
     }
 

@@ -17,10 +17,13 @@ request.interceptors.response.use(
   response => {
     const data = response.data
     if (data?.code === 401) {
+      const isLoginRequest = response.config?.url?.includes('/user/login')
       localStorage.removeItem('sessionActive')
       localStorage.removeItem('userInfo')
-      ElMessage.error(data.message || '登录已过期')
-      if (window.location.pathname !== '/login') {
+      if (!isLoginRequest) {
+        ElMessage.error(data.message || '登录已过期')
+      }
+      if (!isLoginRequest && window.location.pathname !== '/login') {
         window.location.href = '/login'
       }
     }

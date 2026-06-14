@@ -13,9 +13,9 @@
 
 测试账号均为 `123456`：`admin`、`farmer`、`inspector`。
 
-## 区块链增强
+## 区块链相关实现
 
-本模块已接入《系统模拟区块链增强功能》文档中的核心能力，并按当前项目表结构适配：
+本模块围绕当前项目表结构实现数据指纹、根哈希和审计日志链校验：
 
 - `HashUtil.java`：SHA-256 哈希工具。
 - `Product.dataHash`：产品数据指纹，对应数据库 `product.data_hash`。
@@ -64,11 +64,16 @@ DELETE /api/batch/{id}
 GET  /api/integrity/fingerprints
 GET  /api/integrity/root-hash
 GET  /api/integrity/verify/{id}
+GET  /api/integrity/products/verify
 GET  /api/integrity/batch/{id}/verify
+GET  /api/integrity/batches/verify
 
 GET  /api/blockchain/logs?page=1&pageSize=10
 GET  /api/blockchain/logs/verify
+DELETE /api/users/{id}
 ```
+
+`/api/integrity/fingerprints`、`/api/integrity/products`、`/api/integrity/root-hash` 和 `/api/blockchain/**` 仅管理员、监管员可访问；产品/批次页面上的单条哈希验证接口登录后即可使用。
 
 ## 校验说明
 

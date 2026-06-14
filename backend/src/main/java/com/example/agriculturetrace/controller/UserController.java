@@ -5,6 +5,7 @@ import com.example.agriculturetrace.service.UserService;
 import com.example.agriculturetrace.util.Result;
 import org.springframework.data.domain.Page;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -99,12 +100,16 @@ public class UserController {
     }
 
     @PutMapping("/users/{id}")
-    public Result<?> updateUser(@PathVariable String id, @RequestBody Map<String, Object> body) {
+    public Result<?> updateUser(Authentication authentication, @PathVariable String id, @RequestBody Map<String, Object> body) {
+        Boolean enabled = (Boolean) body.getOrDefault("enabled", true);
+        if (isCurrentUser(authentication, id) && Boolean.FALSE.equals(enabled)) {
+            return Result.error(400, "不能禁用当前登录账号");
+        }
         User user = new User();
         user.setNickname((String) body.get("nickname"));
         user.setPhone((String) body.get("phone"));
         user.setAvatar((String) body.get("avatar"));
-        user.setEnabled((Boolean) body.getOrDefault("enabled", true));
+        user.setEnabled(enabled);
         User saved = userService.updateByAdmin(id, user, (String) body.get("role"));
         return Result.success(userService.toUserInfo(saved));
     }
@@ -117,8 +122,26 @@ public class UserController {
     }
 
     @PutMapping("/users/{id}/status")
-    public Result<?> updateStatus(@PathVariable String id, @RequestBody Map<String, Boolean> body) {
-        userService.updateStatus(id, body.getOrDefault("enabled", true));
+    public Result<?> updateStatus(Authentication authentication, @PathVariable String id, @RequestBody Map<String, Boolean> body) {
+        boolean enabled = body.getOrDefault("enabled", true);
+        if (isCurrentUser(authentication, id) && !enabled) {
+            return Result.error(400, "不能禁用当前登录账号");
+        }
+        userService.updateStatus(id, enabled);
         return Result.success(null);
+    }
+
+    @DeleteMapping("/users/{id}")
+    public Result<?> deleteUser(Authentication authentication, @PathVariable String id) {
+        if (isCurrentUser(authentication, id)) {
+            return Result.error(400, "不能删除当前登录账号");
+        }
+        userService.deleteByAdmin(id);
+        return Result.success(null);
+    }
+
+    private boolean isCurrentUser(Authentication authentication, String userId) {
+        User current = userService.getByUsername(authentication.getName());
+        return current.getId().equals(userId);
     }
 }

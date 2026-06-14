@@ -68,9 +68,19 @@ public class IntegrityController {
         return Result.success(productService.verifyProductHash(id));
     }
 
+    @GetMapping("/products/verify")
+    public Result<?> verifyProducts() {
+        return Result.success(productService.verifyAllProductHashes());
+    }
+
     @GetMapping("/batch/{id}/verify")
     public Result<?> verifyBatch(@PathVariable String id) {
         return Result.success(batchService.verifyBatchHash(id));
+    }
+
+    @GetMapping("/batches/verify")
+    public Result<?> verifyBatches() {
+        return Result.success(batchService.verifyAllBatchHashes());
     }
 
     private Map<String, Object> toIntegrityRow(Product product) {

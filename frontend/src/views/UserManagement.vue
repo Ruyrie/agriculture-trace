@@ -36,22 +36,34 @@
         </el-table-column>
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
-            <el-switch
-              v-model="row.enabled"
-              :before-change="() => updateStatus(row)"
-              active-text="启用"
-              inactive-text="禁用"
-              inline-prompt
-            />
+            <el-tooltip
+              :disabled="!isSelf(row)"
+              content="不能禁用当前登录账号"
+              placement="top"
+            >
+              <span class="status-switch-wrapper">
+                <el-switch
+                  v-model="row.enabled"
+                  :before-change="() => updateStatus(row)"
+                  :disabled="isSelf(row)"
+                  active-text="启用"
+                  inactive-text="禁用"
+                  inline-prompt
+                />
+              </span>
+            </el-tooltip>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="230" fixed="right">
+        <el-table-column label="操作" width="300" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="openEdit(row)">
               <el-icon><Edit /></el-icon> 编辑
             </el-button>
             <el-button link type="warning" @click="resetPassword(row)">
               <el-icon><Refresh /></el-icon> 重置密码
+            </el-button>
+            <el-button link type="danger" :disabled="isSelf(row)" @click="deleteUser(row)">
+              <el-icon><Delete /></el-icon> 删除
             </el-button>
           </template>
         </el-table-column>
@@ -92,7 +104,20 @@
           </el-select>
         </el-form-item>
         <el-form-item label="状态">
-          <el-switch v-model="form.enabled" active-text="启用" inactive-text="禁用" />
+          <el-tooltip
+            :disabled="!isEditingSelf"
+            content="不能禁用当前登录账号"
+            placement="top"
+          >
+            <span class="status-switch-wrapper">
+              <el-switch
+                v-model="form.enabled"
+                :disabled="isEditingSelf"
+                active-text="启用"
+                inactive-text="禁用"
+              />
+            </span>
+          </el-tooltip>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -104,9 +129,9 @@
 </template>
 
 <script setup>
-import { reactive, ref, onMounted } from 'vue'
+import { computed, reactive, ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Edit, Plus, Refresh, Search } from '@element-plus/icons-vue'
+import { Delete, Edit, Plus, Refresh, Search } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 
 const loading = ref(false)
@@ -135,6 +160,12 @@ const rules = {
   phone: [{ pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' }],
   role: [{ required: true, message: '请选择角色', trigger: 'change' }]
 }
+
+const currentUserId = () => JSON.parse(localStorage.getItem('userInfo') || '{}').id
+
+const isSelf = (row) => row.id === currentUserId()
+
+const isEditingSelf = computed(() => form.id && form.id === currentUserId())
 
 const roleLabel = (role) => ({
   ROLE_ADMIN: '管理员',
@@ -211,6 +242,10 @@ const submitForm = async () => {
 }
 
 const updateStatus = async (row) => {
+  if (isSelf(row)) {
+    ElMessage.warning('不能禁用当前登录账号')
+    return false
+  }
   const nextEnabled = !row.enabled
   const res = await request.put(`/users/${row.id}/status`, { enabled: nextEnabled })
   if (res.code === 200) {
@@ -230,6 +265,29 @@ const resetPassword = (row) => {
       ElMessage.success('密码已重置为 123456')
     } else {
       ElMessage.error(res.message || '重置失败')
+    }
+  })
+}
+
+const deleteUser = (row) => {
+  if (isSelf(row)) {
+    ElMessage.warning('不能删除当前登录账号')
+    return
+  }
+  ElMessageBox.confirm(`确定删除用户 ${row.username} 吗？删除后不可恢复。`, '删除用户', {
+    type: 'warning',
+    confirmButtonText: '删除',
+    cancelButtonText: '取消'
+  }).then(async () => {
+    const res = await request.delete(`/users/${row.id}`)
+    if (res.code === 200) {
+      ElMessage.success('删除成功')
+      if (tableData.value.length === 1 && page.value > 1) {
+        page.value -= 1
+      }
+      fetchUsers()
+    } else {
+      ElMessage.error(res.message || '删除失败')
     }
   })
 }
@@ -278,5 +336,9 @@ onMounted(fetchUsers)
   display: flex;
   justify-content: flex-end;
   margin-top: 16px;
+}
+
+.status-switch-wrapper {
+  display: inline-flex;
 }
 </style>

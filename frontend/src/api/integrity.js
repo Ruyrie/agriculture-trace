@@ -12,6 +12,14 @@ export const verifyProductHash = (id) => {
   return request.get(`/integrity/verify/${id}`)
 }
 
+export const verifyAllProductHashes = () => {
+  return request.get('/integrity/products/verify')
+}
+
 export const verifyBatchHash = (id) => {
   return request.get(`/integrity/batch/${id}/verify`)
+}
+
+export const verifyAllBatchHashes = () => {
+  return request.get('/integrity/batches/verify')
 }

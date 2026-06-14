@@ -6,9 +6,14 @@
         <h3 class="page-title">批次管理</h3>
         <span class="page-subtitle">共 {{ total }} 条记录</span>
       </div>
-      <el-button type="primary" @click="handleAdd" size="large">
-        <el-icon><Plus /></el-icon> 新增批次
-      </el-button>
+      <div class="page-actions">
+        <el-button type="success" plain @click="handleVerifyAll" :loading="verifyingAll" size="large">
+          <el-icon><CircleCheck /></el-icon> 一键验证
+        </el-button>
+        <el-button type="primary" @click="handleAdd" size="large">
+          <el-icon><Plus /></el-icon> 新增批次
+        </el-button>
+      </div>
     </div>
 
     <!-- 主内容卡片 -->
@@ -196,6 +201,24 @@
         <el-button type="primary" @click="submitForm" :loading="submitting">确定</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="verifyDialogVisible" title="异常批次明细" width="900px">
+      <el-table :data="verifyResult.invalidItems || []" stripe>
+        <el-table-column prop="batchNo" label="批次号" min-width="130" />
+        <el-table-column prop="productName" label="产品名称" min-width="120" />
+        <el-table-column prop="productionDate" label="生产日期" width="120" />
+        <el-table-column label="存储指纹" min-width="220">
+          <template #default="{ row }">
+            <code class="hash-code">{{ row.storedHash || '未生成' }}</code>
+          </template>
+        </el-table-column>
+        <el-table-column label="当前指纹" min-width="220">
+          <template #default="{ row }">
+            <code class="hash-code">{{ row.currentHash }}</code>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-dialog>
   </div>
 </template>
 
@@ -207,7 +230,7 @@ import { Plus, Search, Edit, Delete, View, CircleCheck } from '@element-plus/ico
 import { getBatchList, addBatch, updateBatch, deleteBatch } from '@/api/batch'
 import { getProductList } from '@/api/product'
 import { getBatchTraceInfo } from '@/api/trace'
-import { verifyBatchHash } from '@/api/integrity'
+import { verifyAllBatchHashes, verifyBatchHash } from '@/api/integrity'
 
 const router = useRouter()
 const tableData = ref([])
@@ -221,6 +244,9 @@ const productOptions = ref([])
 const dialogVisible = ref(false)
 const dialogTitle = ref('新增批次')
 const submitting = ref(false)
+const verifyingAll = ref(false)
+const verifyDialogVisible = ref(false)
+const verifyResult = ref({ total: 0, invalidCount: 0, invalidItems: [] })
 const formRef = ref()
 const activeTab = ref('base')
 const form = reactive({
@@ -455,6 +481,26 @@ const handleVerify = async (row) => {
   }
 }
 
+const handleVerifyAll = async () => {
+  verifyingAll.value = true
+  try {
+    const res = await verifyAllBatchHashes()
+    if (res.code === 200) {
+      verifyResult.value = res.data || { total: 0, invalidCount: 0, invalidItems: [] }
+      if (verifyResult.value.valid) {
+        ElMessage.success('全部批次哈希一致，数据未发现篡改')
+      } else {
+        ElMessage.warning(`发现 ${verifyResult.value.invalidCount} 项批次数据异常`)
+        verifyDialogVisible.value = true
+      }
+    } else {
+      ElMessage.error(res.message || '批次数据验证失败')
+    }
+  } finally {
+    verifyingAll.value = false
+  }
+}
+
 onMounted(() => {
   fetchProductOptions()
   fetchData()
@@ -478,6 +524,12 @@ onMounted(() => {
   display: flex;
   align-items: baseline;
   gap: 10px;
+}
+
+.page-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
 }
 
 .page-title {
@@ -511,6 +563,14 @@ onMounted(() => {
 .batch-table {
   border-radius: 8px;
   overflow: hidden;
+}
+
+.hash-code {
+  display: inline-block;
+  max-width: 100%;
+  color: #374151;
+  font-size: 12px;
+  overflow-wrap: anywhere;
 }
 
 .pagination-wrapper {

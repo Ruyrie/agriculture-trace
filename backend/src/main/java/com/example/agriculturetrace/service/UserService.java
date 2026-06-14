@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * 用户资料、角色和密码管理服务。
@@ -41,6 +42,13 @@ public class UserService {
 
     public User getByUsername(String username) {
         return userRepository.findByUsername(username).orElseThrow();
+    }
+
+    public Optional<User> findByUsername(String username) {
+        if (username == null || username.isBlank()) {
+            return Optional.empty();
+        }
+        return userRepository.findByUsername(username);
     }
 
     public String getPrimaryRoleName(String userId) {
@@ -136,6 +144,13 @@ public class UserService {
         User user = userRepository.findById(id).orElseThrow();
         user.setEnabled(enabled);
         userRepository.save(user);
+    }
+
+    @Transactional
+    public void deleteByAdmin(String id) {
+        User user = userRepository.findById(id).orElseThrow();
+        userRoleRepository.deleteByIdUserId(id);
+        userRepository.delete(user);
     }
 
     private void bindRole(String userId, String roleName) {

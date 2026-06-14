@@ -4,9 +4,11 @@ import com.example.agriculturetrace.entity.User;
 import com.example.agriculturetrace.service.UserService;
 import com.example.agriculturetrace.util.Result;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -45,6 +47,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/users/**").hasRole("ADMIN")
                         .requestMatchers("/api/dashboard/reports").hasAnyRole("ADMIN", "INSPECTOR")
                         .requestMatchers("/api/blockchain/**").hasAnyRole("ADMIN", "INSPECTOR")
+                        .requestMatchers("/api/integrity/fingerprints", "/api/integrity/products", "/api/integrity/root-hash").hasAnyRole("ADMIN", "INSPECTOR")
                         .anyRequest().authenticated()
                 )
                 .formLogin(login -> login
@@ -54,7 +57,7 @@ public class SecurityConfig {
                             writeJson(response, Result.success(userService.toUserInfo(user)));
                         })
                         .failureHandler((request, response, exception) ->
-                                writeJson(response, Result.error(401, "用户名或密码错误")))
+                                writeJson(response, Result.error(401, loginFailureMessage(request, exception))))
                         .permitAll()
                 )
                 .logout(logout -> logout
@@ -83,5 +86,20 @@ public class SecurityConfig {
         response.setContentType("application/json;charset=UTF-8");
         response.setStatus(HttpServletResponse.SC_OK);
         response.getWriter().write(objectMapper.writeValueAsString(result));
+    }
+
+    private String loginFailureMessage(HttpServletRequest request, Exception exception) {
+        String username = request.getParameter("username");
+        if (username != null && !username.isBlank()) {
+            return userService.findByUsername(username)
+                    .map(user -> Boolean.FALSE.equals(user.getEnabled())
+                            ? "账号已被禁用，请联系管理员"
+                            : "用户名或密码错误")
+                    .orElse("账号不存在，请联系管理员注册");
+        }
+        if (exception instanceof DisabledException) {
+            return "账号已被禁用，请联系管理员";
+        }
+        return "用户名或密码错误";
     }
 }

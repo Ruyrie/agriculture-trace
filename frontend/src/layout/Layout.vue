@@ -148,17 +148,17 @@ const allMenus = [
   {
     path: '/products',
     meta: { title: '产品管理', icon: 'Box' },
-    roles: ['ROLE_ADMIN', 'ROLE_FARMER']
+    roles: ['ROLE_ADMIN', 'ROLE_FARMER', 'ROLE_INSPECTOR']
   },
   {
     path: '/batches',
     meta: { title: '批次管理', icon: 'List' },
-    roles: ['ROLE_ADMIN', 'ROLE_FARMER']
+    roles: ['ROLE_ADMIN', 'ROLE_FARMER', 'ROLE_INSPECTOR']
   },
   {
     path: '/integrity',
     meta: { title: '数据指纹', icon: 'Key' },
-    roles: ['ROLE_ADMIN', 'ROLE_FARMER', 'ROLE_INSPECTOR']
+    roles: ['ROLE_ADMIN', 'ROLE_INSPECTOR']
   },
   {
     path: '/blockchain/audit-log',

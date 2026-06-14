@@ -40,7 +40,7 @@ const routes = [
         path: 'integrity',
         name: 'IntegrityReport',
         component: () => import('@/views/IntegrityReport.vue'),
-        meta: { requiresAuth: true, title: '数据指纹', icon: 'Key' }
+        meta: { requiresAuth: true, title: '数据指纹', icon: 'Key', roles: ['ROLE_ADMIN', 'ROLE_INSPECTOR'] }
       },
       {
         path: 'blockchain/audit-log',

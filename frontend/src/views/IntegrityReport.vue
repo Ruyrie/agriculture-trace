@@ -13,7 +13,13 @@
     <div class="summary-grid">
       <el-card shadow="never" class="summary-card">
         <div class="summary-label">全局根哈希</div>
-        <div class="hash-line">{{ rootHash || '-' }}</div>
+        <div class="root-hash-row">
+          <div class="hash-line">{{ rootHash || '-' }}</div>
+          <el-button type="primary" plain size="small" @click="copyRootHash" :disabled="!rootHash">
+            <el-icon><CopyDocument /></el-icon>
+            复制
+          </el-button>
+        </div>
       </el-card>
       <el-card shadow="never" class="summary-card">
         <div class="summary-label">生成时间</div>
@@ -62,7 +68,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Refresh } from '@element-plus/icons-vue'
+import { CopyDocument, Refresh } from '@element-plus/icons-vue'
 import { getProductFingerprints, verifyProductHash } from '@/api/integrity'
 
 const loading = ref(false)
@@ -98,6 +104,15 @@ const verify = async (row) => {
     ElMessage.warning('哈希不一致，数据可能被改动')
   }
   fetchData()
+}
+
+const copyRootHash = async () => {
+  try {
+    await navigator.clipboard.writeText(rootHash.value)
+    ElMessage.success('复制成功')
+  } catch {
+    ElMessage.error('复制失败')
+  }
 }
 
 fetchData()
@@ -154,12 +169,21 @@ fetchData()
   min-height: 72px;
 }
 
+.root-hash-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
 .summary-value {
   color: #1f2937;
   font-weight: 700;
 }
 
 .hash-line {
+  flex: 1;
+  min-width: 0;
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
   color: #235c2f;
   font-size: 13px;

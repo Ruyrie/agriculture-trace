@@ -67,7 +67,7 @@ src/views/TraceDetail.vue                溯源详情
 功能：
 
 - 展示所有产品的存储指纹和当前指纹。
-- 展示全局根哈希。
+- 展示全局根哈希，并支持复制，成功后提示“复制成功”。
 - 标记一致/异常状态。
 - 支持单个产品哈希验证。
 
@@ -91,11 +91,21 @@ src/api/integrity.js
   getProductFingerprints()
   getRootHash()
   verifyProductHash(id)
+  verifyAllProductHashes()
   verifyBatchHash(id)
+  verifyAllBatchHashes()
 
 src/api/blockchain.js
   getAuditLogs(params)
   verifyAuditLogChain()
+```
+
+## 角色菜单
+
+```text
+farmer     数据概览、产品管理、批次管理
+inspector  数据概览、产品管理、批次管理、数据指纹、审计日志、统计分析
+admin      数据概览、产品管理、批次管理、数据指纹、审计日志、统计分析、用户管理
 ```
 
 ## 模拟篡改验证
@@ -104,8 +114,8 @@ src/api/blockchain.js
 
 ```sql
 UPDATE product
-SET name = '篡改'
-WHERE id = 'prod_1';
+SET price = 100
+WHERE name = '有机苹果';
 ```
 
 刷新“数据指纹”页面后，该产品应显示“异常”。再进入“审计日志”点击“验证链条完整性”，会提示日志链完整但业务数据存在指纹异常。

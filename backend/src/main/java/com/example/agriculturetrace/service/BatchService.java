@@ -20,6 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -153,6 +155,30 @@ public class BatchService {
         result.put("storedHash", batch.getDataHash());
         result.put("currentHash", currentHash);
         result.put("valid", currentHash.equals(batch.getDataHash()));
+        return result;
+    }
+
+    public Map<String, Object> verifyAllBatchHashes() {
+        List<Map<String, Object>> invalidItems = new ArrayList<>();
+        List<Batch> batches = batchRepository.findAllWithProduct();
+        for (Batch batch : batches) {
+            String currentHash = computeBatchHash(batch);
+            if (!currentHash.equals(batch.getDataHash())) {
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("id", batch.getId());
+                item.put("batchNo", batch.getBatchNo());
+                item.put("productName", batch.getProduct() == null ? null : batch.getProduct().getName());
+                item.put("productionDate", batch.getProductionDate());
+                item.put("storedHash", batch.getDataHash());
+                item.put("currentHash", currentHash);
+                invalidItems.add(item);
+            }
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("valid", invalidItems.isEmpty());
+        result.put("total", batches.size());
+        result.put("invalidCount", invalidItems.size());
+        result.put("invalidItems", invalidItems);
         return result;
     }
 
