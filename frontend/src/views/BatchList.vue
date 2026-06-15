@@ -57,8 +57,7 @@
         <el-table-column prop="productionDate" label="生产日期" width="120" align="center" />
         <el-table-column label="数据指纹" min-width="150" align="center">
           <template #default="{ row }">
-            <el-tag v-if="row.dataHash" type="success" size="small">{{ shortHash(row.dataHash) }}</el-tag>
-            <el-tag v-else type="warning" size="small">未生成</el-tag>
+            <HashTag :hash="row.dataHash" />
           </template>
         </el-table-column>
         <el-table-column label="操作" width="250" align="center">
@@ -231,6 +230,7 @@ import { getBatchList, addBatch, updateBatch, deleteBatch } from '@/api/batch'
 import { getProductList } from '@/api/product'
 import { getBatchTraceInfo } from '@/api/trace'
 import { verifyAllBatchHashes, verifyBatchHash } from '@/api/integrity'
+import HashTag from '@/components/HashTag.vue'
 
 const router = useRouter()
 const tableData = ref([])
@@ -279,8 +279,6 @@ const currentDateTimeText = () => {
   const pad = (value) => String(value).padStart(2, '0')
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:00`
 }
-
-const shortHash = (hash) => `${hash.slice(0, 8)}...${hash.slice(-6)}`
 
 const onProductChange = (productId) => {
   const product = productOptions.value.find(p => p.id === productId)

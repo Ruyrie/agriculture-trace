@@ -7,8 +7,7 @@
     <el-table-column prop="price" label="价格(元/kg)" /> 
     <el-table-column label="数据指纹" min-width="150">
       <template #default="{ row }">
-        <el-tag v-if="row.dataHash" type="success" size="small">{{ shortHash(row.dataHash) }}</el-tag>
-        <el-tag v-else type="warning" size="small">未生成</el-tag>
+        <HashTag :hash="row.dataHash" />
       </template>
     </el-table-column>
     <el-table-column label="操作" width="260"> 
@@ -22,13 +21,14 @@
   </el-table> 
 </template> 
  
-<script setup> 
-defineProps({ 
-  data: { 
-    type: Array, 
-    default: () => [] 
-  } 
-}) 
+<script setup>
+import HashTag from '@/components/HashTag.vue'
+
+defineProps({
+  data: {
+    type: Array,
+    default: () => []
+  }
+})
 const emit = defineEmits(['edit', 'delete', 'trace', 'verify'])
-const shortHash = (hash) => `${hash.slice(0, 8)}...${hash.slice(-6)}`
 </script>

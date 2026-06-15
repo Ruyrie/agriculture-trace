@@ -80,13 +80,31 @@
 
     <el-dialog v-model="detailVisible" title="日志详情" width="min(760px, calc(100vw - 32px))">
       <div class="detail-grid" v-if="currentLog">
-        <div>
+        <div class="detail-col">
           <div class="detail-title">操作前</div>
-          <pre>{{ formatJson(currentLog.dataBefore) }}</pre>
+          <div v-if="beforeFields.length" class="field-list">
+            <div v-for="f in beforeFields" :key="f.label" class="field-row">
+              <span class="field-label">{{ f.label }}</span>
+              <span class="field-value">
+                <HashTag v-if="f.isHash" :hash="f.value" />
+                <template v-else>{{ f.value }}</template>
+              </span>
+            </div>
+          </div>
+          <div v-else class="field-empty">无（新增操作没有操作前数据）</div>
         </div>
-        <div>
+        <div class="detail-col">
           <div class="detail-title">操作后</div>
-          <pre>{{ formatJson(currentLog.dataAfter) }}</pre>
+          <div v-if="afterFields.length" class="field-list">
+            <div v-for="f in afterFields" :key="f.label" class="field-row">
+              <span class="field-label">{{ f.label }}</span>
+              <span class="field-value">
+                <HashTag v-if="f.isHash" :hash="f.value" />
+                <template v-else>{{ f.value }}</template>
+              </span>
+            </div>
+          </div>
+          <div v-else class="field-empty">无（删除操作没有操作后数据）</div>
         </div>
       </div>
     </el-dialog>
@@ -99,6 +117,7 @@ import { ElMessage } from 'element-plus'
 import { CircleCheck, Refresh } from '@element-plus/icons-vue'
 import { getAuditLogs, verifyAuditLogChain } from '@/api/blockchain'
 import Pagination from '@/components/Pagination.vue'
+import HashTag from '@/components/HashTag.vue'
 
 const logs = ref([])
 const page = ref(1)
@@ -183,14 +202,43 @@ const actionType = (type) => {
   return 'info'
 }
 
-const formatJson = (value) => {
-  if (!value) return '-'
-  try {
-    return JSON.stringify(JSON.parse(value), null, 2)
-  } catch {
-    return value
-  }
+// 审计详情用业务字段+中文标签展示；数据指纹（dataHash）改用可点击展开+复制的缩略样式，
+// 既能查看对应的完整哈希，又不会让长串代码铺满详情。
+const FIELD_LABELS = {
+  id: 'ID',
+  name: '产品名称',
+  category: '类别',
+  origin: '产地',
+  price: '价格(元/kg)',
+  createTime: '创建时间',
+  batchNo: '批次号',
+  productId: '所属产品',
+  productName: '产品名称',
+  productionDate: '生产日期',
+  remark: '备注',
+  dataHash: '数据指纹'
 }
+
+const parseFields = (value) => {
+  if (!value) return []
+  let obj
+  try {
+    obj = JSON.parse(value)
+  } catch {
+    return []
+  }
+  if (!obj || typeof obj !== 'object') return []
+  return Object.entries(obj)
+    .filter(([, val]) => val !== null && val !== '')
+    .map(([key, val]) => ({
+      label: FIELD_LABELS[key] || key,
+      value: String(val),
+      isHash: key === 'dataHash'
+    }))
+}
+
+const beforeFields = computed(() => parseFields(currentLog.value?.dataBefore))
+const afterFields = computed(() => parseFields(currentLog.value?.dataAfter))
 
 fetchLogs()
 </script>
@@ -283,20 +331,51 @@ fetchLogs()
   font-weight: 700;
 }
 
-pre {
+.field-list {
   min-height: 220px;
   max-height: 420px;
-  margin: 0;
-  padding: 12px;
   overflow: auto;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   background: #f9fafb;
-  color: #374151;
-  font-size: 12px;
-  line-height: 1.6;
-  white-space: pre-wrap;
+  padding: 8px 12px;
+}
+
+.field-row {
+  display: flex;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px dashed #e5e7eb;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.field-row:last-child {
+  border-bottom: none;
+}
+
+.field-label {
+  flex: 0 0 96px;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.field-value {
+  flex: 1;
+  color: #1f2937;
   word-break: break-word;
+}
+
+.field-empty {
+  min-height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f9fafb;
+  color: #9ca3af;
+  font-size: 13px;
 }
 
 @media (max-width: 860px) {

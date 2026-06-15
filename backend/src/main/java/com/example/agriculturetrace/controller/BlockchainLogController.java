@@ -53,11 +53,12 @@ public class BlockchainLogController {
     @GetMapping("/logs")
     public Result<?> logs(@RequestParam(defaultValue = "1") int page,
                           @RequestParam(defaultValue = "10") int pageSize) {
-        // 以时间和 id 双字段升序保证日志展示顺序与链条验证顺序一致。
+        // 按 id（logId，UTC 毫秒前缀、单调、与时区无关）升序，保证展示顺序与链条验证顺序一致。
+        // 不能按 timestamp 排序：timestamp 是本地墙钟字符串，跨时区会乱序导致链条误判断裂。
         PageRequest request = PageRequest.of(
                 Math.max(page - 1, 0),
                 Math.max(pageSize, 1),
-                Sort.by(Sort.Direction.ASC, "timestamp").and(Sort.by(Sort.Direction.ASC, "id"))
+                Sort.by(Sort.Direction.ASC, "id")
         );
         Page<BlockchainLog> logs = logRepository.findAll(request);
         return Result.success(Map.of(
@@ -70,7 +71,7 @@ public class BlockchainLogController {
 
     @GetMapping("/logs/verify")
     public Result<?> verify() {
-        List<BlockchainLog> logs = logRepository.findAllByOrderByTimestampAsc();
+        List<BlockchainLog> logs = logRepository.findAllOrderedByIdAsc();
         String previousHash = "0";
         for (int i = 0; i < logs.size(); i++) {
             BlockchainLog log = logs.get(i);

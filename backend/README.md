@@ -21,7 +21,7 @@
 - `Product.dataHash`：产品数据指纹，对应数据库 `product.data_hash`。
 - `Batch.dataHash`：批次数据指纹，对应数据库 `batch.data_hash`。
 - `BlockchainLog.java`：审计日志实体，对应数据库 `blockchain_log`。
-- `BlockchainLogRepository.java`：日志查询，包含 `findAllByOrderByTimestampAsc()` 和 `findLastLog()`。
+- `BlockchainLogRepository.java`：日志查询，包含 `findAllOrderedByIdAsc()` 和 `findLastLog()`（均按 id 排序，id 为 UTC 毫秒前缀的单调主键，跨时区也不会乱序）。
 - `IntegrityController.java`：数据指纹、根哈希、产品/批次单项验证接口。
 - `BlockchainLogController.java`：审计日志分页列表和链条完整性验证接口。
 - `BlockchainSchemaInitializer.java`：兼容已有数据库，启动时补齐哈希字段、日志表和初始化日志。

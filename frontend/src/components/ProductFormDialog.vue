@@ -234,6 +234,17 @@ const batchLoading = ref(false)
 
 const rowRequired = (field) => [{ required: true, message: `${field}不能为空`, trigger: ['blur', 'change'] }]
 
+// 新增日期默认当天；物流时间默认当前日期时间（含时分），与系统当前时间同步。
+const pad = (value) => String(value).padStart(2, '0')
+const currentDateText = () => {
+  const now = new Date()
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+}
+const currentDateTimeText = () => {
+  const now = new Date()
+  return `${currentDateText()} ${pad(now.getHours())}:${pad(now.getMinutes())}:00`
+}
+
 const allRules = computed(() => {
   const base = {
     name: [{ required: true, message: '请输入产品名称', trigger: 'blur' }],
@@ -286,6 +297,8 @@ watch(() => props.visible, async (val) => {
     resetForm()
     Object.assign(mergedForm, props.initialData)
     if (!mergedForm.id) {
+      // 新增产品时，生产日期默认当天，避免每次手动选择。
+      if (!mergedForm.productionDate) mergedForm.productionDate = currentDateText()
       ensureDefaultTraceRows()
     } else {
       await loadProductBatches(mergedForm.id, session)
@@ -386,11 +399,11 @@ const loadBatchTraceRows = async (batchId, session = loadSession) => {
   }
 }
 
-const addProduction = () => mergedForm.productionRecords.push({ activityName: '', operator: '', activityDate: '', remark: '' })
+const addProduction = () => mergedForm.productionRecords.push({ activityName: '', operator: '', activityDate: currentDateText(), remark: '' })
 const removeProduction = (i) => mergedForm.productionRecords.splice(i, 1)
-const addInspection = () => mergedForm.inspectionRecords.push({ inspectionItem: '', result: '', inspector: '', inspectionDate: '' })
+const addInspection = () => mergedForm.inspectionRecords.push({ inspectionItem: '', result: '', inspector: '', inspectionDate: currentDateText() })
 const removeInspection = (i) => mergedForm.inspectionRecords.splice(i, 1)
-const addLogistics = () => mergedForm.logisticsRecords.push({ nodeName: '', location: '', operator: '', updateTime: '' })
+const addLogistics = () => mergedForm.logisticsRecords.push({ nodeName: '', location: '', operator: '', updateTime: currentDateTimeText() })
 const removeLogistics = (i) => mergedForm.logisticsRecords.splice(i, 1)
 
 const handleClose = () => emit('update:visible', false)
