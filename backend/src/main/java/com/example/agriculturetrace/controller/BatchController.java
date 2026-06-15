@@ -38,8 +38,9 @@ public class BatchController {
     public Result<?> list(@RequestParam(defaultValue = "1") int page,
                           @RequestParam(defaultValue = "10") int pageSize,
                           @RequestParam(required = false) String productId,
+                          @RequestParam(required = false) String productName,
                           @RequestParam(required = false) String batchNo) {
-        Page<Batch> batches = batchService.list(productId, batchNo, page, pageSize);
+        Page<Batch> batches = batchService.list(productId, productName, batchNo, page, pageSize);
         return Result.success(Map.of(
                 "records", batches.getContent().stream().map(batchService::toRow).toList(),
                 "total", batches.getTotalElements(),

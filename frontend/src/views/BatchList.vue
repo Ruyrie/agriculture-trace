@@ -20,12 +20,12 @@
     <el-card shadow="never" class="content-card">
       <!-- 搜索栏 -->
       <div class="search-bar">
-        <el-select v-model="searchProductId" placeholder="按产品筛选" clearable style="width: 200px">
+        <el-select v-model="searchProductName" placeholder="按产品筛选" clearable style="width: 200px">
           <el-option
-            v-for="product in productOptions"
-            :key="product.id"
+            v-for="product in filterProductOptions"
+            :key="product.name"
             :label="product.name"
-            :value="product.id"
+            :value="product.name"
           />
         </el-select>
         <el-input
@@ -115,7 +115,7 @@
                     <el-option
                       v-for="product in productOptions"
                       :key="product.id"
-                      :label="product.name"
+                      :label="productOptionLabel(product)"
                       :value="product.id"
                     />
                   </el-select>
@@ -222,7 +222,7 @@
 </template>
 
 <script setup>
-import { nextTick, ref, reactive, onMounted } from 'vue'
+import { computed, nextTick, ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Edit, Delete, View, CircleCheck } from '@element-plus/icons-vue'
@@ -237,9 +237,19 @@ const tableData = ref([])
 const page = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
-const searchProductId = ref('')
+const searchProductName = ref('')
 const searchBatchNo = ref('')
 const productOptions = ref([])
+const filterProductOptions = computed(() => {
+  const seenNames = new Set()
+  return productOptions.value.filter(product => {
+    const name = (product?.name || '').trim()
+    const key = name.toLowerCase()
+    if (!name || seenNames.has(key)) return false
+    seenNames.add(key)
+    return true
+  }).map(product => ({ ...product, name: product.name.trim() }))
+})
 
 const dialogVisible = ref(false)
 const dialogTitle = ref('新增批次')
@@ -280,6 +290,11 @@ const currentDateTimeText = () => {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:00`
 }
 
+const productOptionLabel = (product) => {
+  const sameNameCount = productOptions.value.filter(item => item.name === product.name).length
+  return sameNameCount > 1 ? `${product.name}（${product.id}）` : product.name
+}
+
 const onProductChange = (productId) => {
   const product = productOptions.value.find(p => p.id === productId)
   if (product && !form.id) {
@@ -291,7 +306,7 @@ const onProductChange = (productId) => {
 
 const fetchData = async () => {
   try {
-    const res = await getBatchList({ page: page.value, pageSize: pageSize.value, productId: searchProductId.value, batchNo: searchBatchNo.value })
+    const res = await getBatchList({ page: page.value, pageSize: pageSize.value, productName: searchProductName.value, batchNo: searchBatchNo.value })
     if (res.code === 200) {
       // 后端分页接口统一返回 records/total，空值兜底避免页面被异常响应卡住。
       tableData.value = res.data?.records || []
@@ -312,7 +327,7 @@ const fetchData = async () => {
 
 const fetchProductOptions = async () => {
   const res = await getProductList({ page: 1, pageSize: 100 })
-  if (res.code === 200) productOptions.value = res.data.records
+  if (res.code === 200) productOptions.value = res.data?.records || []
 }
 
 const handleSizeChange = (val) => { pageSize.value = val; fetchData() }

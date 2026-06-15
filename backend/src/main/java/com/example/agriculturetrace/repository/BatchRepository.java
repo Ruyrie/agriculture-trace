@@ -40,10 +40,16 @@ public interface BatchRepository extends JpaRepository<Batch, String> {
     Page<Batch> findByProduct_Id(String productId, Pageable pageable);
 
     @EntityGraph(attributePaths = "product")
+    Page<Batch> findByProduct_NameIgnoreCase(String productName, Pageable pageable);
+
+    @EntityGraph(attributePaths = "product")
     Page<Batch> findByBatchNoContaining(String batchNo, Pageable pageable);
 
     @EntityGraph(attributePaths = "product")
     Page<Batch> findByProduct_IdAndBatchNoContaining(String productId, String batchNo, Pageable pageable);
+
+    @EntityGraph(attributePaths = "product")
+    Page<Batch> findByProduct_NameIgnoreCaseAndBatchNoContaining(String productName, String batchNo, Pageable pageable);
 
     List<Batch> findByProduct_IdOrderByCreateTimeDesc(String productId);
 }

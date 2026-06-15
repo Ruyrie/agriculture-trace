@@ -142,6 +142,9 @@ INSERT IGNORE INTO `product` (`id`, `name`, `category`, `origin`, `price`, `crea
 ('prod_4', '有机西兰花', '蔬菜', '云南昆明', 6.50, '2026-01-01 10:00:00'),
 ('prod_5', '土鸡蛋', '禽蛋', '河北保定', 1.20, '2026-01-01 10:00:00');
 
+-- 只为“尚未生成指纹”的产品回填 data_hash；绝不能无条件重算，
+-- 否则 spring.sql.init.mode=always 每次重启都会用当前数据覆盖指纹，
+-- 直接抹掉对数据库直改的篡改痕迹，使防篡改校验形同虚设。
 UPDATE `product`
 SET `data_hash` = SHA2(CONCAT(
   IFNULL(`id`, ''), '|',
@@ -154,7 +157,9 @@ SET `data_hash` = SHA2(CONCAT(
     ELSE TRIM(TRAILING '.' FROM TRIM(TRAILING '0' FROM CAST(`price` AS CHAR)))
   END, '|',
   IFNULL(`create_time`, '')
-), 256);
+), 256)
+WHERE (`data_hash` IS NULL OR `data_hash` = '')
+  AND NOT EXISTS (SELECT 1 FROM `blockchain_log`);
 
 INSERT IGNORE INTO `batch` (`id`, `batch_no`, `product_id`, `production_date`, `remark`, `create_time`) VALUES
 ('batch_1', 'B202601001', 'prod_1', '2026-01-10', '一级果，糖度≥14%', '2026-01-11 09:00:00'),
@@ -189,7 +194,9 @@ SET `data_hash` = SHA2(CONCAT(
   IFNULL(DATE_FORMAT(`production_date`, '%Y-%m-%d'), ''), '|',
   IFNULL(`remark`, ''), '|',
   IFNULL(`create_time`, '')
-), 256);
+), 256)
+WHERE (`data_hash` IS NULL OR `data_hash` = '')
+  AND NOT EXISTS (SELECT 1 FROM `blockchain_log`);
 
 INSERT IGNORE INTO `production_record` (`id`, `batch_id`, `activity_name`, `operator`, `activity_date`, `remark`, `sort_order`) VALUES
 ('prodrec_1', 'batch_1', '果园采摘', '张三', '2026-01-10', '晴天采摘，糖度抽检达标', 1),

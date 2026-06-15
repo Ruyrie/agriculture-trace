@@ -34,24 +34,32 @@ public class BlockchainSchemaInitializer implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        ensureProductHashColumn();
-        ensureBatchHashColumn();
+        boolean productHashColumnCreated = ensureProductHashColumn();
+        boolean batchHashColumnCreated = ensureBatchHashColumn();
         ensureBlockchainLogTable();
-        backfillProductHashes();
-        backfillBatchHashes();
+        if (productHashColumnCreated) {
+            backfillProductHashes();
+        }
+        if (batchHashColumnCreated) {
+            backfillBatchHashes();
+        }
         seedInitialAuditLogsIfEmpty();
     }
 
-    private void ensureProductHashColumn() {
+    private boolean ensureProductHashColumn() {
         if (!columnExists("product", "data_hash")) {
             jdbcTemplate.execute("ALTER TABLE `product` ADD COLUMN `data_hash` varchar(64) DEFAULT NULL COMMENT '产品数据哈希(SHA-256)'");
+            return true;
         }
+        return false;
     }
 
-    private void ensureBatchHashColumn() {
+    private boolean ensureBatchHashColumn() {
         if (!columnExists("batch", "data_hash")) {
             jdbcTemplate.execute("ALTER TABLE `batch` ADD COLUMN `data_hash` varchar(64) DEFAULT NULL COMMENT '批次数据哈希(SHA-256)'");
+            return true;
         }
+        return false;
     }
 
     private void ensureBlockchainLogTable() {

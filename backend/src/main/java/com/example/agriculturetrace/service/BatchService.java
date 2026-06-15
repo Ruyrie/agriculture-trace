@@ -49,13 +49,14 @@ public class BatchService {
         this.objectMapper = objectMapper;
     }
 
-    public Page<Batch> list(String productId, String batchNo, int page, int pageSize) {
+    public Page<Batch> list(String productId, String productName, String batchNo, int page, int pageSize) {
         PageRequest request = PageRequest.of(Math.max(page - 1, 0), pageSize, Sort.by(Sort.Direction.DESC, "productionDate"));
         boolean hasProduct = productId != null && !productId.isBlank();
+        boolean hasProductName = !hasProduct && productName != null && !productName.isBlank();
         boolean hasBatchNo = batchNo != null && !batchNo.isBlank();
         // 根据筛选条件选择不同 Repository 方法，让数据库完成过滤和分页。
         // 这样前端无论按产品、批次号还是组合筛选，都能拿到统一的分页结构。
-        if (!hasProduct && !hasBatchNo) {
+        if (!hasProduct && !hasProductName && !hasBatchNo) {
             return batchRepository.findAll(request);
         }
         if (hasProduct && hasBatchNo) {
@@ -63,6 +64,12 @@ public class BatchService {
         }
         if (hasProduct) {
             return batchRepository.findByProduct_Id(productId, request);
+        }
+        if (hasProductName && hasBatchNo) {
+            return batchRepository.findByProduct_NameIgnoreCaseAndBatchNoContaining(productName.trim(), batchNo.trim(), request);
+        }
+        if (hasProductName) {
+            return batchRepository.findByProduct_NameIgnoreCase(productName.trim(), request);
         }
         return batchRepository.findByBatchNoContaining(batchNo.trim(), request);
     }
