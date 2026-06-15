@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * 产品管理服务。
@@ -94,6 +95,9 @@ public class ProductService {
     @Transactional
     public Product update(Product product) {
         Product existing = get(product.getId());
+        if (!hasProductChanges(existing, product)) {
+            return existing;
+        }
         // 先保存修改前快照，审计日志详情页需要展示 data_before/data_after。
         Map<String, Object> before = toAuditRow(existing);
         existing.setName(product.getName());
@@ -187,6 +191,13 @@ public class ProductService {
 
     private String nullToEmpty(String value) {
         return value == null ? "" : value;
+    }
+
+    private boolean hasProductChanges(Product existing, Product incoming) {
+        return !Objects.equals(nullToEmpty(existing.getName()), nullToEmpty(incoming.getName()))
+                || !Objects.equals(nullToEmpty(existing.getCategory()), nullToEmpty(incoming.getCategory()))
+                || !Objects.equals(nullToEmpty(existing.getOrigin()), nullToEmpty(incoming.getOrigin()))
+                || !Objects.equals(normalizePrice(existing.getPrice()), normalizePrice(incoming.getPrice()));
     }
 
     /**

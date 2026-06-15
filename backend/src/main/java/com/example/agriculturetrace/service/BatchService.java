@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * 批次管理服务。
@@ -92,11 +93,18 @@ public class BatchService {
     @Transactional
     public Batch update(Batch batch, String productId) {
         Batch existing = batchRepository.findById(batch.getId()).orElseThrow();
+        Product targetProduct = null;
+        if (productId != null && !productId.isBlank()) {
+            targetProduct = productRepository.findById(productId).orElseThrow();
+        }
+        if (!hasBatchChanges(existing, batch, targetProduct)) {
+            return existing;
+        }
         // 更新前快照进入 data_before；更新后快照进入 data_after，便于审计页面对比。
         Map<String, Object> before = toAuditRow(existing);
         ensureBatchNoAvailable(batch.getBatchNo(), existing.getId());
-        if (productId != null && !productId.isBlank()) {
-            existing.setProduct(productRepository.findById(productId).orElseThrow());
+        if (targetProduct != null) {
+            existing.setProduct(targetProduct);
         }
         existing.setBatchNo(batch.getBatchNo());
         existing.setProductionDate(batch.getProductionDate());
@@ -218,6 +226,15 @@ public class BatchService {
 
     private String nullToEmpty(String value) {
         return value == null ? "" : value;
+    }
+
+    private boolean hasBatchChanges(Batch existing, Batch incoming, Product targetProduct) {
+        String existingProductId = existing.getProduct() == null ? "" : nullToEmpty(existing.getProduct().getId());
+        String incomingProductId = targetProduct == null ? existingProductId : nullToEmpty(targetProduct.getId());
+        return !Objects.equals(existingProductId, incomingProductId)
+                || !Objects.equals(nullToEmpty(existing.getBatchNo()), nullToEmpty(incoming.getBatchNo()))
+                || !Objects.equals(existing.getProductionDate(), incoming.getProductionDate())
+                || !Objects.equals(nullToEmpty(existing.getRemark()), nullToEmpty(incoming.getRemark()));
     }
 
     /**
