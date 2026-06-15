@@ -43,6 +43,7 @@ public class TraceDataService {
                                  List<Map<String, Object>> productionRecords,
                                  List<Map<String, Object>> inspectionRecords,
                                  List<Map<String, Object>> logisticsRecords) {
+        // 三类记录都归属于同一批次，新增批次时一次性写入，前端溯源页再按 batchNo 聚合展示。
         saveProductionRecords(batch, productionRecords);
         saveInspectionRecords(batch, inspectionRecords);
         saveLogisticsRecords(batch, logisticsRecords);
@@ -53,6 +54,8 @@ public class TraceDataService {
                                     List<Map<String, Object>> productionRecords,
                                     List<Map<String, Object>> inspectionRecords,
                                     List<Map<String, Object>> logisticsRecords) {
+        // 编辑批次溯源信息时采用“先删后写”的方式，避免逐条比对前端动态表单的增删改。
+        // 由于外层事务包裹，任一写入失败都会整体回滚，不会留下半套溯源记录。
         productionRecordRepository.deleteByBatch_Id(batch.getId());
         inspectionRecordRepository.deleteByBatch_Id(batch.getId());
         logisticsRecordRepository.deleteByBatch_Id(batch.getId());
@@ -108,6 +111,7 @@ public class TraceDataService {
         List<ProductionRecord> records = new ArrayList<>();
         for (int i = 0; i < rows.size(); i++) {
             Map<String, Object> row = rows.get(i);
+            // sortOrder 保存前端录入顺序，溯源详情页可以按真实业务顺序展示。
             ProductionRecord record = new ProductionRecord();
             record.setId(Ids.uuid32());
             record.setBatch(batch);
@@ -175,6 +179,7 @@ public class TraceDataService {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("batchNo", record.getBatch().getBatchNo());
         row.put("inspectionItem", record.getInspectionItem());
+        // item/date 是给早期前端字段名保留的兼容别名，避免页面改版时接口断裂。
         row.put("item", record.getInspectionItem());
         row.put("result", record.getResult());
         row.put("inspector", record.getInspector());
@@ -187,6 +192,7 @@ public class TraceDataService {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("batchNo", record.getBatch().getBatchNo());
         row.put("nodeName", record.getNodeName());
+        // node/time 同样是展示层兼容字段，TraceDetail.vue 可以直接读取统一名称。
         row.put("node", record.getNodeName());
         row.put("location", record.getLocation());
         row.put("operator", record.getOperator());

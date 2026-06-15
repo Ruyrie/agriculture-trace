@@ -19,6 +19,9 @@ import java.util.Map;
 
 /**
  * 数据指纹和根哈希接口。
+ *
+ * 这里实现的是“业务数据完整性”视角：对 product / batch 的当前字段重新计算哈希，
+ * 再与表里保存的 data_hash 比较。它不同于审计日志链校验，后者关注日志是否连续。
  */
 @RestController
 @RequestMapping("/api/integrity")
@@ -38,6 +41,7 @@ public class IntegrityController {
 
     @GetMapping({"/fingerprints", "/products"})
     public Result<?> fingerprints() {
+        // 固定按 id 升序输出，保证同一份产品集合计算出的 rootHash 稳定可复现。
         List<Map<String, Object>> rows = productRepository.findAll(Sort.by(Sort.Direction.ASC, "id"))
                 .stream()
                 .map(this::toIntegrityRow)
@@ -84,6 +88,8 @@ public class IntegrityController {
     }
 
     private Map<String, Object> toIntegrityRow(Product product) {
+        // storedHash 是数据库保存值，currentHash 是当前字段即时计算值；
+        // 前端用 valid 字段直接渲染“一致/异常”。
         String currentHash = productService.computeProductHash(product);
         Map<String, Object> row = new LinkedHashMap<>(productService.toAuditRow(product));
         row.put("storedHash", product.getDataHash());
@@ -93,6 +99,8 @@ public class IntegrityController {
     }
 
     private String calculateRootHash(List<Map<String, Object>> rows) {
+        // 简化版根哈希：将每条产品当前指纹按固定顺序串联后再 SHA-256。
+        // 它不是完整 Merkle Tree，但能模拟“全局数据摘要”的校验效果。
         String joined = rows.stream()
                 .map(row -> String.valueOf(row.get("currentHash")))
                 .reduce("", (left, right) -> left.isEmpty() ? right : left + "|" + right);

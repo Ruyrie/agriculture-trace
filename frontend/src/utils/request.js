@@ -18,6 +18,8 @@ request.interceptors.response.use(
     const data = response.data
     if (data?.code === 401) {
       const isLoginRequest = response.config?.url?.includes('/user/login')
+      // 后端统一用 HTTP 200 + Result.code 表示业务状态，所以这里要检查 data.code。
+      // Session 失效时同步清理本地缓存，并把用户带回登录页。
       localStorage.removeItem('sessionActive')
       localStorage.removeItem('userInfo')
       if (!isLoginRequest) {

@@ -1,6 +1,7 @@
 package com.example.agriculturetrace.config;
 
 import com.example.agriculturetrace.util.HashUtil;
+import com.example.agriculturetrace.util.Ids;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -13,7 +14,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 /**
  * 为已有数据库补齐模拟区块链功能需要的字段和日志表。
@@ -166,7 +166,7 @@ public class BlockchainSchemaInitializer implements ApplicationRunner {
                 (`id`, `action_type`, `target_type`, `target_id`, `operator`, `data_before`, `data_after`, `data_hash`, `previous_hash`, `timestamp`)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                UUID.randomUUID().toString().replace("-", ""),
+                Ids.logId(),
                 action,
                 targetType,
                 targetId,

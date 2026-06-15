@@ -4,6 +4,14 @@
       <div class="page-header-left">
         <h3 class="page-title">审计日志</h3>
         <span class="page-subtitle">共 {{ total }} 条记录</span>
+        <el-tag
+          v-if="verifyResult"
+          :type="verifyResult.logChainValid ? 'success' : 'danger'"
+          effect="dark"
+          size="small"
+        >
+          链条完整性：{{ verifyResult.logChainValid ? '正常' : '异常' }}
+        </el-tag>
       </div>
       <div class="page-actions">
         <el-button type="success" plain @click="verifyChain" :loading="verifying">
@@ -18,11 +26,18 @@
     <el-alert
       v-if="verifyResult"
       :type="verifyResult.valid ? 'success' : 'error'"
-      :title="verifyResult.message"
-      :description="verifyDescription"
+      :title="verifyTitle"
       show-icon
       :closable="false"
-    />
+    >
+      <template #default>
+        <div class="verify-detail">
+          <div>{{ verifyResult.message }}</div>
+          <div v-if="brokenInfo" class="verify-broken">{{ brokenInfo }}</div>
+          <div v-if="verifyDescription" class="verify-items">{{ verifyDescription }}</div>
+        </div>
+      </template>
+    </el-alert>
 
     <el-card shadow="never" class="content-card">
       <el-table :data="logs" stripe class="log-table" v-loading="loading">
@@ -95,10 +110,25 @@ const verifyResult = ref(null)
 const detailVisible = ref(false)
 const currentLog = ref(null)
 
+// 顶部标题直接给出“正常/异常”结论，便于一眼判断链条状态。
+const verifyTitle = computed(() => {
+  if (!verifyResult.value) return ''
+  return verifyResult.value.valid ? '验证结果：正常' : '验证结果：异常'
+})
+
+// 链条断裂时明确指出断裂位置（第几条 + 日志ID），方便定位问题。
+const brokenInfo = computed(() => {
+  const result = verifyResult.value
+  if (!result || result.logChainValid !== false) return ''
+  if (!result.brokenIndex) return ''
+  return `断裂位置：第 ${result.brokenIndex} 条日志（日志ID：${result.brokenLogId || '未知'}）`
+})
+
 const verifyDescription = computed(() => {
   const items = verifyResult.value?.invalidItems || []
   if (!items.length) return ''
-  return items
+  const prefix = `指纹异常 ${items.length} 项：`
+  return prefix + items
     .slice(0, 5)
     .map(item => `${item.targetType} ${item.targetId}${item.name ? `（${item.name}）` : ''}`)
     .join('；')
@@ -201,6 +231,18 @@ fetchLogs()
 .page-subtitle {
   font-size: 13px;
   color: #909399;
+}
+
+.verify-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.verify-broken {
+  font-weight: 600;
 }
 
 .content-card {

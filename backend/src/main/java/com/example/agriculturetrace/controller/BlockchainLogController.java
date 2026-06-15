@@ -24,6 +24,9 @@ import java.util.Map;
 
 /**
  * 审计日志链接口。
+ *
+ * blockchain_log 表用 previous_hash -> data_hash 的方式模拟区块链链式结构：
+ * 每条日志的哈希都包含上一条日志哈希，因此插入、删除或篡改中间日志都会被发现。
  */
 @RestController
 @RequestMapping("/api/blockchain")
@@ -50,6 +53,7 @@ public class BlockchainLogController {
     @GetMapping("/logs")
     public Result<?> logs(@RequestParam(defaultValue = "1") int page,
                           @RequestParam(defaultValue = "10") int pageSize) {
+        // 以时间和 id 双字段升序保证日志展示顺序与链条验证顺序一致。
         PageRequest request = PageRequest.of(
                 Math.max(page - 1, 0),
                 Math.max(pageSize, 1),
@@ -70,6 +74,8 @@ public class BlockchainLogController {
         String previousHash = "0";
         for (int i = 0; i < logs.size(); i++) {
             BlockchainLog log = logs.get(i);
+            // 重建写入日志时使用的原始字符串，再 SHA-256 得到 calcHash。
+            // 如果 calcHash != dataHash，说明日志内容被改；如果 previousHash 不连续，说明链断了。
             String content = log.getActionType() + log.getTargetId() + log.getOperator()
                     + log.getTimestamp() + log.getPreviousHash()
                     + (log.getDataAfter() != null ? log.getDataAfter() : "");
@@ -90,6 +96,7 @@ public class BlockchainLogController {
             previousHash = log.getDataHash();
         }
 
+        // 日志链完整不等于业务数据没被改库，所以链条通过后还要联动校验产品和批次指纹。
         Map<String, Object> dataIntegrity = verifyBusinessData();
         boolean dataIntegrityValid = Boolean.TRUE.equals(dataIntegrity.get("valid"));
         Map<String, Object> result = new LinkedHashMap<>();
@@ -112,6 +119,7 @@ public class BlockchainLogController {
     private Map<String, Object> verifyBusinessData() {
         List<Map<String, Object>> invalidItems = new java.util.ArrayList<>();
 
+        // 产品和批次分别调用各自 Service 的同一套哈希规则，避免控制器复制算法。
         for (Product product : productRepository.findAll()) {
             String currentHash = productService.computeProductHash(product);
             if (!currentHash.equals(product.getDataHash())) {
@@ -146,6 +154,7 @@ public class BlockchainLogController {
     }
 
     private Map<String, Object> toLogRow(BlockchainLog log) {
+        // 明确输出字段而不是直接返回实体，避免后续实体字段调整影响前端契约。
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("id", log.getId());
         row.put("actionType", log.getActionType());

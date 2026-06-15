@@ -39,11 +39,15 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                // 前端是独立 Vite 应用，接口依赖 Session Cookie；这里关闭 CSRF，
+                // 同时在 CorsConfig 中允许携带凭证，避免跨域登录后 Cookie 不生效。
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> {
                 })
                 .authorizeHttpRequests(auth -> auth
+                        // 登录、公开溯源页、上传头像静态资源不需要登录。
                         .requestMatchers("/api/user/login", "/api/trace/**", "/uploads/**").permitAll()
+                        // 用户管理只给管理员；数据指纹和审计日志给管理员、监管员。
                         .requestMatchers("/api/users/**").hasRole("ADMIN")
                         .requestMatchers("/api/dashboard/reports").hasAnyRole("ADMIN", "INSPECTOR")
                         .requestMatchers("/api/blockchain/**").hasAnyRole("ADMIN", "INSPECTOR")
@@ -53,6 +57,7 @@ public class SecurityConfig {
                 .formLogin(login -> login
                         .loginProcessingUrl("/api/user/login")
                         .successHandler((request, response, authentication) -> {
+                            // Spring Security 完成认证后立即返回前端需要缓存的用户和角色信息。
                             User user = userService.getByUsername(authentication.getName());
                             writeJson(response, Result.success(userService.toUserInfo(user)));
                         })
@@ -66,6 +71,7 @@ public class SecurityConfig {
                                 writeJson(response, Result.success(null)))
                 )
                 .rememberMe(remember -> remember
+                        // 前端 login(data) 会提交 remember-me=true，Spring Security 据此写入持久 Cookie。
                         .rememberMeParameter("remember-me")
                         .rememberMeCookieName("AGRICULTURE_TRACE_REMEMBER_ME")
                         .tokenValiditySeconds(7 * 24 * 60 * 60)
@@ -82,6 +88,7 @@ public class SecurityConfig {
     }
 
     private void writeJson(HttpServletResponse response, Result<?> result) throws java.io.IOException {
+        // 认证成功、失败、权限异常都返回统一 Result，前端拦截器不用区分 Spring 默认响应格式。
         response.setCharacterEncoding("UTF-8");
         response.setContentType("application/json;charset=UTF-8");
         response.setStatus(HttpServletResponse.SC_OK);

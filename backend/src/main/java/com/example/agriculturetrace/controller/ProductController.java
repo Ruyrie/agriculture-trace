@@ -79,9 +79,12 @@ public class ProductController {
     @SuppressWarnings("unchecked")
     @Transactional
     public Result<?> createWithTrace(@RequestBody Map<String, Object> body) {
+        // 复合新增接口：前端弹窗一次提交产品、批次、生产/质检/物流记录。
+        // 放在同一个事务里，是为了保证任一环节失败时不会出现“产品有了但溯源不完整”的半成品。
         Product product = productService.create(mapProduct((Map<String, Object>) body.get("product")));
         Map<String, Object> batchMap = (Map<String, Object>) body.get("batch");
         if (batchMap != null && batchMap.get("batchNo") != null) {
+            // 批次与产品建立关联后，三类溯源记录都以 batch_id 作为外键保存。
             Batch batch = new Batch();
             batch.setBatchNo((String) batchMap.get("batchNo"));
             batch.setRemark((String) batchMap.getOrDefault("remark", ""));
@@ -109,6 +112,8 @@ public class ProductController {
     }
 
     private Product mapProduct(Map<String, Object> map) {
+        // create-with-trace 使用 Map 接收复合 JSON，这里只抽取产品字段，
+        // 避免把 batch/records 等前端表单字段误绑定到 Product 实体。
         Product product = new Product();
         product.setName((String) map.get("name"));
         product.setCategory((String) map.get("category"));

@@ -52,6 +52,8 @@ public class BatchController {
     @SuppressWarnings("unchecked")
     @Transactional
     public Result<?> create(@RequestBody Map<String, Object> body) {
+        // 新增批次时允许同步提交生产、质检、物流明细；
+        // 与 ProductController#createWithTrace 一样，使用事务保证批次和明细同生共死。
         Batch batch = mapBatch(body);
         String productId = (String) body.get("productId");
         Batch savedBatch = batchService.create(batch, (String) body.get("productId"));
@@ -75,6 +77,7 @@ public class BatchController {
         if (body.containsKey("productionRecords")
                 || body.containsKey("inspectionRecords")
                 || body.containsKey("logisticsRecords")) {
+            // 只有请求体明确带了溯源数组时才覆盖明细，避免普通批次字段编辑误清空溯源记录。
             traceDataService.replaceTraceRecords(
                     savedBatch,
                     (List<Map<String, Object>>) body.get("productionRecords"),
@@ -92,6 +95,7 @@ public class BatchController {
     }
 
     private Batch mapBatch(Map<String, Object> body) {
+        // Controller 保持轻量，只负责把前端 JSON 中的基础字段转换成实体对象。
         Batch batch = new Batch();
         batch.setBatchNo((String) body.get("batchNo"));
         batch.setRemark((String) body.get("remark"));

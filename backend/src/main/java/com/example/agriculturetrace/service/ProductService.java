@@ -22,10 +22,16 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 /**
  * 产品管理服务。
+ *
+ * 这一层是“产品业务”的核心落点：Controller 只负责接收参数和返回 Result，
+ * 真正的分页查询、哈希计算、增删改审计都集中在 Service 中。
+ *
+ * 之所以在产品表中保存 dataHash，是为了给每条产品记录做一份可重复计算的
+ * 数据指纹；后续校验时重新按同样字段计算 SHA-256，如果和存储值不同，就说明
+ * 业务字段可能被绕过系统直接修改过。
  */
 @Service
 public class ProductService {
@@ -54,12 +60,33 @@ public class ProductService {
         return productRepository.findById(id).orElseThrow();
     }
 
+    /**
+     * 生成下一个可读的顺序产品 ID（prod_N）。
+     * 取当前最大编号 +1；若库中暂无规范编号，则从 prod_1 起始。
+     */
+    private String nextProductId() {
+        String maxId = productRepository.findMaxProductId();
+        long next = 1L;
+        if (maxId != null && maxId.startsWith("prod_")) {
+            try {
+                next = Long.parseLong(maxId.substring("prod_".length())) + 1L;
+            } catch (NumberFormatException ignored) {
+                // 理论上 SQL 已用正则保证是纯数字后缀，这里仅做兜底，保持 next = 1。
+            }
+        }
+        return "prod_" + next;
+    }
+
     @Transactional
     public Product create(Product product) {
-        product.setId(Ids.uuid32());
+        // 新增时必须先生成稳定 ID 和创建时间，因为这两个字段也是产品指纹的一部分。
+        // 如果先计算哈希再补 ID/时间，保存后的数据就无法通过后续完整性校验。
+        // 产品 ID 采用与种子数据一致的可读顺序编号 prod_N，避免界面出现去横线 UUID 这类“乱码”。
+        product.setId(nextProductId());
         product.setCreateTime(TimeUtils.nowText());
         product.setDataHash(computeProductHash(product));
         Product saved = productRepository.save(product);
+        // 业务数据保存成功后写入审计日志，形成“业务表指纹 + 操作日志链”的双层校验。
         recordLog("CREATE", saved.getId(), null, toAuditRow(saved));
         return saved;
     }
@@ -67,11 +94,13 @@ public class ProductService {
     @Transactional
     public Product update(Product product) {
         Product existing = get(product.getId());
+        // 先保存修改前快照，审计日志详情页需要展示 data_before/data_after。
         Map<String, Object> before = toAuditRow(existing);
         existing.setName(product.getName());
         existing.setCategory(product.getCategory());
         existing.setOrigin(product.getOrigin());
         existing.setPrice(product.getPrice());
+        // 只要参与指纹的字段发生变化，就必须同步重算 dataHash。
         existing.setDataHash(computeProductHash(existing));
         Product saved = productRepository.save(existing);
         recordLog("UPDATE", saved.getId(), before, toAuditRow(saved));
@@ -87,6 +116,8 @@ public class ProductService {
     }
 
     public String computeProductHash(Product product) {
+        // 字段顺序必须保持稳定，并且要和 schema.sql、BlockchainSchemaInitializer 中的
+        // SQL 回填规则一致；否则同一条数据在 Java 和 SQL 中会得到不同哈希。
         return HashUtil.sha256(String.join("|",
                 nullToEmpty(product.getId()),
                 nullToEmpty(product.getName()),
@@ -99,6 +130,8 @@ public class ProductService {
 
     public Map<String, Object> verifyProductHash(String id) {
         Product product = get(id);
+        // 校验不读取历史日志，而是直接对当前业务表记录重算指纹，
+        // 因此能发现“直接改数据库但没有更新 data_hash”的篡改场景。
         String currentHash = computeProductHash(product);
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("id", product.getId());
@@ -115,6 +148,7 @@ public class ProductService {
         for (Product product : products) {
             String currentHash = computeProductHash(product);
             if (!currentHash.equals(product.getDataHash())) {
+                // 只返回异常项，前端可以把 invalidItems 做成弹窗明细，避免全量数据过多。
                 Map<String, Object> item = new LinkedHashMap<>();
                 item.put("id", product.getId());
                 item.put("name", product.getName());
@@ -134,6 +168,7 @@ public class ProductService {
     }
 
     public Map<String, Object> toAuditRow(Product product) {
+        // 审计快照使用 LinkedHashMap 固定 JSON 字段顺序，减少哈希和展示时的不确定性。
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("id", product.getId());
         row.put("name", product.getName());
@@ -146,6 +181,7 @@ public class ProductService {
     }
 
     private String normalizePrice(BigDecimal price) {
+        // 价格统一去掉末尾 0，保证 12.50 和 12.5 在指纹层面表示为同一个业务值。
         return price == null ? "" : price.stripTrailingZeros().toPlainString();
     }
 
@@ -172,7 +208,9 @@ public class ProductService {
      */
     private void recordLog(String action, String targetId, Object before, Object after) {
         BlockchainLog log = new BlockchainLog();
-        log.setId(UUID.randomUUID().toString().replace("-", ""));
+        // 日志主键必须使用时间前缀、单调递增的 ID，确保 (timestamp, id) 排序与写入顺序一致，
+        // 否则同一秒内写入的多条日志会因随机 UUID 排序歧义而误判“日志链断裂”。
+        log.setId(Ids.logId());
         log.setActionType(action);
         log.setTargetType("PRODUCT");
         log.setTargetId(targetId);

@@ -104,6 +104,7 @@ const ensureSession = async () => {
       localStorage.setItem('sessionActive', '1')
       localStorage.setItem('userInfo', JSON.stringify(res.data))
       localStorage.setItem('userRole', res.data.role)
+      // 本轮页面生命周期内已向后端确认过 Session，后续路由跳转可先使用缓存用户信息。
       sessionChecked = true
       return res.data
     }
@@ -121,12 +122,15 @@ router.beforeEach(async (to, from) => {
   const cachedUser = JSON.parse(localStorage.getItem('userInfo') || '{}')
 
   if (to.meta.requiresAuth) {
+    // 受保护页面必须先确认后端 Session，再检查 meta.roles。
+    // 这样即使用户手工改 localStorage，也无法绕过后端 Cookie 校验。
     const userInfo = sessionChecked && sessionActive && cachedUser.username ? cachedUser : await ensureSession()
     if (!userInfo) {
       return '/login'
     }
     const role = userInfo.role
     if (to.meta.roles && !to.meta.roles.includes(role)) {
+      // 前端角色守卫提供友好跳转；真正的接口权限仍由 SecurityConfig 兜底。
       ElMessage.error('无权访问该页面')
       return '/dashboard'
     }
