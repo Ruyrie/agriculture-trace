@@ -3,18 +3,7 @@ DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 
 USE `agriculture_trace`;
 
-DROP TABLE IF EXISTS `trace_record`;
-DROP TABLE IF EXISTS `blockchain_log`;
-DROP TABLE IF EXISTS `logistics_record`;
-DROP TABLE IF EXISTS `inspection_record`;
-DROP TABLE IF EXISTS `production_record`;
-DROP TABLE IF EXISTS `batch`;
-DROP TABLE IF EXISTS `product`;
-DROP TABLE IF EXISTS `user_role`;
-DROP TABLE IF EXISTS `user`;
-DROP TABLE IF EXISTS `role`;
-
-CREATE TABLE `user` (
+CREATE TABLE IF NOT EXISTS `user` (
   `id` varchar(32) NOT NULL COMMENT '用户ID (UUID)',
   `username` varchar(64) NOT NULL COMMENT '用户名',
   `password` varchar(100) NOT NULL COMMENT '密码（BCrypt加密）',
@@ -27,7 +16,7 @@ CREATE TABLE `user` (
   UNIQUE KEY `username` (`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE `role` (
+CREATE TABLE IF NOT EXISTS `role` (
   `id` varchar(32) NOT NULL COMMENT '角色ID (UUID)',
   `name` varchar(64) NOT NULL COMMENT '角色名',
   `description` varchar(128) DEFAULT NULL COMMENT '角色描述',
@@ -35,7 +24,7 @@ CREATE TABLE `role` (
   UNIQUE KEY `name` (`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE `user_role` (
+CREATE TABLE IF NOT EXISTS `user_role` (
   `user_id` varchar(32) NOT NULL,
   `role_id` varchar(32) NOT NULL,
   PRIMARY KEY (`user_id`,`role_id`),
@@ -43,7 +32,7 @@ CREATE TABLE `user_role` (
   FOREIGN KEY (`role_id`) REFERENCES `role`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE `product` (
+CREATE TABLE IF NOT EXISTS `product` (
   `id` varchar(32) NOT NULL COMMENT '产品ID (UUID)',
   `name` varchar(128) NOT NULL COMMENT '产品名称',
   `category` varchar(64) DEFAULT NULL COMMENT '产品类别',
@@ -54,7 +43,7 @@ CREATE TABLE `product` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE `batch` (
+CREATE TABLE IF NOT EXISTS `batch` (
   `id` varchar(32) NOT NULL COMMENT '批次ID (UUID)',
   `batch_no` varchar(64) NOT NULL COMMENT '批次号',
   `product_id` varchar(32) NOT NULL,
@@ -67,7 +56,7 @@ CREATE TABLE `batch` (
   FOREIGN KEY (`product_id`) REFERENCES `product`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE `blockchain_log` (
+CREATE TABLE IF NOT EXISTS `blockchain_log` (
   `id` varchar(32) NOT NULL COMMENT '日志ID (时间前缀UUID)',
   `action_type` varchar(20) NOT NULL COMMENT '操作类型: CREATE/UPDATE/DELETE',
   `target_type` varchar(20) NOT NULL COMMENT '目标类型: PRODUCT/BATCH',
@@ -83,7 +72,7 @@ CREATE TABLE `blockchain_log` (
   KEY `idx_blockchain_timestamp` (`timestamp`,`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE `production_record` (
+CREATE TABLE IF NOT EXISTS `production_record` (
   `id` varchar(32) NOT NULL COMMENT '生产记录ID',
   `batch_id` varchar(32) NOT NULL COMMENT '批次ID',
   `activity_name` varchar(128) NOT NULL COMMENT '生产活动',
@@ -96,7 +85,7 @@ CREATE TABLE `production_record` (
   FOREIGN KEY (`batch_id`) REFERENCES `batch`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE `inspection_record` (
+CREATE TABLE IF NOT EXISTS `inspection_record` (
   `id` varchar(32) NOT NULL COMMENT '质检记录ID',
   `batch_id` varchar(32) NOT NULL COMMENT '批次ID',
   `inspection_item` varchar(128) NOT NULL COMMENT '检测项目',
@@ -109,7 +98,7 @@ CREATE TABLE `inspection_record` (
   FOREIGN KEY (`batch_id`) REFERENCES `batch`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE `logistics_record` (
+CREATE TABLE IF NOT EXISTS `logistics_record` (
   `id` varchar(32) NOT NULL COMMENT '物流记录ID',
   `batch_id` varchar(32) NOT NULL COMMENT '批次ID',
   `node_name` varchar(128) NOT NULL COMMENT '物流节点',
@@ -122,7 +111,7 @@ CREATE TABLE `logistics_record` (
   FOREIGN KEY (`batch_id`) REFERENCES `batch`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE `trace_record` (
+CREATE TABLE IF NOT EXISTS `trace_record` (
   `id` varchar(32) NOT NULL COMMENT '记录ID (UUID)',
   `product_id` varchar(32) NOT NULL,
   `trace_time` varchar(19) DEFAULT NULL COMMENT '查询时间',
@@ -131,22 +120,22 @@ CREATE TABLE `trace_record` (
   FOREIGN KEY (`product_id`) REFERENCES `product`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-INSERT INTO `role` (`id`, `name`, `description`) VALUES
+INSERT IGNORE INTO `role` (`id`, `name`, `description`) VALUES
 ('role_admin', 'ROLE_ADMIN', '系统管理员，拥有所有权限'),
 ('role_farmer', 'ROLE_FARMER', '农户，可管理自己的产品和批次'),
 ('role_inspector', 'ROLE_INSPECTOR', '监管员，可查看所有数据和统计分析');
 
-INSERT INTO `user` (`id`, `username`, `password`, `nickname`, `phone`, `enabled`, `create_time`) VALUES
+INSERT IGNORE INTO `user` (`id`, `username`, `password`, `nickname`, `phone`, `enabled`, `create_time`) VALUES
 ('user_admin', 'admin', '$2a$10$yH0q67MimV6tNlRNMsZGtetBkjfblZ8UPGM2cA7LUaZF/sss6eXmS', '系统管理员', '13800000000', 1, '2026-01-01 00:00:00'),
 ('user_farmer', 'farmer', '$2a$10$yH0q67MimV6tNlRNMsZGtetBkjfblZ8UPGM2cA7LUaZF/sss6eXmS', '张三', '13912345678', 1, '2026-01-01 00:00:00'),
 ('user_inspector', 'inspector', '$2a$10$yH0q67MimV6tNlRNMsZGtetBkjfblZ8UPGM2cA7LUaZF/sss6eXmS', '李监管', '13800138000', 1, '2026-01-01 00:00:00');
 
-INSERT INTO `user_role` (`user_id`, `role_id`) VALUES
+INSERT IGNORE INTO `user_role` (`user_id`, `role_id`) VALUES
 ('user_admin', 'role_admin'),
 ('user_farmer', 'role_farmer'),
 ('user_inspector', 'role_inspector');
 
-INSERT INTO `product` (`id`, `name`, `category`, `origin`, `price`, `create_time`) VALUES
+INSERT IGNORE INTO `product` (`id`, `name`, `category`, `origin`, `price`, `create_time`) VALUES
 ('prod_1', '有机苹果', '水果', '山东烟台', 12.50, '2026-01-01 10:00:00'),
 ('prod_2', '五常大米', '粮食', '黑龙江五常', 8.80, '2026-01-01 10:00:00'),
 ('prod_3', '日照绿茶', '茶叶', '山东日照', 68.00, '2026-01-01 10:00:00'),
@@ -167,7 +156,7 @@ SET `data_hash` = SHA2(CONCAT(
   IFNULL(`create_time`, '')
 ), 256);
 
-INSERT INTO `batch` (`id`, `batch_no`, `product_id`, `production_date`, `remark`, `create_time`) VALUES
+INSERT IGNORE INTO `batch` (`id`, `batch_no`, `product_id`, `production_date`, `remark`, `create_time`) VALUES
 ('batch_1', 'B202601001', 'prod_1', '2026-01-10', '一级果，糖度≥14%', '2026-01-11 09:00:00'),
 ('batch_2', 'B202602001', 'prod_2', '2026-02-15', '当季新米', '2026-02-16 09:00:00'),
 ('batch_3', 'B202603001', 'prod_3', '2026-03-05', '明前茶，特级', '2026-03-06 09:00:00'),
@@ -202,7 +191,7 @@ SET `data_hash` = SHA2(CONCAT(
   IFNULL(`create_time`, '')
 ), 256);
 
-INSERT INTO `production_record` (`id`, `batch_id`, `activity_name`, `operator`, `activity_date`, `remark`, `sort_order`) VALUES
+INSERT IGNORE INTO `production_record` (`id`, `batch_id`, `activity_name`, `operator`, `activity_date`, `remark`, `sort_order`) VALUES
 ('prodrec_1', 'batch_1', '果园采摘', '张三', '2026-01-10', '晴天采摘，糖度抽检达标', 1),
 ('prodrec_2', 'batch_1', '冷库预冷', '王仓管', '2026-01-10', '2小时内入库预冷', 2),
 ('prodrec_3', 'batch_2', '稻谷脱壳', '李四', '2026-02-15', '低温碾米，保留胚芽', 1),
@@ -214,7 +203,7 @@ INSERT INTO `production_record` (`id`, `batch_id`, `activity_name`, `operator`, 
 ('prodrec_9', 'batch_5', '鲜蛋收集', '杨养殖', '2026-05-10', '当日收集', 1),
 ('prodrec_10', 'batch_5', '清洁装托', '吴包装', '2026-05-10', '紫外线消杀后装托', 2);
 
-INSERT INTO `inspection_record` (`id`, `batch_id`, `inspection_item`, `result`, `inspector`, `inspection_date`, `sort_order`) VALUES
+INSERT IGNORE INTO `inspection_record` (`id`, `batch_id`, `inspection_item`, `result`, `inspector`, `inspection_date`, `sort_order`) VALUES
 ('insp_1', 'batch_1', '农药残留', '未检出', '李监管', '2026-01-11', 1),
 ('insp_2', 'batch_1', '糖度检测', '合格', '李监管', '2026-01-11', 2),
 ('insp_3', 'batch_2', '重金属检测', '合格', '王质检', '2026-02-16', 1),
@@ -226,7 +215,7 @@ INSERT INTO `inspection_record` (`id`, `batch_id`, `inspection_item`, `result`, 
 ('insp_9', 'batch_5', '新鲜度检测', '合格', '王质检', '2026-05-11', 1),
 ('insp_10', 'batch_5', '沙门氏菌检测', '未检出', '王质检', '2026-05-11', 2);
 
-INSERT INTO `logistics_record` (`id`, `batch_id`, `node_name`, `location`, `operator`, `update_time`, `sort_order`) VALUES
+INSERT IGNORE INTO `logistics_record` (`id`, `batch_id`, `node_name`, `location`, `operator`, `update_time`, `sort_order`) VALUES
 ('log_1', 'batch_1', '产地入库', '山东烟台仓', '王仓管', '2026-01-11 09:30:00', 1),
 ('log_2', 'batch_1', '冷链运输', '华北分拨中心', '冷链司机A', '2026-01-12 14:20:00', 2),
 ('log_3', 'batch_1', '门店签收', '济南历下门店', '门店店长', '2026-01-13 10:05:00', 3),
@@ -282,7 +271,7 @@ FROM `batch` b
 JOIN `product` p ON p.id = b.product_id
 WHERE NOT EXISTS (SELECT 1 FROM `logistics_record` lr WHERE lr.batch_id = b.id);
 
-INSERT INTO `trace_record` (`id`, `product_id`, `trace_time`, `ip`) VALUES
+INSERT IGNORE INTO `trace_record` (`id`, `product_id`, `trace_time`, `ip`) VALUES
 ('trace_1', 'prod_1', '2026-06-06 09:20:00', '127.0.0.1'),
 ('trace_2', 'prod_1', '2026-06-07 10:10:00', '127.0.0.1'),
 ('trace_3', 'prod_2', '2026-06-08 11:35:00', '127.0.0.1'),

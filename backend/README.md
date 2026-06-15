@@ -4,9 +4,9 @@
 
 ## 启动前准备
 
-1. 创建 MySQL 数据库并导入 `src/main/resources/schema.sql`。
-2. 设置环境变量，或使用默认本地配置：
-   - `MYSQL_URL=jdbc:mysql://localhost:3306/agriculture_trace?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true`
+1. 安装并启动 MySQL 8，确保当前 MySQL 用户有创建数据库和建表权限。
+2. 设置环境变量，或使用默认本地配置。默认配置会在首次启动时自动创建 `agriculture_trace` 数据库，并执行 `src/main/resources/schema.sql` 补齐表和演示数据：
+   - `MYSQL_URL=jdbc:mysql://localhost:3306/agriculture_trace?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true`
    - `MYSQL_USERNAME=root`
    - `MYSQL_PASSWORD=123456`
 3. 启动：`mvn spring-boot:run`

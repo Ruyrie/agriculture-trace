@@ -68,11 +68,7 @@ class01/
 
 ## 数据库初始化
 
-创建并导入数据库脚本：
-
-```bash
-mysql -uroot -p < backend/src/main/resources/schema.sql
-```
+启动 MySQL 8 后，默认配置会在后端首次启动时自动创建 `agriculture_trace` 数据库，并执行 `backend/src/main/resources/schema.sql` 补齐表和演示数据。当前 MySQL 用户需要具备创建数据库和建表权限。
 
 默认数据库配置位于 `backend/src/main/resources/application.yml`：
 
@@ -86,7 +82,7 @@ mysql -uroot -p < backend/src/main/resources/schema.sql
 也可以通过环境变量覆盖：
 
 ```bash
-MYSQL_URL=jdbc:mysql://localhost:3306/agriculture_trace?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+MYSQL_URL=jdbc:mysql://localhost:3306/agriculture_trace?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
 MYSQL_USERNAME=root
 MYSQL_PASSWORD=123456
 ```
