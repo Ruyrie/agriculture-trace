@@ -36,6 +36,10 @@ public class DashboardController {
                 "traceCount", statisticsMapper.countTraceRecords()
         ));
     }
+    /**Result<?>表示这个方法返回的是项目统一响应格式 Result<?> 表示里面的数据类型不固定，这里实际返回的是一个 Map
+        *Map.of(...) 是 Java 里快速创建键值对对象的方法
+        *项目里接口一般不是直接返回数据,拿去包装过的数据
+     * /
 
     /**
      * 返回产品类别分布，用于首页饼图展示各类别产品占比。
