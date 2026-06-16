@@ -105,6 +105,7 @@ const verifyingAll = ref(false)
 const verifyDialogVisible = ref(false)
 const verifyResult = ref({ total: 0, invalidCount: 0, invalidItems: [] })
 
+// 拉取产品分页数据，并同步总数供分页器和标题展示。
 const fetchData = async () => {
   const res = await getProductList({ page: page.value, pageSize: pageSize.value, keyword: searchKeyword.value })
   if (res.code === 200) {
@@ -113,18 +114,21 @@ const fetchData = async () => {
   }
 }
 
+// 打开新增产品弹窗，并清空表单基础字段。
 const handleAdd = () => {
   dialogTitle.value = '新增产品'
   Object.assign(formData, { id: null, name: '', category: '', origin: '', price: 0 })
   dialogVisible.value = true
 }
 
+// 打开编辑产品弹窗，把当前行数据作为初始值传入 ProductFormDialog。
 const handleEdit = (row) => {
   dialogTitle.value = '编辑产品'
   Object.assign(formData, row)
   dialogVisible.value = true
 }
 
+// 处理产品弹窗提交：新增可走复合溯源接口，编辑时可顺带更新一个批次的溯源明细。
 const submitForm = async (data) => {
   let res
   if (data.id) {
@@ -156,6 +160,7 @@ const submitForm = async (data) => {
   }
 }
 
+// 删除产品前二次确认，成功后刷新列表。
 const handleDelete = (row) => {
   ElMessageBox.confirm('确定删除该产品吗？此操作不可逆。', '删除确认', {
     type: 'warning',
@@ -171,10 +176,12 @@ const handleDelete = (row) => {
   })
 }
 
+// 跳转公开溯源详情页，页面内会基于当前 URL 生成二维码。
 const viewTrace = (row) => {
   router.push(`/trace/${row.id}`)
 }
 
+// 校验单个产品数据指纹，提示是否可能被绕过系统改动。
 const handleVerify = async (row) => {
   const res = await verifyProductHash(row.id)
   if (res.code === 200 && res.data?.valid) {
@@ -184,6 +191,7 @@ const handleVerify = async (row) => {
   }
 }
 
+// 批量校验所有产品指纹；存在异常时打开明细弹窗。
 const handleVerifyAll = async () => {
   verifyingAll.value = true
   try {

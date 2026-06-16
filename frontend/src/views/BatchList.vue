@@ -240,6 +240,7 @@ const total = ref(0)
 const searchProductName = ref('')
 const searchBatchNo = ref('')
 const productOptions = ref([])
+// 产品下拉按名称去重：同名产品只展示一项，避免筛选框重复拥挤。
 const filterProductOptions = computed(() => {
   const seenNames = new Set()
   return productOptions.value.filter(product => {
@@ -280,21 +281,26 @@ const rules = {
   productionDate: [{ required: true, message: '请选择生产日期', trigger: 'change' }]
 }
 
+// 禁止选择未来生产日期，保证批次生产时间不晚于当前时间。
 const disabledDate = (time) => time.getTime() > Date.now()
 
+// 生成 YYYY-MM-DD 当前日期文本，供日期字段默认值使用。
 const currentDateText = () => new Date().toISOString().slice(0, 10)
 
+// 生成当前日期时间文本，供物流节点默认更新时间使用。
 const currentDateTimeText = () => {
   const now = new Date()
   const pad = (value) => String(value).padStart(2, '0')
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:00`
 }
 
+// 同名产品超过一个时在选项里附带 ID，帮助用户区分。
 const productOptionLabel = (product) => {
   const sameNameCount = productOptions.value.filter(item => item.name === product.name).length
   return sameNameCount > 1 ? `${product.name}（${product.id}）` : product.name
 }
 
+// 新增批次时选择产品后自动生成一个可读批次号。
 const onProductChange = (productId) => {
   const product = productOptions.value.find(p => p.id === productId)
   if (product && !form.id) {
@@ -304,6 +310,7 @@ const onProductChange = (productId) => {
   }
 }
 
+// 拉取批次分页列表，并把异常响应兜底为空表格。
 const fetchData = async () => {
   try {
     const res = await getBatchList({ page: page.value, pageSize: pageSize.value, productName: searchProductName.value, batchNo: searchBatchNo.value })
@@ -325,42 +332,56 @@ const fetchData = async () => {
   }
 }
 
+// 拉取产品候选列表，供新增/编辑批次时选择关联产品。
 const fetchProductOptions = async () => {
   const res = await getProductList({ page: 1, pageSize: 100 })
   if (res.code === 200) productOptions.value = res.data?.records || []
 }
 
+// 修改每页数量后刷新批次列表。
 const handleSizeChange = (val) => { pageSize.value = val; fetchData() }
+// 修改当前页后刷新批次列表。
 const handleCurrentChange = (val) => { page.value = val; fetchData() }
 
+// 新增生产记录行，日期默认当天。
 const addProduction = () => form.productionRecords.push({ activityName: '', operator: '', activityDate: currentDateText(), remark: '' })
+// 删除生产记录行。
 const removeProduction = (index) => form.productionRecords.splice(index, 1)
+// 新增质检记录行，日期默认当天。
 const addInspection = () => form.inspectionRecords.push({ inspectionItem: '', result: '', inspector: '', inspectionDate: currentDateText() })
+// 删除质检记录行。
 const removeInspection = (index) => form.inspectionRecords.splice(index, 1)
+// 新增物流记录行，时间默认当前日期时间。
 const addLogistics = () => form.logisticsRecords.push({ nodeName: '', location: '', operator: '', updateTime: currentDateTimeText() })
+// 删除物流记录行。
 const removeLogistics = (index) => form.logisticsRecords.splice(index, 1)
 
+// 清空三类溯源动态表格。
 const clearTraceRows = () => {
   form.productionRecords.splice(0)
   form.inspectionRecords.splice(0)
   form.logisticsRecords.splice(0)
 }
 
+// 重置批次表单到新增状态。
 const resetForm = () => {
   Object.assign(form, { id: null, productId: '', batchNo: '', productionDate: currentDateText(), remark: '' })
   clearTraceRows()
   activeTab.value = 'base'
 }
 
+// 关闭批次表单弹窗。
 const closeDialog = () => {
   dialogVisible.value = false
 }
 
+// 弹窗完全关闭后重置表单并清除校验状态。
 const handleDialogClosed = () => {
   resetForm()
   nextTick(() => formRef.value?.clearValidate())
 }
 
+// 打开新增批次弹窗。
 const handleAdd = async () => {
   dialogTitle.value = '新增批次'
   resetForm()
@@ -369,6 +390,7 @@ const handleAdd = async () => {
   formRef.value?.clearValidate()
 }
 
+// 加载指定批次的生产、质检、物流记录并回填到动态表单。
 const loadTraceRows = async (batchId) => {
   clearTraceRows()
   try {
@@ -414,6 +436,7 @@ const loadTraceRows = async (batchId) => {
   }
 }
 
+// 打开编辑批次弹窗，并加载该批次已有溯源记录。
 const handleEdit = async (row) => {
   dialogTitle.value = '编辑批次'
   resetForm()
@@ -425,10 +448,14 @@ const handleEdit = async (row) => {
   formRef.value?.clearValidate()
 }
 
+// 过滤掉完全空白的生产记录行，避免提交无意义空对象。
 const compactProductionRows = () => form.productionRecords.filter(record => record.activityName || record.operator || record.activityDate || record.remark)
+// 过滤掉完全空白的质检记录行。
 const compactInspectionRows = () => form.inspectionRecords.filter(record => record.inspectionItem || record.result || record.inspector || record.inspectionDate)
+// 过滤掉完全空白的物流记录行。
 const compactLogisticsRows = () => form.logisticsRecords.filter(record => record.nodeName || record.location || record.operator || record.updateTime)
 
+// 校验批次基础字段和已填写的溯源行，构造 payload 后新增或更新批次。
 const submitForm = async () => {
   await formRef.value.validate()
   const productionRecords = compactProductionRows()
@@ -468,6 +495,7 @@ const submitForm = async () => {
   }
 }
 
+// 删除批次前弹出确认框，成功后刷新列表。
 const handleDelete = (row) => {
   ElMessageBox.confirm('确定删除该批次吗？', '删除确认', { type: 'warning' }).then(async () => {
     const res = await deleteBatch(row.id)
@@ -480,11 +508,13 @@ const handleDelete = (row) => {
   })
 }
 
+// 跳转批次维度公开溯源页。
 const viewTrace = (row) => {
   if (!row.id) { ElMessage.warning('无法获取批次信息'); return }
   router.push(`/trace/batch/${row.id}`)
 }
 
+// 校验单个批次数据指纹。
 const handleVerify = async (row) => {
   const res = await verifyBatchHash(row.id)
   if (res.code === 200 && res.data?.valid) {
@@ -494,6 +524,7 @@ const handleVerify = async (row) => {
   }
 }
 
+// 批量校验所有批次指纹，发现异常时打开明细弹窗。
 const handleVerifyAll = async () => {
   verifyingAll.value = true
   try {

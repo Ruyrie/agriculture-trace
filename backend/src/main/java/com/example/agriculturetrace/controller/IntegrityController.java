@@ -39,6 +39,10 @@ public class IntegrityController {
         this.batchService = batchService;
     }
 
+    /**
+     * 输出产品数据指纹列表，并计算当前产品集合的全局 rootHash。
+     * 前端“数据指纹”页面通过它展示 storedHash/currentHash 是否一致。
+     */
     @GetMapping({"/fingerprints", "/products"})
     public Result<?> fingerprints() {
         // 固定按 id 升序输出，保证同一份产品集合计算出的 rootHash 稳定可复现。
@@ -54,6 +58,9 @@ public class IntegrityController {
         ));
     }
 
+    /**
+     * 只返回产品集合根哈希和生成时间，用于需要轻量校验全局摘要的场景。
+     */
     @GetMapping("/root-hash")
     public Result<?> rootHash() {
         List<Map<String, Object>> rows = productRepository.findAll(Sort.by(Sort.Direction.ASC, "id"))
@@ -67,26 +74,41 @@ public class IntegrityController {
         ));
     }
 
+    /**
+     * 校验单个产品当前字段重新计算出的哈希是否等于数据库保存的 dataHash。
+     */
     @GetMapping({"/verify/{id}", "/product/{id}/verify"})
     public Result<?> verifyProduct(@PathVariable String id) {
         return Result.success(productService.verifyProductHash(id));
     }
 
+    /**
+     * 批量校验所有产品指纹，只把异常项放进 invalidItems 返回。
+     */
     @GetMapping("/products/verify")
     public Result<?> verifyProducts() {
         return Result.success(productService.verifyAllProductHashes());
     }
 
+    /**
+     * 校验单个批次的 dataHash，用于批次管理页“验证”按钮。
+     */
     @GetMapping("/batch/{id}/verify")
     public Result<?> verifyBatch(@PathVariable String id) {
         return Result.success(batchService.verifyBatchHash(id));
     }
 
+    /**
+     * 批量校验所有批次指纹，返回总数、异常数和异常明细。
+     */
     @GetMapping("/batches/verify")
     public Result<?> verifyBatches() {
         return Result.success(batchService.verifyAllBatchHashes());
     }
 
+    /**
+     * 将 Product 转为数据指纹展示行，并附带即时计算的 currentHash。
+     */
     private Map<String, Object> toIntegrityRow(Product product) {
         // storedHash 是数据库保存值，currentHash 是当前字段即时计算值；
         // 前端用 valid 字段直接渲染“一致/异常”。
@@ -98,6 +120,9 @@ public class IntegrityController {
         return row;
     }
 
+    /**
+     * 计算简化版全局根哈希：把所有行的 currentHash 按固定顺序连接后再 SHA-256。
+     */
     private String calculateRootHash(List<Map<String, Object>> rows) {
         // 简化版根哈希：将每条产品当前指纹按固定顺序串联后再 SHA-256。
         // 它不是完整 Merkle Tree，但能模拟“全局数据摘要”的校验效果。

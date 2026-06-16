@@ -237,6 +237,7 @@ const searchBatchNo = ref('')
 const activeBatch = ref('all')
 const expandedBatches = ref([])
 
+// 判断质检结果是否可视为通过，用于给结果标签设置 success/danger 类型。
 const isPassResult = (result) => {
   if (!result) return false
   return result.includes('合格') || result.includes('未检出') || result.includes('通过')
@@ -315,6 +316,7 @@ const selectBatch = (batchNo) => {
   expandedBatches.value = [batchNo]
 }
 
+// 清空日期和批次号筛选，并恢复展示全部批次。
 const clearFilter = () => {
   dateRange.value = null
   searchBatchNo.value = ''
@@ -361,6 +363,7 @@ const exportToCSV = (batchDataList, filename) => {
   ElMessage.success('导出成功')
 }
 
+// 处理导出下拉菜单：可导出当前筛选/当前批次，也可导出全部批次。
 const handleExportCommand = (command) => {
   const name = productInfo.value.name || productId || batchId || 'trace'
   const today = new Date().toISOString().substring(0, 10)
@@ -381,6 +384,7 @@ const handleExportCommand = (command) => {
   }
 }
 
+// 使用 qrcode 库把当前页面完整 URL 绘制到 canvas，扫码即可回到同一溯源页。
 const generateQRCode = async () => {
   const url = `${window.location.origin}${route.fullPath}`
   try {
@@ -390,6 +394,7 @@ const generateQRCode = async () => {
   }
 }
 
+// 将二维码 canvas 转成 PNG dataURL，并触发浏览器下载。
 const downloadQRCode = () => {
   const canvas = qrcodeCanvas.value
   if (!canvas) return
@@ -399,6 +404,7 @@ const downloadQRCode = () => {
   a.click()
 }
 
+// 根据路由参数选择产品维度或批次维度接口，加载产品信息和三类溯源记录。
 const fetchTraceInfo = async () => {
   loadingProduct.value = true
   loadingTrace.value = true

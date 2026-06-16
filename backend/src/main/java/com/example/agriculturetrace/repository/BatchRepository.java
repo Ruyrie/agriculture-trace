@@ -16,6 +16,9 @@ import java.util.Optional;
  */
 public interface BatchRepository extends JpaRepository<Batch, String> {
 
+    /**
+     * 按批次号查询批次，用于新增/编辑时校验批次号唯一性。
+     */
     Optional<Batch> findByBatchNo(String batchNo);
 
     /**
@@ -44,20 +47,38 @@ public interface BatchRepository extends JpaRepository<Batch, String> {
     @Query("select batch from Batch batch")
     List<Batch> findAllWithProduct();
 
+    /**
+     * 按产品 ID 分页查询批次，并预加载 product 供列表展示。
+     */
     @EntityGraph(attributePaths = "product")
     Page<Batch> findByProduct_Id(String productId, Pageable pageable);
 
+    /**
+     * 按产品名称精确匹配查询批次，用于批次列表按产品名筛选。
+     */
     @EntityGraph(attributePaths = "product")
     Page<Batch> findByProduct_NameIgnoreCase(String productName, Pageable pageable);
 
+    /**
+     * 按批次号模糊查询批次。
+     */
     @EntityGraph(attributePaths = "product")
     Page<Batch> findByBatchNoContaining(String batchNo, Pageable pageable);
 
+    /**
+     * 按产品 ID 和批次号模糊条件组合查询批次。
+     */
     @EntityGraph(attributePaths = "product")
     Page<Batch> findByProduct_IdAndBatchNoContaining(String productId, String batchNo, Pageable pageable);
 
+    /**
+     * 按产品名称和批次号组合查询批次。
+     */
     @EntityGraph(attributePaths = "product")
     Page<Batch> findByProduct_NameIgnoreCaseAndBatchNoContaining(String productName, String batchNo, Pageable pageable);
 
+    /**
+     * 查询某个产品下的所有批次，按创建时间倒序供公开溯源页展示。
+     */
     List<Batch> findByProduct_IdOrderByCreateTimeDesc(String productId);
 }

@@ -4,6 +4,7 @@ import viteLogo from '../assets/vite.svg'
 import heroImg from '../assets/hero.png'
 import vueLogo from '../assets/vue.svg'
 
+// Vite 模板遗留的本地计数器示例，当前业务页面没有引用该组件。
 const count = ref(0)
 </script>
 

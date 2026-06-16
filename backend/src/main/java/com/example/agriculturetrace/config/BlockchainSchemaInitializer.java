@@ -1,5 +1,6 @@
 package com.example.agriculturetrace.config;
 
+import com.example.agriculturetrace.service.BlockchainAnchorService;
 import com.example.agriculturetrace.util.HashUtil;
 import com.example.agriculturetrace.util.Ids;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,18 +26,26 @@ public class BlockchainSchemaInitializer implements ApplicationRunner {
 
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
+    private final BlockchainAnchorService anchorService;
     private static final DateTimeFormatter TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
-    public BlockchainSchemaInitializer(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper) {
+    public BlockchainSchemaInitializer(JdbcTemplate jdbcTemplate,
+                                       ObjectMapper objectMapper,
+                                       BlockchainAnchorService anchorService) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
+        this.anchorService = anchorService;
     }
 
+    /**
+     * 应用启动后执行一次兼容初始化：补字段、建审计表/锚点表、回填旧数据哈希并生成初始日志。
+     */
     @Override
     public void run(ApplicationArguments args) {
         boolean productHashColumnCreated = ensureProductHashColumn();
         boolean batchHashColumnCreated = ensureBatchHashColumn();
         ensureBlockchainLogTable();
+        ensureBlockchainAnchorTable();
         if (productHashColumnCreated) {
             backfillProductHashes();
         }
@@ -44,8 +53,13 @@ public class BlockchainSchemaInitializer implements ApplicationRunner {
             backfillBatchHashes();
         }
         seedInitialAuditLogsIfEmpty();
+        initAnchorIfMissing();
     }
 
+    /**
+     * 确保 product 表存在 data_hash 字段。
+     * 返回 true 表示本次新建了字段，需要随后为历史产品回填哈希。
+     */
     private boolean ensureProductHashColumn() {
         if (!columnExists("product", "data_hash")) {
             jdbcTemplate.execute("ALTER TABLE `product` ADD COLUMN `data_hash` varchar(64) DEFAULT NULL COMMENT '产品数据哈希(SHA-256)'");
@@ -54,6 +68,9 @@ public class BlockchainSchemaInitializer implements ApplicationRunner {
         return false;
     }
 
+    /**
+     * 确保 batch 表存在 data_hash 字段。
+     */
     private boolean ensureBatchHashColumn() {
         if (!columnExists("batch", "data_hash")) {
             jdbcTemplate.execute("ALTER TABLE `batch` ADD COLUMN `data_hash` varchar(64) DEFAULT NULL COMMENT '批次数据哈希(SHA-256)'");
@@ -62,6 +79,9 @@ public class BlockchainSchemaInitializer implements ApplicationRunner {
         return false;
     }
 
+    /**
+     * 创建审计日志表，用 previous_hash 和 data_hash 保存链式日志结构。
+     */
     private void ensureBlockchainLogTable() {
         jdbcTemplate.execute("""
                 CREATE TABLE IF NOT EXISTS `blockchain_log` (
@@ -82,6 +102,43 @@ public class BlockchainSchemaInitializer implements ApplicationRunner {
                 """);
     }
 
+    /**
+     * 创建链尾锚点表，用于检测“删除最新几条日志”这类链尾截断问题。
+     */
+    private void ensureBlockchainAnchorTable() {
+        // 单行锚点表：把“期望日志条数 + 链尾哈希”存在 blockchain_log 之外，
+        // 用来发现链条遍历无法察觉的“从链尾整段删除最新日志”。
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS `blockchain_anchor` (
+                  `id` int NOT NULL COMMENT '锚点固定主键，恒为1',
+                  `log_count` bigint NOT NULL COMMENT '期望的日志总条数',
+                  `tip_hash` varchar(64) NOT NULL COMMENT '期望的链尾(最后一条日志)哈希',
+                  `updated_at` varchar(19) NOT NULL COMMENT '锚点更新时间 yyyy-MM-dd HH:mm:ss',
+                  PRIMARY KEY (`id`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+                """);
+    }
+
+    /**
+     * 如果锚点尚不存在，就用当前日志总数和链尾哈希建立首次基线。
+     * 已有锚点绝不重置，防止启动时掩盖宕机期间的删尾篡改。
+     */
+    private void initAnchorIfMissing() {
+        // 关键：只在锚点缺失时按当前日志建立基线，绝不能在启动时重置已有锚点，
+        // 否则应用宕机期间发生的“删尾”会被当成新基线放过，二次校验就失效了。
+        if (anchorService.getAnchor() != null) {
+            return;
+        }
+        Long count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM `blockchain_log`", Long.class);
+        String tipHash = jdbcTemplate.query(
+                "SELECT `data_hash` FROM `blockchain_log` ORDER BY `id` DESC LIMIT 1",
+                rs -> rs.next() ? rs.getString(1) : "0");
+        anchorService.refresh(count == null ? 0L : count, tipHash);
+    }
+
+    /**
+     * 为历史产品记录按 Java 侧相同字段顺序回填 data_hash。
+     */
     private void backfillProductHashes() {
         jdbcTemplate.update("""
                 UPDATE `product`
@@ -101,6 +158,9 @@ public class BlockchainSchemaInitializer implements ApplicationRunner {
                 """);
     }
 
+    /**
+     * 为历史批次记录按 Java 侧相同字段顺序回填 data_hash。
+     */
     private void backfillBatchHashes() {
         jdbcTemplate.update("""
                 UPDATE `batch`
@@ -116,6 +176,9 @@ public class BlockchainSchemaInitializer implements ApplicationRunner {
                 """);
     }
 
+    /**
+     * 查询当前数据库中指定表列是否存在，用于安全执行幂等迁移。
+     */
     private boolean columnExists(String tableName, String columnName) {
         Integer count = jdbcTemplate.queryForObject("""
                 SELECT COUNT(*)
@@ -127,6 +190,10 @@ public class BlockchainSchemaInitializer implements ApplicationRunner {
         return count != null && count > 0;
     }
 
+    /**
+     * 当审计日志表为空时，根据已有产品和批次生成一组 CREATE 初始日志。
+     * 这样旧数据也能接入后续链式校验。
+     */
     private void seedInitialAuditLogsIfEmpty() {
         Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM `blockchain_log`", Integer.class);
         if (count != null && count > 0) {
@@ -160,6 +227,9 @@ public class BlockchainSchemaInitializer implements ApplicationRunner {
         }
     }
 
+    /**
+     * 插入一条初始化审计日志，并返回该日志 dataHash 作为下一条日志的 previousHash。
+     */
     private String insertInitialLog(String action,
                                     String targetType,
                                     String targetId,
@@ -187,6 +257,9 @@ public class BlockchainSchemaInitializer implements ApplicationRunner {
         return dataHash;
     }
 
+    /**
+     * 把数据库产品行转换成审计日志 data_after 使用的稳定 JSON 对象。
+     */
     private Map<String, Object> productRow(Map<String, Object> product) {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("id", product.get("id"));
@@ -199,6 +272,9 @@ public class BlockchainSchemaInitializer implements ApplicationRunner {
         return row;
     }
 
+    /**
+     * 把数据库批次行转换成审计日志 data_after 使用的稳定 JSON 对象。
+     */
     private Map<String, Object> batchRow(Map<String, Object> batch) {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("id", batch.get("id"));
@@ -212,6 +288,9 @@ public class BlockchainSchemaInitializer implements ApplicationRunner {
         return row;
     }
 
+    /**
+     * 将对象序列化为 JSON 字符串；失败时返回空字符串避免启动迁移中断。
+     */
     private String toJson(Object obj) {
         try {
             return objectMapper.writeValueAsString(obj);
@@ -220,6 +299,9 @@ public class BlockchainSchemaInitializer implements ApplicationRunner {
         }
     }
 
+    /**
+     * 标准化数据库 price 值，使 SQL 回填哈希和 Java Service 计算规则一致。
+     */
     private String normalizePrice(Object value) {
         if (value == null) {
             return "";
@@ -230,6 +312,9 @@ public class BlockchainSchemaInitializer implements ApplicationRunner {
         return value.toString();
     }
 
+    /**
+     * 将可能为空的数据库字段转换为字符串。
+     */
     private String stringValue(Object value) {
         return value == null ? "" : value.toString();
     }

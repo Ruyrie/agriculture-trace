@@ -105,10 +105,12 @@ const username = computed(() => {
   return info.username || '用户'
 })
 
+// 将当前日期格式化为中文完整日期，用于欢迎横幅。
 const today = computed(() => {
   return new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })
 })
 
+// 获取顶部统计卡片数据。
 const fetchStatistics = async () => {
   try {
     const res = await getStatistics()
@@ -116,6 +118,7 @@ const fetchStatistics = async () => {
   } catch { ElMessage.error('获取统计数据失败') }
 }
 
+// 获取类别分布并初始化/更新饼图。
 const fetchCategoryDistribution = async () => {
   try {
     const res = await getCategoryDistribution()
@@ -146,6 +149,7 @@ const fetchCategoryDistribution = async () => {
   } catch { ElMessage.error('获取类别分布失败') }
 }
 
+// 获取近 7 天溯源趋势并初始化/更新折线图。
 const fetchTraceTrend = async () => {
   try {
     const res = await getTraceTrend()
@@ -182,6 +186,7 @@ const fetchTraceTrend = async () => {
   } catch { ElMessage.error('获取趋势数据失败') }
 }
 
+// 并发加载首页所有数据，最后关闭加载遮罩。
 const loadDashboardData = async () => {
   loading.value = true
   try {

@@ -13,6 +13,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 @Configuration
 public class PasswordConfig {
 
+    /**
+     * 暴露 BCrypt 密码编码器 Bean。
+     * UserService 用 encode 存储加盐哈希，Spring Security 登录时用 matches 比对明文输入。
+     */
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();

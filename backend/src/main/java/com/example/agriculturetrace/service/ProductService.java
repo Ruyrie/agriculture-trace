@@ -39,16 +39,22 @@ public class ProductService {
 
     private final ProductRepository productRepository;
     private final BlockchainLogRepository logRepository;
+    private final BlockchainAnchorService anchorService;
     private final ObjectMapper objectMapper;
 
     public ProductService(ProductRepository productRepository,
                           BlockchainLogRepository logRepository,
+                          BlockchainAnchorService anchorService,
                           ObjectMapper objectMapper) {
         this.productRepository = productRepository;
         this.logRepository = logRepository;
+        this.anchorService = anchorService;
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * 分页查询产品；keyword 为空时查全部，否则按名称忽略大小写模糊匹配。
+     */
     public Page<Product> list(String keyword, int page, int pageSize) {
         PageRequest request = PageRequest.of(Math.max(page - 1, 0), pageSize);
         if (keyword == null || keyword.isBlank()) {
@@ -57,6 +63,9 @@ public class ProductService {
         return productRepository.findByNameContainingIgnoreCase(keyword, request);
     }
 
+    /**
+     * 按 ID 获取产品实体，找不到则抛出异常交给全局异常处理器转换成 404。
+     */
     public Product get(String id) {
         return productRepository.findById(id).orElseThrow();
     }
@@ -78,6 +87,10 @@ public class ProductService {
         return "prod_" + next;
     }
 
+    /**
+     * 创建产品并写入审计日志。
+     * 创建时会先生成业务 ID、创建时间和 dataHash，保证后续完整性校验可复现。
+     */
     @Transactional
     public Product create(Product product) {
         // 新增时必须先生成稳定 ID 和创建时间，因为这两个字段也是产品指纹的一部分。
@@ -92,6 +105,10 @@ public class ProductService {
         return saved;
     }
 
+    /**
+     * 更新产品基础字段并在发生真实变化时重算 dataHash。
+     * 无变化时直接返回原实体，避免产生没有业务意义的审计日志。
+     */
     @Transactional
     public Product update(Product product) {
         Product existing = get(product.getId());
@@ -111,6 +128,9 @@ public class ProductService {
         return saved;
     }
 
+    /**
+     * 删除产品并把删除前快照写入审计日志。
+     */
     @Transactional
     public void delete(String id) {
         Product existing = get(id);
@@ -119,6 +139,10 @@ public class ProductService {
         recordLog("DELETE", id, before, null);
     }
 
+    /**
+     * 按固定字段顺序计算产品业务数据指纹。
+     * 任一参与字段被绕过系统修改，重新计算出的哈希都会和 dataHash 不一致。
+     */
     public String computeProductHash(Product product) {
         // 字段顺序必须保持稳定，并且要和 schema.sql、BlockchainSchemaInitializer 中的
         // SQL 回填规则一致；否则同一条数据在 Java 和 SQL 中会得到不同哈希。
@@ -132,6 +156,9 @@ public class ProductService {
         ));
     }
 
+    /**
+     * 校验单个产品指纹，并返回存储哈希、当前哈希和是否一致。
+     */
     public Map<String, Object> verifyProductHash(String id) {
         Product product = get(id);
         // 校验不读取历史日志，而是直接对当前业务表记录重算指纹，
@@ -146,6 +173,9 @@ public class ProductService {
         return result;
     }
 
+    /**
+     * 批量校验所有产品指纹，只收集异常产品，减少前端弹窗展示压力。
+     */
     public Map<String, Object> verifyAllProductHashes() {
         List<Map<String, Object>> invalidItems = new ArrayList<>();
         List<Product> products = productRepository.findAll();
@@ -171,6 +201,9 @@ public class ProductService {
         return result;
     }
 
+    /**
+     * 生成产品审计快照，用于审计日志 data_before/data_after 和完整性展示。
+     */
     public Map<String, Object> toAuditRow(Product product) {
         // 审计快照使用 LinkedHashMap 固定 JSON 字段顺序，减少哈希和展示时的不确定性。
         Map<String, Object> row = new LinkedHashMap<>();
@@ -184,15 +217,24 @@ public class ProductService {
         return row;
     }
 
+    /**
+     * 标准化价格文本，避免 12.50 和 12.5 这类等价数值产生不同哈希。
+     */
     private String normalizePrice(BigDecimal price) {
         // 价格统一去掉末尾 0，保证 12.50 和 12.5 在指纹层面表示为同一个业务值。
         return price == null ? "" : price.stripTrailingZeros().toPlainString();
     }
 
+    /**
+     * 将 null 字符串统一转换为空字符串，保证哈希拼接逻辑稳定。
+     */
     private String nullToEmpty(String value) {
         return value == null ? "" : value;
     }
 
+    /**
+     * 判断产品关键字段是否发生变化，避免无意义更新和空审计日志。
+     */
     private boolean hasProductChanges(Product existing, Product incoming) {
         return !Objects.equals(nullToEmpty(existing.getName()), nullToEmpty(incoming.getName()))
                 || !Objects.equals(nullToEmpty(existing.getCategory()), nullToEmpty(incoming.getCategory()))
@@ -216,6 +258,7 @@ public class ProductService {
 
     /**
      * 记录审计日志（链式哈希）。
+     * 每条日志都包含上一条日志哈希，形成 previous_hash -> data_hash 的连续链。
      */
     private void recordLog(String action, String targetId, Object before, Object after) {
         BlockchainLog log = new BlockchainLog();
@@ -240,8 +283,15 @@ public class ProductService {
                 + (log.getDataAfter() != null ? log.getDataAfter() : "");
         log.setDataHash(HashUtil.sha256(content));
         logRepository.save(log);
+
+        // 合法写入后推进锚点：count() 会触发 JPA flush，因此能统计到刚保存的这条；
+        // 新链尾即本条日志哈希。事后绕过系统的删除不会走到这里，于是会被验证发现。
+        anchorService.refresh(logRepository.count(), log.getDataHash());
     }
 
+    /**
+     * 获取当前操作人；没有登录态或匿名访问时使用 system 作为审计操作者。
+     */
     private String currentOperator() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || authentication.getName() == null || "anonymousUser".equals(authentication.getName())) {

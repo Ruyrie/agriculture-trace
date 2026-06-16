@@ -8,6 +8,7 @@ const request = axios.create({
   withCredentials: true
 })
 
+// 请求拦截器暂不改写请求，只保留统一扩展点，后续可在这里添加请求头或追踪 ID。
 request.interceptors.request.use(config => {
   return config
 })
@@ -31,6 +32,7 @@ request.interceptors.response.use(
     }
     return data
   },
+  // 网络错误或非 2xx 响应统一弹出错误，并标记 __handled 避免页面层重复提示。
   error => {
     ElMessage.error(error.response?.data?.message || '网络异常，请稍后重试')
     error.__handled = true

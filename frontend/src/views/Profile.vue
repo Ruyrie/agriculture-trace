@@ -122,7 +122,7 @@ const pwdRules = {
 const defaultAvatar =
 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjAiIGhlaWdodD0iMTIwIiB2aWV3Qm94PSIwIDAgMTIwIDEyMCI+PHJlY3Qgd2lkdGg9IjEyMCIgaGVpZ2h0PSIxMjAiIGZpbGw9IiNFMEUwRTAiLz48Y2lyY2xlIGN4PSI2MCIgY3k9IjQ1IiByPSIyMCIgZmlsbD0iIzlFOUU5RSIvPjxwYXRoIGZpbGw9IiM5RTlFOUUiIGQ9Ik0zMCA4MCBMOTAgODAgTDgwIDY1IEw3MCA2NSBMNzAgNzUgTDUwIDc1IEw1MCA2NSBMNDAgNjVaIi8+PC9zdmc+'
 
-// 从 localStorage 加载用户信息
+// 从 localStorage 加载用户信息，并把后端相对头像路径转换成浏览器可访问的完整 URL。
 const loadUserInfo = () => {
   const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
   profileForm.id = userInfo.id || null
@@ -139,13 +139,14 @@ const loadUserInfo = () => {
   profileForm.role = roleLabel(userInfo.role)
 }
 
+// 将后端角色编码转换成页面展示文案。
 const roleLabel = (role) => ({
   ROLE_ADMIN: '管理员',
   ROLE_FARMER: '农户',
   ROLE_INSPECTOR: '监管员'
 })[role] || role || ''
 
-// 保存基本信息（真实API）
+// 保存基本资料；成功后刷新 localStorage 并通知 Layout 同步右上角头像/用户名。
 const updateProfile = async () => {
   await profileFormRef.value.validate()
   saving.value = true
@@ -177,7 +178,7 @@ const updateProfile = async () => {
   }
 }
 
-// 修改密码（真实API）
+// 修改密码；成功后清空本地登录态并跳回登录页，要求用户重新登录。
 const changePassword = async () => {
   await pwdFormRef.value.validate()
   changing.value = true
@@ -206,7 +207,7 @@ const changePassword = async () => {
   }
 }
 
-// 头像上传前校验
+// 上传头像前校验文件类型和大小，避免把非图片或超大文件发给后端。
 const beforeAvatarUpload = (file) => {
   const isImage = file.type.startsWith('image/')
   const isLt50M = file.size / 1024 / 1024 <= 50
@@ -221,7 +222,7 @@ const beforeAvatarUpload = (file) => {
   return true
 }
 
-// 真实头像上传（文件流上传）
+// 使用 multipart/form-data 上传头像，并把后端返回的头像 URL 同步到表单和本地用户信息。
 const handleAvatarUpload = async (options) => {
   const file = options.file
   const formData = new FormData()

@@ -11,6 +11,9 @@ import org.springframework.data.jpa.repository.Query;
  */
 public interface ProductRepository extends JpaRepository<Product, String> {
 
+    /**
+     * 按产品名称忽略大小写模糊查询，用于产品列表搜索框。
+     */
     Page<Product> findByNameContainingIgnoreCase(String name, Pageable pageable);
 
     /**

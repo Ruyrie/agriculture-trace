@@ -33,6 +33,10 @@ public class CustomUserDetailsService implements UserDetailsService {
         this.userRoleRepository = userRoleRepository;
     }
 
+    /**
+     * Spring Security 登录时调用的用户加载函数。
+     * 根据用户名读出用户、BCrypt 密码哈希、启用状态和角色权限，交给框架完成密码比对和授权。
+     */
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         User user = userRepository.findByUsername(username)

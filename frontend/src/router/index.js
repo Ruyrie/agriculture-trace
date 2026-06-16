@@ -89,6 +89,7 @@ const router = createRouter({
  
 let sessionChecked = false
 
+// 清理前端保存的登录态缓存；后续访问受保护路由会重新跳转登录。
 const clearSession = () => {
   localStorage.removeItem('sessionActive')
   localStorage.removeItem('userInfo')
@@ -96,7 +97,10 @@ const clearSession = () => {
   sessionChecked = false
 }
 
-// 使用后端 Session Cookie 校验登录状态，避免只依赖 localStorage 造成假登录。
+/**
+ * 使用后端 Session Cookie 校验登录状态，避免只依赖 localStorage 造成假登录。
+ * 校验成功后刷新本地缓存，方便页面组件读取用户名、角色和头像。
+ */
 const ensureSession = async () => {
   try {
     const res = await getCurrentUser()

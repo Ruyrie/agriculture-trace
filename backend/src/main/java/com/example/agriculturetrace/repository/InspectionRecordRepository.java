@@ -13,6 +13,9 @@ import java.util.List;
  */
 public interface InspectionRecordRepository extends JpaRepository<InspectionRecord, String> {
 
+    /**
+     * 查询某产品下所有批次的质检记录，按批次生产日期和录入顺序排序。
+     */
     @EntityGraph(attributePaths = "batch")
     @Query("""
             select record from InspectionRecord record
@@ -21,6 +24,9 @@ public interface InspectionRecordRepository extends JpaRepository<InspectionReco
             """)
     List<InspectionRecord> findRowsByProductId(@Param("productId") String productId);
 
+    /**
+     * 查询单个批次的质检记录，供批次维度溯源详情使用。
+     */
     @EntityGraph(attributePaths = "batch")
     @Query("""
             select record from InspectionRecord record
@@ -29,5 +35,8 @@ public interface InspectionRecordRepository extends JpaRepository<InspectionReco
             """)
     List<InspectionRecord> findRowsByBatchId(@Param("batchId") String batchId);
 
+    /**
+     * 删除某批次下全部质检记录，用于批次溯源明细覆盖式更新。
+     */
     void deleteByBatch_Id(String batchId);
 }

@@ -91,6 +91,7 @@ const reports = reactive({
   productBatchOutput: []
 })
 
+// 根据报表数据汇总顶部四张概览卡片。
 const summaryCards = computed(() => {
   const totalBatches = reports.monthlyBatchOutput.reduce((sum, item) => sum + Number(item.batchCount || 0), 0)
   const totalTraces = reports.traceRanking.reduce((sum, item) => sum + Number(item.traceCount || 0), 0)
@@ -104,6 +105,7 @@ const summaryCards = computed(() => {
   ]
 })
 
+// 渲染月度批次产出图：柱状展示批次数，折线展示涉及产品数。
 const renderMonthlyChart = () => {
   if (!monthlyChartRef.value) return
   monthlyChart ||= echarts.init(monthlyChartRef.value)
@@ -123,6 +125,7 @@ const renderMonthlyChart = () => {
   })
 }
 
+// 渲染产地分布饼图。
 const renderOriginChart = () => {
   if (!originChartRef.value) return
   originChart ||= echarts.init(originChartRef.value)
@@ -141,12 +144,14 @@ const renderOriginChart = () => {
   })
 }
 
+// 等 DOM 更新后再初始化/更新 ECharts，避免 ref 还没挂载。
 const renderCharts = async () => {
   await nextTick()
   renderMonthlyChart()
   renderOriginChart()
 }
 
+// 拉取统计分析页所有报表数据，并刷新图表。
 const loadReports = async () => {
   loading.value = true
   try {
@@ -164,6 +169,7 @@ const loadReports = async () => {
   }
 }
 
+// 窗口尺寸变化时同步调整图表画布。
 const resizeCharts = () => {
   monthlyChart?.resize()
   originChart?.resize()

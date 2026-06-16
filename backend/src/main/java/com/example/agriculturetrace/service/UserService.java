@@ -40,10 +40,17 @@ public class UserService {
         this.passwordEncoder = passwordEncoder;
     }
 
+    /**
+     * 根据用户名获取用户实体，找不到时抛出异常。
+     * 登录态接口和个人中心更新都通过用户名定位当前用户。
+     */
     public User getByUsername(String username) {
         return userRepository.findByUsername(username).orElseThrow();
     }
 
+    /**
+     * 安全查询用户名：空值直接返回 Optional.empty，避免 Repository 收到无效条件。
+     */
     public Optional<User> findByUsername(String username) {
         if (username == null || username.isBlank()) {
             return Optional.empty();
@@ -51,6 +58,10 @@ public class UserService {
         return userRepository.findByUsername(username);
     }
 
+    /**
+     * 查询用户的主角色名。
+     * 当前系统一个用户主要绑定一个角色；没有绑定时默认农户角色，保证前端有稳定兜底。
+     */
     public String getPrimaryRoleName(String userId) {
         return userRoleRepository.findByIdUserId(userId).stream()
                 .findFirst()
@@ -59,6 +70,10 @@ public class UserService {
                 .orElse("ROLE_FARMER");
     }
 
+    /**
+     * 将 User 实体转换成可返回前端的用户资料。
+     * 注意这里故意不返回 password，避免 BCrypt 密文泄露到浏览器。
+     */
     public Map<String, Object> toUserInfo(User user) {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("id", user.getId());
@@ -71,6 +86,9 @@ public class UserService {
         return data;
     }
 
+    /**
+     * 管理员分页查询用户；keyword 会同时匹配用户名和手机号。
+     */
     public Page<User> list(String keyword, int page, int pageSize) {
         PageRequest request = PageRequest.of(Math.max(page - 1, 0), pageSize);
         if (keyword == null || keyword.isBlank()) {
@@ -79,6 +97,9 @@ public class UserService {
         return userRepository.findByUsernameContainingIgnoreCaseOrPhoneContaining(keyword, keyword, request);
     }
 
+    /**
+     * 创建用户：生成主键、用 BCrypt 保存密码哈希、设置启用状态和创建时间，然后绑定角色。
+     */
     @Transactional
     public User create(User user, String rawPassword, String roleName) {
         user.setId(Ids.uuid32());
@@ -90,6 +111,9 @@ public class UserService {
         return saved;
     }
 
+    /**
+     * 当前用户更新个人资料，只允许改昵称、手机号和非空头像。
+     */
     @Transactional
     public User updateProfile(String id, User input) {
         User user = userRepository.findById(id).orElseThrow();
@@ -101,6 +125,9 @@ public class UserService {
         return userRepository.save(user);
     }
 
+    /**
+     * 更新用户头像 URL，通常由头像上传接口在文件保存成功后调用。
+     */
     @Transactional
     public User updateAvatar(String id, String avatarUrl) {
         User user = userRepository.findById(id).orElseThrow();
@@ -108,6 +135,9 @@ public class UserService {
         return userRepository.save(user);
     }
 
+    /**
+     * 管理员更新用户资料和启用状态；当传入 roleName 时同步重新绑定角色。
+     */
     @Transactional
     public User updateByAdmin(String id, User input, String roleName) {
         User user = userRepository.findById(id).orElseThrow();
@@ -122,6 +152,10 @@ public class UserService {
         return saved;
     }
 
+    /**
+     * 当前用户修改密码。
+     * matches 会使用数据库 BCrypt 哈希中的盐值比对旧密码，验证通过后再保存新密码哈希。
+     */
     @Transactional
     public void changePassword(String id, String oldPassword, String newPassword) {
         User user = userRepository.findById(id).orElseThrow();
@@ -132,6 +166,9 @@ public class UserService {
         userRepository.save(user);
     }
 
+    /**
+     * 管理员重置密码；空密码回退到系统默认 123456，并同样以 BCrypt 哈希保存。
+     */
     @Transactional
     public void resetPassword(String id, String rawPassword) {
         User user = userRepository.findById(id).orElseThrow();
@@ -139,6 +176,9 @@ public class UserService {
         userRepository.save(user);
     }
 
+    /**
+     * 启用或禁用账号，Spring Security 加载用户时会读取 enabled 决定能否登录。
+     */
     @Transactional
     public void updateStatus(String id, boolean enabled) {
         User user = userRepository.findById(id).orElseThrow();
@@ -146,6 +186,9 @@ public class UserService {
         userRepository.save(user);
     }
 
+    /**
+     * 管理员删除用户前先删除 user_role 关联，避免关联表残留孤儿关系。
+     */
     @Transactional
     public void deleteByAdmin(String id) {
         User user = userRepository.findById(id).orElseThrow();
@@ -153,6 +196,9 @@ public class UserService {
         userRepository.delete(user);
     }
 
+    /**
+     * 为用户绑定角色：先规范化角色名，再删除旧绑定并保存新绑定。
+     */
     private void bindRole(String userId, String roleName) {
         String normalized = normalizeRole(roleName);
         Role role = roleRepository.findByName(normalized)
@@ -163,6 +209,9 @@ public class UserService {
         userRoleRepository.save(relation);
     }
 
+    /**
+     * 统一角色名格式。前端可传 ADMIN/FARMER/INSPECTOR，也可传完整 ROLE_ADMIN。
+     */
     private String normalizeRole(String roleName) {
         if (roleName == null || roleName.isBlank()) {
             return "ROLE_FARMER";

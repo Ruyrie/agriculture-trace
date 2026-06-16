@@ -13,21 +13,48 @@ import java.util.Map;
 @Mapper
 public interface StatisticsMapper {
 
+    /**
+     * 统计产品总数。
+     */
     long countProducts();
 
+    /**
+     * 统计批次总数。
+     */
     long countBatches();
 
+    /**
+     * 统计溯源访问记录总数。
+     */
     long countTraceRecords();
 
+    /**
+     * 按产品类别聚合数量，供首页饼图使用。
+     */
     List<Map<String, Object>> categoryDistribution();
 
+    /**
+     * 按日期聚合溯源访问次数，供近 7 天趋势图使用。
+     */
     List<Map<String, Object>> traceTrend();
 
+    /**
+     * 按月份统计批次产出量。
+     */
     List<Map<String, Object>> monthlyBatchOutput();
 
+    /**
+     * 统计溯源访问排行。
+     */
     List<Map<String, Object>> traceRanking();
 
+    /**
+     * 按产地聚合产品分布。
+     */
     List<Map<String, Object>> originDistribution();
 
+    /**
+     * 按产品统计批次数量。
+     */
     List<Map<String, Object>> productBatchOutput();
 }

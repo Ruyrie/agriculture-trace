@@ -12,6 +12,14 @@
         >
           链条完整性：{{ verifyResult.logChainValid ? '正常' : '异常' }}
         </el-tag>
+        <el-tag
+          v-if="verifyResult && verifyResult.logChainValid"
+          :type="verifyResult.tailValid === false ? 'danger' : 'success'"
+          effect="dark"
+          size="small"
+        >
+          链尾锚点：{{ verifyResult.tailValid === false ? '异常' : '正常' }}
+        </el-tag>
       </div>
       <div class="page-actions">
         <el-button type="success" plain @click="verifyChain" :loading="verifying">
@@ -34,6 +42,7 @@
         <div class="verify-detail">
           <div>{{ verifyResult.message }}</div>
           <div v-if="brokenInfo" class="verify-broken">{{ brokenInfo }}</div>
+          <div v-if="tailInfo" class="verify-broken">{{ tailInfo }}</div>
           <div v-if="verifyDescription" class="verify-items">{{ verifyDescription }}</div>
         </div>
       </template>
@@ -143,6 +152,15 @@ const brokenInfo = computed(() => {
   return `断裂位置：第 ${result.brokenIndex} 条日志（日志ID：${result.brokenLogId || '未知'}）`
 })
 
+// 链尾锚点异常时，给出期望条数 vs 当前条数，直观说明尾部被删了多少。
+const tailInfo = computed(() => {
+  const result = verifyResult.value
+  if (!result || result.tailValid !== false) return ''
+  if (result.expectedTotal == null) return ''
+  return `链尾锚点：期望 ${result.expectedTotal} 条，当前 ${result.total} 条`
+})
+
+// 业务数据指纹异常时，把前几项异常目标拼成简洁描述，避免提示内容过长。
 const verifyDescription = computed(() => {
   const items = verifyResult.value?.invalidItems || []
   if (!items.length) return ''
@@ -153,6 +171,7 @@ const verifyDescription = computed(() => {
     .join('；')
 })
 
+// 分页拉取审计日志列表。
 const fetchLogs = async () => {
   loading.value = true
   try {
@@ -168,11 +187,13 @@ const fetchLogs = async () => {
   }
 }
 
+// 修改每页条数后回到第一页并重新拉取日志。
 const handlePageSizeChange = () => {
   page.value = 1
   fetchLogs()
 }
 
+// 调用后端完整校验：日志链、链尾锚点、业务数据指纹都会被检查。
 const verifyChain = async () => {
   verifying.value = true
   try {
@@ -190,11 +211,13 @@ const verifyChain = async () => {
   }
 }
 
+// 打开审计日志详情弹窗，展示操作前后 JSON 字段。
 const openDetail = (row) => {
   currentLog.value = row
   detailVisible.value = true
 }
 
+// 根据操作类型选择 Element Plus 标签颜色。
 const actionType = (type) => {
   if (type === 'CREATE') return 'success'
   if (type === 'UPDATE') return 'warning'
@@ -219,6 +242,7 @@ const FIELD_LABELS = {
   dataHash: '数据指纹'
 }
 
+// 将审计日志里存储的 JSON 字符串解析成“标签-值”数组，供详情弹窗循环展示。
 const parseFields = (value) => {
   if (!value) return []
   let obj
@@ -237,7 +261,9 @@ const parseFields = (value) => {
     }))
 }
 
+// 操作前字段列表。
 const beforeFields = computed(() => parseFields(currentLog.value?.dataBefore))
+// 操作后字段列表。
 const afterFields = computed(() => parseFields(currentLog.value?.dataAfter))
 
 fetchLogs()

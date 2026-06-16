@@ -13,6 +13,9 @@ import java.util.List;
  */
 public interface ProductionRecordRepository extends JpaRepository<ProductionRecord, String> {
 
+    /**
+     * 查询某产品下所有批次的生产记录，供产品维度溯源详情聚合展示。
+     */
     @EntityGraph(attributePaths = "batch")
     @Query("""
             select record from ProductionRecord record
@@ -21,6 +24,9 @@ public interface ProductionRecordRepository extends JpaRepository<ProductionReco
             """)
     List<ProductionRecord> findRowsByProductId(@Param("productId") String productId);
 
+    /**
+     * 查询单个批次的生产记录，按录入顺序展示。
+     */
     @EntityGraph(attributePaths = "batch")
     @Query("""
             select record from ProductionRecord record
@@ -29,5 +35,8 @@ public interface ProductionRecordRepository extends JpaRepository<ProductionReco
             """)
     List<ProductionRecord> findRowsByBatchId(@Param("batchId") String batchId);
 
+    /**
+     * 删除某批次下全部生产记录，用于覆盖式更新。
+     */
     void deleteByBatch_Id(String batchId);
 }

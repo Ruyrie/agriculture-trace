@@ -232,6 +232,7 @@ const originsLoading = ref(false)
 const batchOptions = ref([])
 const batchLoading = ref(false)
 
+// 生成动态表格行的必填校验规则，field 用于拼接友好错误消息。
 const rowRequired = (field) => [{ required: true, message: `${field}不能为空`, trigger: ['blur', 'change'] }]
 
 // 新增日期默认当天；物流时间默认当前日期时间（含时分），与系统当前时间同步。
@@ -245,6 +246,7 @@ const currentDateTimeText = () => {
   return `${currentDateText()} ${pad(now.getHours())}:${pad(now.getMinutes())}:00`
 }
 
+// 根据当前是否在维护批次动态追加批次号、生产日期校验规则。
 const allRules = computed(() => {
   const base = {
     name: [{ required: true, message: '请输入产品名称', trigger: 'blur' }],
@@ -259,6 +261,7 @@ const allRules = computed(() => {
   return base
 })
 
+// 加载产地候选项，供产品产地下拉框分组展示。
 const fetchOrigins = async () => {
   originsLoading.value = true
   try {
@@ -274,6 +277,7 @@ const fetchOrigins = async () => {
   }
 }
 
+// 重置弹窗表单到初始空状态，同时清空可选批次列表。
 const resetForm = () => {
   Object.assign(mergedForm, {
     id: null, name: '', category: '', origin: '', price: 0,
@@ -285,6 +289,7 @@ const resetForm = () => {
   batchOptions.value = []
 }
 
+// 新增产品时默认补齐三类溯源记录各一行，减少用户首次录入成本。
 const ensureDefaultTraceRows = () => {
   if (mergedForm.productionRecords.length === 0) addProduction()
   if (mergedForm.inspectionRecords.length === 0) addInspection()
@@ -316,6 +321,7 @@ const clearTraceRows = () => {
   mergedForm.logisticsRecords.splice(0)
 }
 
+// 将批次基础字段填入弹窗表单；传空值时清空批次字段。
 const fillBatchBase = (batch) => {
   Object.assign(mergedForm, {
     batchId: batch?.id || '',
@@ -325,6 +331,7 @@ const fillBatchBase = (batch) => {
   })
 }
 
+// 加载当前产品的批次列表，默认选中第一个批次并拉取其溯源记录。
 const loadProductBatches = async (productId, session = loadSession) => {
   batchLoading.value = true
   try {
@@ -347,6 +354,7 @@ const loadProductBatches = async (productId, session = loadSession) => {
   }
 }
 
+// 切换维护批次时同步批次基础信息，并重新加载该批次的三类溯源记录。
 const handleBatchChange = async (batchId) => {
   const session = loadSession
   const batch = batchOptions.value.find(item => item.id === batchId)
@@ -355,6 +363,7 @@ const handleBatchChange = async (batchId) => {
   if (batchId) await loadBatchTraceRows(batchId, session)
 }
 
+// 拉取某个批次的溯源详情，并回填到生产、质检、物流三个动态表格。
 const loadBatchTraceRows = async (batchId, session = loadSession) => {
   try {
     const res = await getBatchTraceInfo(batchId)
@@ -399,15 +408,23 @@ const loadBatchTraceRows = async (batchId, session = loadSession) => {
   }
 }
 
+// 新增一行生产记录，日期默认当天。
 const addProduction = () => mergedForm.productionRecords.push({ activityName: '', operator: '', activityDate: currentDateText(), remark: '' })
+// 删除指定生产记录行。
 const removeProduction = (i) => mergedForm.productionRecords.splice(i, 1)
+// 新增一行质检记录，日期默认当天。
 const addInspection = () => mergedForm.inspectionRecords.push({ inspectionItem: '', result: '', inspector: '', inspectionDate: currentDateText() })
+// 删除指定质检记录行。
 const removeInspection = (i) => mergedForm.inspectionRecords.splice(i, 1)
+// 新增一行物流记录，时间默认当前日期时间。
 const addLogistics = () => mergedForm.logisticsRecords.push({ nodeName: '', location: '', operator: '', updateTime: currentDateTimeText() })
+// 删除指定物流记录行。
 const removeLogistics = (i) => mergedForm.logisticsRecords.splice(i, 1)
 
+// 通知父组件关闭弹窗。
 const handleClose = () => emit('update:visible', false)
 
+// 校验并提交弹窗数据；根据新增/编辑场景分别构造 _traceData 或 _batchTraceData。
 const handleSubmit = async () => {
   // 新增产品或维护选中批次时，三类溯源记录都必须完整。
   if (!mergedForm.id || mergedForm.batchId) {

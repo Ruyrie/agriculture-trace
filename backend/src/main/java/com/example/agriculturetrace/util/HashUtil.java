@@ -12,6 +12,10 @@ public final class HashUtil {
     private HashUtil() {
     }
 
+    /**
+     * 计算输入字符串的 SHA-256 十六进制摘要。
+     * null 会按空字符串处理，确保哈希调用方不用重复做空值判断。
+     */
     public static String sha256(String input) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");

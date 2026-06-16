@@ -15,6 +15,9 @@ public final class TimeUtils {
     private TimeUtils() {
     }
 
+    /**
+     * 返回当前时间的标准文本格式 yyyy-MM-dd HH:mm:ss。
+     */
     public static String nowText() {
         return LocalDateTime.now().format(FORMATTER);
     }

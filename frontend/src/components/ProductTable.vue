@@ -24,11 +24,13 @@
 <script setup>
 import HashTag from '@/components/HashTag.vue'
 
+// 产品表格只负责展示数据和向父组件抛出操作事件，业务处理留给 ProductList.vue。
 defineProps({
   data: {
     type: Array,
     default: () => []
   }
 })
+// edit/delete/trace/verify 分别对应编辑、删除、打开溯源页、校验产品哈希。
 const emit = defineEmits(['edit', 'delete', 'trace', 'verify'])
 </script>

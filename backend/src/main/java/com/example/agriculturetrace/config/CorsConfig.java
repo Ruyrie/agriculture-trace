@@ -21,6 +21,10 @@ public class CorsConfig {
     @Value("${app.cors.allowed-origins:http://localhost:5173}")
     private List<String> allowedOrigins;
 
+    /**
+     * 注册全局 CORS 规则，允许前端 Vite 域名跨域访问后端接口并携带 Cookie。
+     * Session 登录依赖 JSESSIONID，因此 allowCredentials 必须为 true。
+     */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();

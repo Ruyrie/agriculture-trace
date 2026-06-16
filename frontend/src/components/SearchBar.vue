@@ -34,10 +34,12 @@ watch(keyword, (val) => {
   emit('update:modelValue', val) 
 }) 
  
+// 点击搜索按钮时通知父组件按当前 keyword 拉取数据。
 const handleSearch = () => { 
   emit('search') 
 } 
  
+// 清空输入框后同步清空父组件 keyword，并立即重新搜索。
 const handleClear = () => { 
   emit('update:modelValue', '') 
   emit('search') 

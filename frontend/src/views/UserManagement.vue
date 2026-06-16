@@ -161,12 +161,16 @@ const rules = {
   role: [{ required: true, message: '请选择角色', trigger: 'change' }]
 }
 
+// 从本地缓存读取当前登录用户 ID，用于防止禁用/删除自己。
 const currentUserId = () => JSON.parse(localStorage.getItem('userInfo') || '{}').id
 
+// 判断某一行用户是否为当前登录用户。
 const isSelf = (row) => row.id === currentUserId()
 
+// 编辑弹窗是否正在编辑当前登录用户，用于禁用危险操作。
 const isEditingSelf = computed(() => form.id && form.id === currentUserId())
 
+// 将角色编码转换为中文标签。
 const roleLabel = (role) => ({
   ROLE_ADMIN: '管理员',
   ROLE_FARMER: '农户',
@@ -189,6 +193,7 @@ const fetchUsers = async () => {
   }
 }
 
+// 重置用户表单到新增默认值。
 const resetForm = () => {
   Object.assign(form, {
     id: '',
@@ -201,12 +206,14 @@ const resetForm = () => {
   })
 }
 
+// 打开新增用户弹窗。
 const openCreate = () => {
   dialogTitle.value = '新增用户'
   resetForm()
   dialogVisible.value = true
 }
 
+// 打开编辑用户弹窗，并把当前行数据回填到表单。
 const openEdit = (row) => {
   dialogTitle.value = '编辑用户'
   Object.assign(form, {
@@ -221,6 +228,7 @@ const openEdit = (row) => {
   dialogVisible.value = true
 }
 
+// 提交新增或编辑用户表单，后端负责密码哈希和角色绑定。
 const submitForm = async () => {
   await formRef.value.validate()
   submitting.value = true
@@ -241,6 +249,7 @@ const submitForm = async () => {
   }
 }
 
+// 启用/禁用用户；当前登录账号不允许被自己禁用。
 const updateStatus = async (row) => {
   if (isSelf(row)) {
     ElMessage.warning('不能禁用当前登录账号')
@@ -256,6 +265,7 @@ const updateStatus = async (row) => {
   return false
 }
 
+// 管理员将指定用户密码重置为默认 123456。
 const resetPassword = (row) => {
   ElMessageBox.confirm(`确定将 ${row.username} 的密码重置为 123456 吗？`, '重置密码', {
     type: 'warning'
@@ -269,6 +279,7 @@ const resetPassword = (row) => {
   })
 }
 
+// 删除用户前二次确认，并禁止删除当前登录账号。
 const deleteUser = (row) => {
   if (isSelf(row)) {
     ElMessage.warning('不能删除当前登录账号')

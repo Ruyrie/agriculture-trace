@@ -124,6 +124,7 @@ const currentPageTitle = computed(() => {
 
 const showHeaderRefresh = computed(() => route.path !== '/statistics')
 
+// 从 localStorage 读取当前用户资料，并把相对头像 URL 拼成后端完整地址。
 const getUserInfo = () => {
   const userInfo = localStorage.getItem('userInfo')
   if (userInfo) {
@@ -177,20 +178,24 @@ const allMenus = [
   }
 ]
 
+// 根据当前用户角色筛选侧边栏菜单，前端展示与路由 meta.roles 保持一致。
 const fetchMenu = () => {
   const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
   const role = userInfo.role
   menuList.value = allMenus.filter(item => !item.roles || item.roles.includes(role))
 }
 
+// 折叠/展开左侧菜单。
 const toggleCollapse = () => {
   isCollapse.value = !isCollapse.value
 }
 
+// 刷新当前页面，用于重新拉取当前路由组件中的数据。
 const refreshPage = () => {
   window.location.reload()
 }
 
+// 处理右上角用户菜单命令：退出登录或进入个人中心。
 const handleCommand = async (command) => {
   if (command === 'logout') {
     await logout().catch(() => {})

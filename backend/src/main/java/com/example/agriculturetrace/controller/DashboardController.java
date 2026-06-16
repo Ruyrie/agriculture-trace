@@ -25,6 +25,9 @@ public class DashboardController {
         this.statisticsMapper = statisticsMapper;
     }
 
+    /**
+     * 返回仪表盘顶部三项核心统计：产品数、批次数、溯源访问记录数。
+     */
     @GetMapping("/statistics")
     public Result<?> statistics() {
         return Result.success(Map.of(
@@ -34,11 +37,18 @@ public class DashboardController {
         ));
     }
 
+    /**
+     * 返回产品类别分布，用于首页饼图展示各类别产品占比。
+     */
     @GetMapping("/categoryDistribution")
     public Result<?> categoryDistribution() {
         return Result.success(statisticsMapper.categoryDistribution());
     }
 
+    /**
+     * 返回最近 7 天溯源访问趋势。
+     * 即使某天没有访问，也会补 0，保证前端折线图横轴固定连续。
+     */
     @GetMapping("/traceTrend")
     public Result<?> traceTrend() {
         var rows = statisticsMapper.traceTrend();
@@ -60,6 +70,9 @@ public class DashboardController {
         ));
     }
 
+    /**
+     * 返回统计分析页的多组报表数据，包括月度批次、溯源排行、产地分布等。
+     */
     @GetMapping("/reports")
     public Result<?> reports() {
         return Result.success(Map.of(

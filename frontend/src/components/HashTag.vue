@@ -38,6 +38,7 @@ const shortHash = computed(() =>
   props.hash ? `${props.hash.slice(0, 8)}...${props.hash.slice(-6)}` : ''
 )
 
+// 复制完整 SHA-256 指纹到剪贴板，便于用户核对或留存证据。
 const copy = async () => {
   try {
     await navigator.clipboard.writeText(props.hash)

@@ -24,6 +24,7 @@ app.use(ElementPlus)
 
 // 注册所有 Element Plus 图标组件 
 for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
+    // 全量注册让路由 meta.icon 里的字符串组件名可以直接渲染。
     app.component(key, component)
 }
 

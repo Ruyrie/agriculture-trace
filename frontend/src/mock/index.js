@@ -60,7 +60,7 @@ let productList = Mock.mock({
   }]
 }).list
 
-// 获取产品列表 
+// 获取产品列表：解析分页和 keyword 参数，返回与真实后端一致的分页结构。
 Mock.mock(/\/api\/product\/list/, 'get', (options) => {
   const url = new URL(options.url, 'http://localhost')
   const page = parseInt(url.searchParams.get('page')) || 1
@@ -84,7 +84,7 @@ Mock.mock(/\/api\/product\/list/, 'get', (options) => {
   }
 })
 
-// 新增产品 
+// 新增产品：追加到内存数组并返回新对象。
 Mock.mock('/api/product', 'post', (options) => {
   const body = JSON.parse(options.body)
   const newId = productList.length + 1
@@ -93,7 +93,7 @@ Mock.mock('/api/product', 'post', (options) => {
   return { code: 200, data: newProduct, message: '新增成功' }
 })
 
-// 修改产品 
+// 修改产品：按 id 合并更新内存数组中的产品。
 Mock.mock('/api/product', 'put', (options) => {
   const body = JSON.parse(options.body)
   const index = productList.findIndex(p => p.id === body.id)
@@ -104,7 +104,7 @@ Mock.mock('/api/product', 'put', (options) => {
   return { code: 404, message: '产品不存在' }
 })
 
-// 产品详情（与产品列表共用数据，这里简单返回）
+// 产品详情：与产品列表共用内存数据，这里简单按 id 返回。
 Mock.mock(/\/api\/product\/\d+/, 'get', (options) => {
     const id = parseInt(options.url.match(/\/api\/product\/(\d+)/)[1])
     const product = productList.find(p => p.id === id)
@@ -114,7 +114,7 @@ Mock.mock(/\/api\/product\/\d+/, 'get', (options) => {
     return { code: 404, message: '产品不存在' }
 })
 
-// 删除产品
+// 删除产品：从内存数组中移除指定 id。
 Mock.mock(/\/api\/product\/\d+/, 'delete', (options) => {
   const id = parseInt(options.url.match(/\/api\/product\/(\d+)/)[1])
   const index = productList.findIndex(p => p.id === id)
@@ -129,8 +129,10 @@ Mock.mock(/\/api\/product\/\d+/, 'delete', (options) => {
 let batchList = Mock.mock({
   'list|30': [{
     'id|+1': 1,
+    // 生成演示批次号，形如 BATCH2026001。
     'batchNo': () => `BATCH${Mock.mock('@integer(2026001, 2026050)')}`,
     'productId|1-3': 1,
+    // 根据 productId 反查演示产品名，模拟后端连表结果。
     'productName': function () {
       const map = { 1: '有机苹果', 2: '五常大米', 3: '日照绿茶' }
       return map[this.productId]
@@ -140,7 +142,7 @@ let batchList = Mock.mock({
   }]
 }).list
 
-// 获取批次列表 
+// 获取批次列表：支持 productId 和 batchNo 过滤，并返回分页结构。
 Mock.mock(/\/api\/batch\/list/, 'get', (options) => {
   const url = new URL(options.url, 'http://localhost')
   const page = parseInt(url.searchParams.get('page')) || 1
@@ -168,7 +170,7 @@ Mock.mock(/\/api\/batch\/list/, 'get', (options) => {
   }
 })
 
-// 新增批次 
+// 新增批次：绑定产品名称后写入内存批次数组。
 Mock.mock('/api/batch', 'post', (options) => {
   const body = JSON.parse(options.body)
   const newId = batchList.length + 1
@@ -182,7 +184,7 @@ Mock.mock('/api/batch', 'post', (options) => {
   return { code: 200, data: newBatch, message: '新增成功' }
 })
 
-// 修改批次 
+// 修改批次：按 id 更新基础字段和关联产品名称。
 Mock.mock('/api/batch', 'put', (options) => {
   const body = JSON.parse(options.body)
   const index = batchList.findIndex(b => b.id === body.id)
@@ -198,7 +200,7 @@ Mock.mock('/api/batch', 'put', (options) => {
   return { code: 404, message: '批次不存在' }
 })
 
-// 删除批次 
+// 删除批次：从内存批次数组中移除指定 id。
 Mock.mock(/\/api\/batch\/\d+/, 'delete', (options) => {
   const id = parseInt(options.url.match(/\/api\/batch\/(\d+)/)[1])
   const index = batchList.findIndex(b => b.id === id)
@@ -209,7 +211,7 @@ Mock.mock(/\/api\/batch\/\d+/, 'delete', (options) => {
   return { code: 404, message: '批次不存在' }
 })
 
-// 仪表盘统计数据 
+// 仪表盘统计数据：返回固定演示数字。
 Mock.mock('/api/dashboard/statistics', 'get', () => {
   return {
     code: 200,
@@ -221,7 +223,7 @@ Mock.mock('/api/dashboard/statistics', 'get', () => {
   }
 })
 
-// 产品类别分布 
+// 产品类别分布：返回饼图所需 name/value 数组。
 Mock.mock('/api/dashboard/categoryDistribution', 'get', () => {
   return {
     code: 200,
@@ -235,7 +237,7 @@ Mock.mock('/api/dashboard/categoryDistribution', 'get', () => {
   }
 })
 
-// 近一周溯源趋势 
+// 近一周溯源趋势：动态生成最近 7 天日期和随机访问次数。
 Mock.mock('/api/dashboard/traceTrend', 'get', () => {
   const dates = []
   const counts = []
@@ -251,7 +253,7 @@ Mock.mock('/api/dashboard/traceTrend', 'get', () => {
   }
 })
 
-// 溯源信息
+// 溯源信息：按产品 ID 返回演示生产、质检、物流记录。
 Mock.mock(/\/api\/trace\/\d+/, 'get', (options) => {
   const id = parseInt(options.url.match(/\/api\/trace\/(\d+)/)[1])
   return {
@@ -278,7 +280,7 @@ Mock.mock(/\/api\/trace\/\d+/, 'get', (options) => {
   }
 })
 
-// 模拟菜单数据（根据用户角色返回，此处仅作演示）
+// 模拟菜单数据：真实项目已改为前端本地根据角色过滤，此接口仅保留演示兼容。
 Mock.mock('/api/menu', 'get', (options) => { 
   // 实际项目中可根据 token 解析用户角色返回不同菜单 
   return { 

@@ -34,12 +34,19 @@ public class UserController {
         this.userService = userService;
     }
 
+    /**
+     * 返回当前登录用户的公开资料和主角色。
+     * authentication 来自 Spring Security Session，不信任前端传来的用户 ID。
+     */
     @GetMapping("/user/info")
     public Result<?> currentUser(Authentication authentication) {
         User user = userService.getByUsername(authentication.getName());
         return Result.success(userService.toUserInfo(user));
     }
 
+    /**
+     * 修改当前登录用户的昵称、手机号和头像等个人资料。
+     */
     @PutMapping("/user/profile")
     public Result<?> updateProfile(Authentication authentication, @RequestBody User input) {
         User current = userService.getByUsername(authentication.getName());
@@ -47,6 +54,10 @@ public class UserController {
         return Result.success(userService.toUserInfo(updated));
     }
 
+    /**
+     * 当前用户修改自己的密码。
+     * Service 会先校验 oldPassword，再用 BCrypt 重新加盐哈希保存 newPassword。
+     */
     @PutMapping("/user/password")
     public Result<?> changePassword(Authentication authentication, @RequestBody Map<String, String> body) {
         User current = userService.getByUsername(authentication.getName());
@@ -54,6 +65,9 @@ public class UserController {
         return Result.success(null);
     }
 
+    /**
+     * 上传当前用户头像到运行目录 uploads，并返回可公开访问的 /uploads/** URL。
+     */
     @PostMapping("/user/avatar")
     public Result<?> uploadAvatar(Authentication authentication, @RequestParam("file") MultipartFile file) throws Exception {
         if (file.isEmpty()) {
@@ -74,6 +88,9 @@ public class UserController {
         ));
     }
 
+    /**
+     * 管理员分页查询用户列表，支持按用户名或手机号关键字检索。
+     */
     @GetMapping("/users")
     public Result<?> users(@RequestParam(defaultValue = "1") int page,
                            @RequestParam(defaultValue = "10") int pageSize,
@@ -87,6 +104,10 @@ public class UserController {
         ));
     }
 
+    /**
+     * 管理员创建用户，并同时绑定角色。
+     * 未传密码时 Service 会使用默认密码 123456 并进行 BCrypt 哈希。
+     */
     @PostMapping("/users")
     public Result<?> createUser(@RequestBody Map<String, Object> body) {
         User user = new User();
@@ -99,6 +120,10 @@ public class UserController {
         return Result.success(userService.toUserInfo(saved));
     }
 
+    /**
+     * 管理员更新用户资料和角色。
+     * 额外拦截“禁用当前登录账号”，避免管理员把自己锁在系统外。
+     */
     @PutMapping("/users/{id}")
     public Result<?> updateUser(Authentication authentication, @PathVariable String id, @RequestBody Map<String, Object> body) {
         Boolean enabled = (Boolean) body.getOrDefault("enabled", true);
@@ -114,6 +139,9 @@ public class UserController {
         return Result.success(userService.toUserInfo(saved));
     }
 
+    /**
+     * 管理员重置指定用户密码；请求体为空时恢复默认密码 123456。
+     */
     @PutMapping("/users/{id}/password")
     public Result<?> resetPassword(@PathVariable String id, @RequestBody(required = false) Map<String, String> body) {
         String password = body == null ? "123456" : body.getOrDefault("password", "123456");
@@ -121,6 +149,10 @@ public class UserController {
         return Result.success(null);
     }
 
+    /**
+     * 管理员启用或禁用用户账号。
+     * 和 updateUser 一样禁止禁用当前登录账号。
+     */
     @PutMapping("/users/{id}/status")
     public Result<?> updateStatus(Authentication authentication, @PathVariable String id, @RequestBody Map<String, Boolean> body) {
         boolean enabled = body.getOrDefault("enabled", true);
@@ -131,6 +163,9 @@ public class UserController {
         return Result.success(null);
     }
 
+    /**
+     * 管理员删除用户，并阻止删除当前登录账号。
+     */
     @DeleteMapping("/users/{id}")
     public Result<?> deleteUser(Authentication authentication, @PathVariable String id) {
         if (isCurrentUser(authentication, id)) {
@@ -140,6 +175,10 @@ public class UserController {
         return Result.success(null);
     }
 
+    /**
+     * 判断请求中的目标用户是否就是当前 Session 用户。
+     * 这个保护用于禁用、删除等高风险管理操作。
+     */
     private boolean isCurrentUser(Authentication authentication, String userId) {
         User current = userService.getByUsername(authentication.getName());
         return current.getId().equals(userId);

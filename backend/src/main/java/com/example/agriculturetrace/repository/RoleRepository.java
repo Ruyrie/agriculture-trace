@@ -10,5 +10,8 @@ import java.util.Optional;
  */
 public interface RoleRepository extends JpaRepository<Role, String> {
 
+    /**
+     * 按角色名查询角色，角色名形如 ROLE_ADMIN/ROLE_FARMER。
+     */
     Optional<Role> findByName(String name);
 }

@@ -172,10 +172,12 @@ onMounted(() => {
   usernameRef.value?.focus()
 })
 
+// 用户名输入框回车后聚焦密码框，提升键盘登录体验。
 const focusPassword = () => {
   passwordRef.value?.focus()
 }
 
+// 校验表单并发起登录；成功后缓存用户信息和角色，再进入仪表盘。
 const handleLogin = async () => {
   if (loading.value) return
   try {

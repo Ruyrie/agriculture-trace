@@ -16,6 +16,9 @@ public final class Ids {
     private Ids() {
     }
 
+    /**
+     * 生成 32 位无横线 UUID，满足数据库 varchar(32) 主键长度设计。
+     */
     public static String uuid32() {
         return UUID.randomUUID().toString().replace("-", "");
     }

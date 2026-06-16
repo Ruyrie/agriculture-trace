@@ -17,6 +17,9 @@ public interface BlockchainLogRepository extends JpaRepository<BlockchainLog, St
     @Query(value = "SELECT * FROM blockchain_log ORDER BY id ASC", nativeQuery = true)
     List<BlockchainLog> findAllOrderedByIdAsc();
 
+    /**
+     * 查询当前链尾日志，新增审计日志时把它的 data_hash 写入 previous_hash。
+     */
     @Query(value = "SELECT * FROM blockchain_log ORDER BY id DESC LIMIT 1", nativeQuery = true)
     BlockchainLog findLastLog();
 }

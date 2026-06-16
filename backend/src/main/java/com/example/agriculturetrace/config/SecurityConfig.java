@@ -36,6 +36,11 @@ public class SecurityConfig {
         this.userDetailsService = userDetailsService;
     }
 
+    /**
+     * 定义整套 Web 安全过滤链：关闭 CSRF、开启 CORS、配置接口权限、登录登出、
+     * remember-me 和异常响应格式。这个 Bean 是 Spring Security 处理所有 HTTP
+     * 请求时的核心规则入口。
+     */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -87,6 +92,10 @@ public class SecurityConfig {
         return http.build();
     }
 
+    /**
+     * 将认证成功、认证失败和权限异常统一写成项目自己的 Result JSON。
+     * 这样前端 axios 拦截器只需要识别 code/message，不必兼容 Spring Security 默认页面。
+     */
     private void writeJson(HttpServletResponse response, Result<?> result) throws java.io.IOException {
         // 认证成功、失败、权限异常都返回统一 Result，前端拦截器不用区分 Spring 默认响应格式。
         response.setCharacterEncoding("UTF-8");
@@ -95,6 +104,10 @@ public class SecurityConfig {
         response.getWriter().write(objectMapper.writeValueAsString(result));
     }
 
+    /**
+     * 根据登录失败原因生成更友好的提示：不存在、被禁用和密码错误分别返回不同文案。
+     * 这里不会暴露密码细节，只帮助用户理解账号状态。
+     */
     private String loginFailureMessage(HttpServletRequest request, Exception exception) {
         String username = request.getParameter("username");
         if (username != null && !username.isBlank()) {

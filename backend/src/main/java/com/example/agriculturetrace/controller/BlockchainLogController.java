@@ -7,6 +7,7 @@ import com.example.agriculturetrace.repository.BatchRepository;
 import com.example.agriculturetrace.repository.BlockchainLogRepository;
 import com.example.agriculturetrace.repository.ProductRepository;
 import com.example.agriculturetrace.service.BatchService;
+import com.example.agriculturetrace.service.BlockchainAnchorService;
 import com.example.agriculturetrace.service.ProductService;
 import com.example.agriculturetrace.util.HashUtil;
 import com.example.agriculturetrace.util.Result;
@@ -37,19 +38,26 @@ public class BlockchainLogController {
     private final BatchRepository batchRepository;
     private final ProductService productService;
     private final BatchService batchService;
+    private final BlockchainAnchorService anchorService;
 
     public BlockchainLogController(BlockchainLogRepository logRepository,
                                    ProductRepository productRepository,
                                    BatchRepository batchRepository,
                                    ProductService productService,
-                                   BatchService batchService) {
+                                   BatchService batchService,
+                                   BlockchainAnchorService anchorService) {
         this.logRepository = logRepository;
         this.productRepository = productRepository;
         this.batchRepository = batchRepository;
         this.productService = productService;
         this.batchService = batchService;
+        this.anchorService = anchorService;
     }
 
+    /**
+     * 分页返回审计日志列表。
+     * 日志按单调递增的 logId 升序展示，和链式哈希校验的遍历顺序保持一致。
+     */
     @GetMapping("/logs")
     public Result<?> logs(@RequestParam(defaultValue = "1") int page,
                           @RequestParam(defaultValue = "10") int pageSize) {
@@ -69,6 +77,10 @@ public class BlockchainLogController {
         ));
     }
 
+    /**
+     * 校验审计日志链、链尾锚点和当前业务数据指纹。
+     * 返回 valid/logChainValid/tailValid/dataIntegrityValid，前端据此展示不同异常类型。
+     */
     @GetMapping("/logs/verify")
     public Result<?> verify() {
         List<BlockchainLog> logs = logRepository.findAllOrderedByIdAsc();
@@ -87,6 +99,8 @@ public class BlockchainLogController {
                 Map<String, Object> result = new LinkedHashMap<>();
                 result.put("valid", false);
                 result.put("logChainValid", false);
+                result.put("tailValid", null);
+                result.put("expectedTotal", null);
                 result.put("dataIntegrityValid", null);
                 result.put("total", logs.size());
                 result.put("brokenIndex", i + 1);
@@ -97,26 +111,56 @@ public class BlockchainLogController {
             previousHash = log.getDataHash();
         }
 
-        // 日志链完整不等于业务数据没被改库，所以链条通过后还要联动校验产品和批次指纹。
+        // 链条遍历通过，只能说明“现存日志彼此连续”，但发现不了“从链尾整段删除最新日志”——
+        // 删掉链尾后剩下的日志依旧首尾相连。用外部锚点（期望条数 + 期望链尾哈希）做二次校验：
+        // 此刻 previousHash 已是最后一条日志的哈希（空表时为创世值 "0"），即当前链尾。
+        BlockchainAnchorService.Anchor anchor = anchorService.getAnchor();
+        long currentTotal = logs.size();
+        String currentTip = previousHash;
+        boolean tailValid = true;
+        String tailMessage = null;
+        Long expectedTotal = null;
+        if (anchor != null) {
+            expectedTotal = anchor.logCount();
+            if (currentTotal < anchor.logCount()) {
+                tailValid = false;
+                tailMessage = "日志总数减少：当前 " + currentTotal + " 条，锚点期望 " + anchor.logCount()
+                        + " 条，疑似从链尾删除了最新日志";
+            } else if (!currentTip.equals(anchor.tipHash())) {
+                tailValid = false;
+                tailMessage = "链尾哈希与锚点不一致，最新日志可能被删除或替换";
+            }
+        }
+
+        // 日志链完整也不等于业务数据没被改库，所以还要联动校验产品和批次指纹。
         Map<String, Object> dataIntegrity = verifyBusinessData();
         boolean dataIntegrityValid = Boolean.TRUE.equals(dataIntegrity.get("valid"));
+        boolean valid = tailValid && dataIntegrityValid;
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("valid", dataIntegrityValid);
+        result.put("valid", valid);
         result.put("logChainValid", true);
+        result.put("tailValid", tailValid);
+        result.put("expectedTotal", expectedTotal);
         result.put("dataIntegrityValid", dataIntegrityValid);
         result.put("total", logs.size());
         result.put("invalidCount", dataIntegrity.get("invalidCount"));
         result.put("invalidItems", dataIntegrity.get("invalidItems"));
         if (logs.isEmpty()) {
             result.put("message", "暂无审计日志");
+        } else if (!tailValid) {
+            // 尾部截断是最严重的篡改信号，优先作为结论展示。
+            result.put("message", tailMessage);
         } else if (dataIntegrityValid) {
-            result.put("message", "日志链完整，业务数据指纹一致");
+            result.put("message", "日志链完整，链尾锚点一致，业务数据指纹一致");
         } else {
             result.put("message", "日志链完整，但当前业务数据有 " + dataIntegrity.get("invalidCount") + " 项指纹异常");
         }
         return Result.success(result);
     }
 
+    /**
+     * 重新计算产品和批次当前业务数据指纹，发现绕过系统直接改库造成的 dataHash 不一致。
+     */
     private Map<String, Object> verifyBusinessData() {
         List<Map<String, Object>> invalidItems = new java.util.ArrayList<>();
 
@@ -154,6 +198,10 @@ public class BlockchainLogController {
         return result;
     }
 
+    /**
+     * 将 BlockchainLog 实体转换成前端展示行。
+     * 采用显式字段映射，避免 JPA 实体结构变化影响接口返回格式。
+     */
     private Map<String, Object> toLogRow(BlockchainLog log) {
         // 明确输出字段而不是直接返回实体，避免后续实体字段调整影响前端契约。
         Map<String, Object> row = new LinkedHashMap<>();

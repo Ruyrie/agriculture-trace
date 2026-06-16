@@ -14,6 +14,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 public class AgricultureTraceApplication {
 
+    /**
+     * Spring Boot 应用启动入口，负责加载容器、扫描组件并启动内嵌 Web 服务。
+     */
     public static void main(String[] args) {
         SpringApplication.run(AgricultureTraceApplication.class, args);
     }

@@ -38,18 +38,24 @@ public class BatchService {
     private final BatchRepository batchRepository;
     private final ProductRepository productRepository;
     private final BlockchainLogRepository logRepository;
+    private final BlockchainAnchorService anchorService;
     private final ObjectMapper objectMapper;
 
     public BatchService(BatchRepository batchRepository,
                         ProductRepository productRepository,
                         BlockchainLogRepository logRepository,
+                        BlockchainAnchorService anchorService,
                         ObjectMapper objectMapper) {
         this.batchRepository = batchRepository;
         this.productRepository = productRepository;
         this.logRepository = logRepository;
+        this.anchorService = anchorService;
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * 分页查询批次，支持产品 ID、产品名称和批次号多条件筛选。
+     */
     public Page<Batch> list(String productId, String productName, String batchNo, int page, int pageSize) {
         PageRequest request = PageRequest.of(Math.max(page - 1, 0), pageSize, Sort.by(Sort.Direction.DESC, "productionDate"));
         boolean hasProduct = productId != null && !productId.isBlank();
@@ -93,6 +99,9 @@ public class BatchService {
         return "batch_" + next;
     }
 
+    /**
+     * 新增批次：校验批次号唯一、绑定产品、生成 ID/时间/指纹并写入审计日志。
+     */
     @Transactional
     public Batch create(Batch batch, String productId) {
         // 批次号是面向业务人员和二维码溯源的可读标识，必须全局唯一。
@@ -109,6 +118,9 @@ public class BatchService {
         return saved;
     }
 
+    /**
+     * 更新批次基础字段和关联产品，并在真实变化时重算批次 dataHash。
+     */
     @Transactional
     public Batch update(Batch batch, String productId) {
         Batch existing = batchRepository.findById(batch.getId()).orElseThrow();
@@ -135,6 +147,9 @@ public class BatchService {
         return saved;
     }
 
+    /**
+     * 删除批次，并把删除前的批次快照写入审计日志。
+     */
     @Transactional
     public void delete(String id) {
         Batch existing = batchRepository.findDetailById(id).orElseThrow();
@@ -143,10 +158,16 @@ public class BatchService {
         recordLog("DELETE", id, before, null);
     }
 
+    /**
+     * 将 Batch 实体转换为前端表格行，产品 ID 默认取 batch.product.id。
+     */
     public Map<String, Object> toRow(Batch batch) {
         return toRow(batch, batch.getProduct().getId());
     }
 
+    /**
+     * 将 Batch 实体转换为前端表格行，并显式指定产品 ID 以重新查询产品名称。
+     */
     public Map<String, Object> toRow(Batch batch, String productId) {
         Product product = productRepository.findById(productId).orElseThrow();
         Map<String, Object> row = new LinkedHashMap<>();
@@ -161,11 +182,18 @@ public class BatchService {
         return row;
     }
 
+    /**
+     * 按 ID 查询带产品信息的批次，并转换成前端展示行。
+     */
     public Map<String, Object> toRowById(String id) {
         Batch batch = batchRepository.findDetailById(id).orElseThrow();
         return toRow(batch);
     }
 
+    /**
+     * 校验批次号是否可用。
+     * currentId 为空表示新增；非空表示编辑时允许保留自己的原批次号。
+     */
     private void ensureBatchNoAvailable(String batchNo, String currentId) {
         if (batchNo == null || batchNo.isBlank()) {
             throw new IllegalArgumentException("批次号不能为空");
@@ -178,6 +206,9 @@ public class BatchService {
                 });
     }
 
+    /**
+     * 按固定字段顺序计算批次业务数据指纹。
+     */
     public String computeBatchHash(Batch batch) {
         // 字段顺序与 schema.sql / BlockchainSchemaInitializer 的 SQL 回填逻辑保持一致。
         // 这里使用 product.id 而不是产品名称，是为了让产品改名不影响已有批次指纹。
@@ -191,6 +222,9 @@ public class BatchService {
         ));
     }
 
+    /**
+     * 校验单个批次当前字段重新计算的哈希是否等于数据库 dataHash。
+     */
     public Map<String, Object> verifyBatchHash(String id) {
         Batch batch = batchRepository.findDetailById(id).orElseThrow();
         // findDetailById 会预取 Product，避免计算哈希时访问 LAZY product 触发额外问题。
@@ -204,6 +238,9 @@ public class BatchService {
         return result;
     }
 
+    /**
+     * 批量校验所有批次指纹，并返回异常批次明细。
+     */
     public Map<String, Object> verifyAllBatchHashes() {
         List<Map<String, Object>> invalidItems = new ArrayList<>();
         List<Batch> batches = batchRepository.findAllWithProduct();
@@ -228,6 +265,9 @@ public class BatchService {
         return result;
     }
 
+    /**
+     * 生成批次审计快照，用于审计日志展示和数据完整性校验说明。
+     */
     public Map<String, Object> toAuditRow(Batch batch) {
         // 审计日志展示需要同时看到 productId 和 productName，
         // 但指纹计算只使用 productId，二者职责不同。
@@ -243,10 +283,16 @@ public class BatchService {
         return row;
     }
 
+    /**
+     * 将 null 字符串统一转换为空字符串，保证哈希拼接结果稳定。
+     */
     private String nullToEmpty(String value) {
         return value == null ? "" : value;
     }
 
+    /**
+     * 判断批次关键字段或关联产品是否发生变化。
+     */
     private boolean hasBatchChanges(Batch existing, Batch incoming, Product targetProduct) {
         String existingProductId = existing.getProduct() == null ? "" : nullToEmpty(existing.getProduct().getId());
         String incomingProductId = targetProduct == null ? existingProductId : nullToEmpty(targetProduct.getId());
@@ -272,6 +318,7 @@ public class BatchService {
 
     /**
      * 记录审计日志（链式哈希）。
+     * 批次新增、修改、删除都会进入同一条 blockchain_log 链。
      */
     private void recordLog(String action, String targetId, Object before, Object after) {
         BlockchainLog log = new BlockchainLog();
@@ -296,8 +343,15 @@ public class BatchService {
                 + (log.getDataAfter() != null ? log.getDataAfter() : "");
         log.setDataHash(HashUtil.sha256(content));
         logRepository.save(log);
+
+        // 合法写入后推进锚点：count() 会触发 JPA flush，因此能统计到刚保存的这条；
+        // 新链尾即本条日志哈希。事后绕过系统的删除不会走到这里，于是会被验证发现。
+        anchorService.refresh(logRepository.count(), log.getDataHash());
     }
 
+    /**
+     * 获取当前登录用户作为审计操作者；系统任务或匿名上下文使用 system。
+     */
     private String currentOperator() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || authentication.getName() == null || "anonymousUser".equals(authentication.getName())) {

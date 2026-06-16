@@ -43,6 +43,10 @@ public class TraceController {
         this.traceDataService = traceDataService;
     }
 
+    /**
+     * 按产品 ID 查询公开溯源详情。
+     * 每次访问都会记录 trace_record，用于统计扫码/访问趋势。
+     */
     @GetMapping("/{productId}")
     public Result<?> trace(@PathVariable String productId, HttpServletRequest request) {
         Product product = productRepository.findById(productId).orElseThrow();
@@ -62,6 +66,9 @@ public class TraceController {
         ));
     }
 
+    /**
+     * 按批次 ID 查询公开溯源详情，只返回当前批次关联的生产、质检和物流记录。
+     */
     @GetMapping("/batch/{batchId}")
     public Result<?> batchTrace(@PathVariable String batchId, HttpServletRequest request) {
         Batch batch = batchRepository.findDetailById(batchId).orElseThrow();
@@ -81,6 +88,10 @@ public class TraceController {
         ));
     }
 
+    /**
+     * 记录一次溯源访问，包括产品、访问时间和客户端 IP。
+     * 这些记录后续被 DashboardController 用来统计访问趋势。
+     */
     private void recordVisit(Product product, HttpServletRequest request) {
         TraceRecord record = new TraceRecord();
         record.setId(Ids.uuid32());

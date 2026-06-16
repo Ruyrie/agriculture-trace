@@ -38,6 +38,10 @@ public class TraceDataService {
         this.logisticsRecordRepository = logisticsRecordRepository;
     }
 
+    /**
+     * 保存某个批次下的生产、质检和物流记录。
+     * 该方法通常由新增产品/新增批次流程调用，负责把前端动态表单数组落库。
+     */
     @Transactional
     public void saveTraceRecords(Batch batch,
                                  List<Map<String, Object>> productionRecords,
@@ -49,6 +53,10 @@ public class TraceDataService {
         saveLogisticsRecords(batch, logisticsRecords);
     }
 
+    /**
+     * 覆盖式更新某个批次的所有溯源明细。
+     * 先删除旧记录再写入新记录，适合前端动态增删行后的整体提交。
+     */
     @Transactional
     public void replaceTraceRecords(Batch batch,
                                     List<Map<String, Object>> productionRecords,
@@ -62,6 +70,9 @@ public class TraceDataService {
         saveTraceRecords(batch, productionRecords, inspectionRecords, logisticsRecords);
     }
 
+    /**
+     * 查询某个产品下所有批次的生产记录，并转换成前端溯源页字段。
+     */
     public List<Map<String, Object>> productionRows(String productId) {
         return productionRecordRepository.findRowsByProductId(productId)
                 .stream()
@@ -69,6 +80,9 @@ public class TraceDataService {
                 .toList();
     }
 
+    /**
+     * 查询单个批次的生产记录，供 /trace/batch/{batchId} 精准溯源使用。
+     */
     public List<Map<String, Object>> productionRowsByBatch(String batchId) {
         return productionRecordRepository.findRowsByBatchId(batchId)
                 .stream()
@@ -76,6 +90,9 @@ public class TraceDataService {
                 .toList();
     }
 
+    /**
+     * 查询某个产品下所有批次的质检记录。
+     */
     public List<Map<String, Object>> inspectionRows(String productId) {
         return inspectionRecordRepository.findRowsByProductId(productId)
                 .stream()
@@ -83,6 +100,9 @@ public class TraceDataService {
                 .toList();
     }
 
+    /**
+     * 查询单个批次的质检记录。
+     */
     public List<Map<String, Object>> inspectionRowsByBatch(String batchId) {
         return inspectionRecordRepository.findRowsByBatchId(batchId)
                 .stream()
@@ -90,6 +110,9 @@ public class TraceDataService {
                 .toList();
     }
 
+    /**
+     * 查询某个产品下所有批次的物流记录。
+     */
     public List<Map<String, Object>> logisticsRows(String productId) {
         return logisticsRecordRepository.findRowsByProductId(productId)
                 .stream()
@@ -97,6 +120,9 @@ public class TraceDataService {
                 .toList();
     }
 
+    /**
+     * 查询单个批次的物流记录。
+     */
     public List<Map<String, Object>> logisticsRowsByBatch(String batchId) {
         return logisticsRecordRepository.findRowsByBatchId(batchId)
                 .stream()
@@ -104,6 +130,9 @@ public class TraceDataService {
                 .toList();
     }
 
+    /**
+     * 将前端生产记录行转换为 ProductionRecord 实体并批量保存。
+     */
     private void saveProductionRecords(Batch batch, List<Map<String, Object>> rows) {
         if (rows == null || rows.isEmpty()) {
             return;
@@ -125,6 +154,9 @@ public class TraceDataService {
         productionRecordRepository.saveAll(records);
     }
 
+    /**
+     * 将前端质检记录行转换为 InspectionRecord 实体并批量保存。
+     */
     private void saveInspectionRecords(Batch batch, List<Map<String, Object>> rows) {
         if (rows == null || rows.isEmpty()) {
             return;
@@ -145,6 +177,9 @@ public class TraceDataService {
         inspectionRecordRepository.saveAll(records);
     }
 
+    /**
+     * 将前端物流记录行转换为 LogisticsRecord 实体并批量保存。
+     */
     private void saveLogisticsRecords(Batch batch, List<Map<String, Object>> rows) {
         if (rows == null || rows.isEmpty()) {
             return;
@@ -165,6 +200,9 @@ public class TraceDataService {
         logisticsRecordRepository.saveAll(records);
     }
 
+    /**
+     * 把生产记录实体转换成前端 TraceDetail.vue 直接使用的字段名。
+     */
     private Map<String, Object> toProductionRow(ProductionRecord record) {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("batchNo", record.getBatch().getBatchNo());
@@ -175,6 +213,9 @@ public class TraceDataService {
         return row;
     }
 
+    /**
+     * 把质检记录实体转换成前端字段，并保留 item/date 兼容别名。
+     */
     private Map<String, Object> toInspectionRow(InspectionRecord record) {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("batchNo", record.getBatch().getBatchNo());
@@ -188,6 +229,9 @@ public class TraceDataService {
         return row;
     }
 
+    /**
+     * 把物流记录实体转换成前端字段，并保留 node/time 兼容别名。
+     */
     private Map<String, Object> toLogisticsRow(LogisticsRecord record) {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("batchNo", record.getBatch().getBatchNo());
@@ -201,16 +245,25 @@ public class TraceDataService {
         return row;
     }
 
+    /**
+     * 从 Map 行中安全读取字符串字段，空值转为空字符串并去掉首尾空白。
+     */
     private String text(Map<String, Object> row, String key) {
         Object value = row.get(key);
         return value == null ? "" : value.toString().trim();
     }
 
+    /**
+     * 读取字符串字段；当字段为空时使用 fallback，常用于物流时间默认当前时间。
+     */
     private String defaultText(Map<String, Object> row, String key, String fallback) {
         String value = text(row, key);
         return value.isBlank() ? fallback : value;
     }
 
+    /**
+     * 从前端 YYYY-MM-DD 字符串解析 LocalDate，空字符串表示未填写日期。
+     */
     private LocalDate localDate(Map<String, Object> row, String key) {
         String value = text(row, key);
         return value.isBlank() ? null : LocalDate.parse(value);

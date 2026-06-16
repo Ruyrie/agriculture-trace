@@ -41,6 +41,10 @@ public class ProductController {
         this.traceDataService = traceDataService;
     }
 
+    /**
+     * 分页查询产品列表，支持按产品名称 keyword 模糊搜索。
+     * 返回 records/total/page/pageSize，正好对应前端表格分页组件需要的数据结构。
+     */
     @GetMapping("/list")
     public Result<?> list(@RequestParam(defaultValue = "1") int page,
                           @RequestParam(defaultValue = "10") int pageSize,
@@ -54,27 +58,44 @@ public class ProductController {
         ));
     }
 
+    /**
+     * 查询单个产品详情，供编辑弹窗、溯源辅助页面等按 ID 读取完整产品字段。
+     */
     @GetMapping("/{id}")
     public Result<?> detail(@PathVariable String id) {
         return Result.success(productService.get(id));
     }
 
+    /**
+     * 新增产品基础信息。
+     * 真正的 ID、创建时间、数据指纹和审计日志由 ProductService 统一处理。
+     */
     @PostMapping
     public Result<?> create(@RequestBody Product product) {
         return Result.success(productService.create(product));
     }
 
+    /**
+     * 更新产品基础字段；Service 会判断字段是否真的变化，变化时重算 dataHash 并写审计链。
+     */
     @PutMapping
     public Result<?> update(@RequestBody Product product) {
         return Result.success(productService.update(product));
     }
 
+    /**
+     * 删除产品并记录删除前快照，便于审计页面追踪被删除对象的原始数据。
+     */
     @DeleteMapping("/{id}")
     public Result<?> delete(@PathVariable String id) {
         productService.delete(id);
         return Result.success(null);
     }
 
+    /**
+     * 一次性创建产品、首个批次和三类溯源明细。
+     * 这个接口服务“新增产品时顺手录入完整溯源信息”的前端流程。
+     */
     @PostMapping("/create-with-trace")
     @SuppressWarnings("unchecked")
     @Transactional
@@ -103,6 +124,9 @@ public class ProductController {
         return Result.success(product);
     }
 
+    /**
+     * 返回前端产品产地下拉框的候选值，区分国内产地和国际来源。
+     */
     @GetMapping("/origins")
     public Result<?> origins() {
         return Result.success(Map.of(
@@ -111,6 +135,10 @@ public class ProductController {
         ));
     }
 
+    /**
+     * 从复合请求体中提取产品字段并组装 Product 实体。
+     * 前端提交的批次和记录字段会留给其他服务处理。
+     */
     private Product mapProduct(Map<String, Object> map) {
         // create-with-trace 使用 Map 接收复合 JSON，这里只抽取产品字段，
         // 避免把 batch/records 等前端表单字段误绑定到 Product 实体。

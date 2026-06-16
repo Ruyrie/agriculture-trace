@@ -77,8 +77,10 @@ const total = ref(0)
 const rootHash = ref('')
 const generatedAt = ref('')
 
+// 统计当前指纹列表中不一致的记录数，用于页面头部风险提示。
 const invalidCount = computed(() => records.value.filter(item => !item.valid).length)
 
+// 拉取产品指纹列表、总数、根哈希和生成时间。
 const fetchData = async () => {
   loading.value = true
   try {
@@ -96,6 +98,7 @@ const fetchData = async () => {
   }
 }
 
+// 校验单个产品指纹；完成后刷新列表以展示最新 currentHash。
 const verify = async (row) => {
   const res = await verifyProductHash(row.id)
   if (res.code === 200 && res.data?.valid) {
@@ -106,6 +109,7 @@ const verify = async (row) => {
   fetchData()
 }
 
+// 将全局 rootHash 复制到剪贴板，方便对外校验或留档。
 const copyRootHash = async () => {
   try {
     await navigator.clipboard.writeText(rootHash.value)
