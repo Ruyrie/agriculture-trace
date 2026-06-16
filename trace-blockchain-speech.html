@@ -1,0 +1,1218 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>农产品溯源系统：溯源与区块链功能演讲稿</title>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --paper: #ffffff;
+      --ink: #182230;
+      --muted: #667085;
+      --line: #d9e2ec;
+      --green: #16794c;
+      --green-soft: #e9f7ef;
+      --blue: #1f5eff;
+      --blue-soft: #eef4ff;
+      --amber: #b54708;
+      --amber-soft: #fff4e5;
+      --red: #b42318;
+      --red-soft: #fff1f0;
+      --code: #172033;
+      --shadow: 0 16px 40px rgba(16, 24, 40, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", Arial, sans-serif;
+      line-height: 1.75;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 28px 22px;
+      background: #102033;
+      color: #e6eef8;
+      overflow-y: auto;
+    }
+
+    .brand {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+      margin-bottom: 18px;
+    }
+
+    .brand small {
+      color: #9fb0c5;
+      font-weight: 600;
+      letter-spacing: 0;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 21px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    .nav {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      margin: 16px 0 24px;
+    }
+
+    .nav a {
+      display: block;
+      padding: 9px 11px;
+      border-radius: 8px;
+      color: #d8e2f0;
+      font-size: 14px;
+    }
+
+    .nav a:hover {
+      background: rgba(255, 255, 255, 0.09);
+      color: #fff;
+    }
+
+    .side-note {
+      padding: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 8px;
+      color: #c8d5e6;
+      font-size: 13px;
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .content {
+      padding: 36px;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      border-radius: 12px;
+      padding: 42px;
+      color: #fff;
+      background:
+        linear-gradient(120deg, rgba(16, 32, 51, 0.96), rgba(22, 121, 76, 0.78)),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='520' viewBox='0 0 1200 520'%3E%3Cg fill='none' stroke='%23ffffff' stroke-opacity='.18'%3E%3Cpath d='M0 388c122-58 223-54 310 12s206 72 357-10 329-68 533 42'/%3E%3Cpath d='M0 286c125-46 232-42 320 11s190 46 306-22 252-83 574 18'/%3E%3Cpath d='M72 92h180v80H72zM334 128h154v68H334zM580 82h210v88H580zM870 140h188v72H870z'/%3E%3Ccircle cx='250' cy='172' r='6' fill='%23fff'/%3E%3Ccircle cx='488' cy='196' r='6' fill='%23fff'/%3E%3Ccircle cx='790' cy='170' r='6' fill='%23fff'/%3E%3Ccircle cx='1058' cy='212' r='6' fill='%23fff'/%3E%3Cpath d='M252 172h82M488 196h92M790 170h80'/%3E%3C/g%3E%3C/svg%3E");
+      background-size: cover;
+      box-shadow: var(--shadow);
+    }
+
+    .hero .kicker {
+      font-size: 14px;
+      font-weight: 700;
+      color: #bdebd1;
+      margin-bottom: 12px;
+    }
+
+    .hero h2 {
+      margin: 0;
+      max-width: 850px;
+      font-size: 36px;
+      line-height: 1.22;
+      letter-spacing: 0;
+    }
+
+    .hero p {
+      max-width: 850px;
+      margin: 18px 0 0;
+      color: #e8f2ff;
+      font-size: 17px;
+    }
+
+    .meta-row {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin: 18px 0 26px;
+    }
+
+    .meta {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      box-shadow: 0 6px 18px rgba(16, 24, 40, 0.04);
+    }
+
+    .meta span {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .meta strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 16px;
+    }
+
+    section {
+      margin: 24px 0;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(16, 24, 40, 0.05);
+      overflow: hidden;
+    }
+
+    .section-head {
+      padding: 22px 26px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfcfe;
+    }
+
+    .section-head h2 {
+      margin: 0;
+      font-size: 24px;
+      letter-spacing: 0;
+    }
+
+    .section-head p {
+      margin: 8px 0 0;
+      color: var(--muted);
+    }
+
+    .body {
+      padding: 24px 26px 28px;
+    }
+
+    h3 {
+      margin: 22px 0 10px;
+      font-size: 19px;
+    }
+
+    h3:first-child {
+      margin-top: 0;
+    }
+
+    p {
+      margin: 10px 0;
+    }
+
+    ul,
+    ol {
+      margin: 10px 0;
+      padding-left: 24px;
+    }
+
+    li {
+      margin: 6px 0;
+    }
+
+    code {
+      font-family: Consolas, "SFMono-Regular", Menlo, monospace;
+      background: #eef2f7;
+      color: #263445;
+      padding: 2px 5px;
+      border-radius: 5px;
+      font-size: 0.92em;
+    }
+
+    pre {
+      margin: 14px 0;
+      padding: 16px;
+      overflow-x: auto;
+      border-radius: 8px;
+      background: var(--code);
+      color: #eef4ff;
+      line-height: 1.6;
+      font-size: 13px;
+    }
+
+    pre code {
+      background: transparent;
+      color: inherit;
+      padding: 0;
+    }
+
+    .speech {
+      border-left: 5px solid var(--green);
+      background: var(--green-soft);
+      padding: 16px 18px;
+      border-radius: 8px;
+      margin: 14px 0;
+    }
+
+    .speech strong {
+      color: var(--green);
+    }
+
+    .tip {
+      border-left: 5px solid var(--blue);
+      background: var(--blue-soft);
+      padding: 14px 16px;
+      border-radius: 8px;
+      margin: 14px 0;
+      color: #1d2939;
+    }
+
+    .warn {
+      border-left: 5px solid var(--amber);
+      background: var(--amber-soft);
+      padding: 14px 16px;
+      border-radius: 8px;
+      margin: 14px 0;
+    }
+
+    .danger {
+      border-left: 5px solid var(--red);
+      background: var(--red-soft);
+      padding: 14px 16px;
+      border-radius: 8px;
+      margin: 14px 0;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      background: #fff;
+    }
+
+    .card h4 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+
+    .card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+      margin: 16px 0;
+    }
+
+    .step {
+      position: relative;
+      min-height: 118px;
+      padding: 14px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .step span {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      color: #fff;
+      background: var(--green);
+      font-weight: 700;
+      font-size: 13px;
+      margin-bottom: 9px;
+    }
+
+    .step b {
+      display: block;
+      font-size: 15px;
+      margin-bottom: 5px;
+    }
+
+    .step small {
+      display: block;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 14px;
+    }
+
+    th,
+    td {
+      border: 1px solid var(--line);
+      padding: 10px 12px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f2f5f9;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 3px 9px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .tag.green {
+      color: #11643f;
+      background: #dff5e9;
+    }
+
+    .tag.blue {
+      color: #1b4ed8;
+      background: #e6edff;
+    }
+
+    .tag.amber {
+      color: #8a3b04;
+      background: #ffedd5;
+    }
+
+    .timeline {
+      display: grid;
+      gap: 12px;
+      margin: 14px 0;
+    }
+
+    .timeline-item {
+      display: grid;
+      grid-template-columns: 118px minmax(0, 1fr);
+      gap: 14px;
+      align-items: start;
+    }
+
+    .time {
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: #eef2f7;
+      color: #344054;
+      font-weight: 700;
+      text-align: center;
+      font-size: 13px;
+    }
+
+    .qa {
+      display: grid;
+      gap: 14px;
+    }
+
+    .qa details {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 13px 15px;
+      background: #fff;
+    }
+
+    .qa summary {
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .footer {
+      color: var(--muted);
+      text-align: center;
+      padding: 22px 0 8px;
+      font-size: 13px;
+    }
+
+    @media (max-width: 1080px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: relative;
+        height: auto;
+      }
+
+      .content {
+        padding: 20px;
+      }
+
+      .meta-row,
+      .grid-2,
+      .grid-3,
+      .flow {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+
+      .layout {
+        display: block;
+      }
+
+      .sidebar {
+        display: none;
+      }
+
+      .content {
+        padding: 0;
+      }
+
+      .hero,
+      section,
+      .meta {
+        box-shadow: none;
+      }
+
+      section {
+        page-break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <small>答辩演讲稿</small>
+        <h1>农产品溯源系统<br />溯源与区块链功能</h1>
+      </div>
+      <nav class="nav">
+        <a href="#opening">一、开场与主题</a>
+        <a href="#overview">二、系统总体定位</a>
+        <a href="#trace">三、溯源功能重点讲解</a>
+        <a href="#blockchain">四、区块链功能重点讲解</a>
+        <a href="#integration">五、两条主线如何结合</a>
+        <a href="#demo">六、现场演示话术</a>
+        <a href="#value">七、现实价值与前景</a>
+        <a href="#qa">八、答辩问答准备</a>
+        <a href="#closing">九、结尾总结</a>
+      </nav>
+      <div class="side-note">
+        建议时长：8 到 12 分钟。讲的时候不要逐字念完，可以把绿色讲稿作为主线，把蓝色提示作为临场补充。
+      </div>
+    </aside>
+
+    <main class="content">
+      <header class="hero">
+        <div class="kicker">Agriculture Traceability + Blockchain Integrity</div>
+        <h2>农产品溯源系统：从“查得到”到“验得真”的完整链路</h2>
+        <p>
+          本演讲稿聚焦两个核心亮点：第一，产品、批次、生产、质检、物流共同形成可查询的溯源链；
+          第二，数据指纹、根哈希、链式审计日志共同形成可验证的防篡改机制。
+        </p>
+      </header>
+
+      <div class="meta-row">
+        <div class="meta">
+          <span>演讲重点</span>
+          <strong>溯源链路</strong>
+        </div>
+        <div class="meta">
+          <span>技术亮点</span>
+          <strong>SHA-256 指纹</strong>
+        </div>
+        <div class="meta">
+          <span>可信机制</span>
+          <strong>链式审计日志</strong>
+        </div>
+        <div class="meta">
+          <span>适用场景</span>
+          <strong>监管与消费者查询</strong>
+        </div>
+      </div>
+
+      <section id="opening">
+        <div class="section-head">
+          <h2>一、开场与主题</h2>
+          <p>先用一句话把项目价值讲清楚：它不是普通的 CRUD 系统，而是带可信校验的农产品追溯平台。</p>
+        </div>
+        <div class="body">
+          <div class="speech">
+            <strong>正式讲稿：</strong>
+            各位老师好，我今天汇报的项目是农产品溯源系统。我会重点介绍系统中的两个核心功能：
+            第一是溯源功能，也就是消费者、企业和监管人员如何通过产品或批次查看生产、质检、物流等全流程信息；
+            第二是区块链式防篡改功能，也就是系统如何通过数据指纹、根哈希和链式审计日志，判断数据是否被绕过系统修改。
+          </div>
+
+          <div class="speech">
+            这个项目要解决的问题可以概括为一句话：农产品信息不仅要“查得到”，还要“验得真”。
+            传统系统通常只能展示数据库里保存的内容，但如果有人直接修改数据库，普通页面很难发现。
+            因此本项目在基础业务管理之上，额外加入了哈希校验和审计链路，让溯源数据具备更强的可信度。
+          </div>
+
+          <div class="tip">
+            <b>演讲提示：</b>
+            开场不要先讲代码。先讲现实问题：食品安全、产地造假、质检信息不透明、物流过程不可追踪。
+            再引出本项目的两个答案：溯源解决“信息透明”，区块链式校验解决“信息可信”。
+          </div>
+        </div>
+      </section>
+
+      <section id="overview">
+        <div class="section-head">
+          <h2>二、系统总体定位</h2>
+          <p>从用户角色、数据对象、技术结构三个角度建立全局印象。</p>
+        </div>
+        <div class="body">
+          <h3>1. 系统面向的角色</h3>
+          <div class="grid-3">
+            <div class="card">
+              <h4>企业或管理员</h4>
+              <p>维护产品、批次、生产记录、质检记录、物流记录，并管理用户与权限。</p>
+            </div>
+            <div class="card">
+              <h4>监管人员</h4>
+              <p>查看数据指纹、审计日志和统计报表，重点关注数据是否异常。</p>
+            </div>
+            <div class="card">
+              <h4>消费者</h4>
+              <p>通过二维码或公开链接访问溯源详情，查看产品来源和流转过程。</p>
+            </div>
+          </div>
+
+          <h3>2. 系统管理的核心数据</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>数据对象</th>
+                <th>在溯源中的作用</th>
+                <th>在区块链式校验中的作用</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>产品 Product</td>
+                <td>记录产品名称、类别、产地、价格等基础信息。</td>
+                <td>保存产品数据指纹 <code>data_hash</code>，用于发现产品字段是否被篡改。</td>
+              </tr>
+              <tr>
+                <td>批次 Batch</td>
+                <td>连接产品与生产、质检、物流记录，是溯源的关键单位。</td>
+                <td>保存批次数据指纹 <code>data_hash</code>，用于发现批次号、生产日期、备注等是否异常。</td>
+              </tr>
+              <tr>
+                <td>生产记录</td>
+                <td>展示播种、采摘、包装等生产过程。</td>
+                <td>作为批次溯源信息的一部分，未来可进一步纳入批次指纹。</td>
+              </tr>
+              <tr>
+                <td>质检记录</td>
+                <td>展示检测项目、检测结果、检测人员和日期。</td>
+                <td>支撑监管核查，未来可结合机构签名提升可信度。</td>
+              </tr>
+              <tr>
+                <td>物流记录</td>
+                <td>展示仓储、运输、配送等流转节点。</td>
+                <td>支撑冷链和配送过程追踪，未来可接入 IoT 设备数据。</td>
+              </tr>
+              <tr>
+                <td>审计日志 BlockchainLog</td>
+                <td>记录产品和批次的增删改行为。</td>
+                <td>通过 <code>previous_hash -> data_hash</code> 形成链式结构，检查日志是否被改动。</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="speech">
+            <strong>正式讲稿：</strong>
+            从整体结构看，本项目采用前后端分离架构，前端使用 Vue 展示产品管理、批次管理、溯源详情、数据指纹和审计日志等页面；
+            后端使用 Spring Boot 提供接口；数据库保存产品、批次、生产记录、质检记录、物流记录、访问记录以及审计日志。
+            其中溯源功能负责把业务流程串起来，区块链功能负责给关键数据加上可验证的完整性保护。
+          </div>
+        </div>
+      </section>
+
+      <section id="trace">
+        <div class="section-head">
+          <h2>三、溯源功能重点讲解</h2>
+          <p>讲清楚“数据从哪里来、怎么保存、怎么查询、怎么展示”。</p>
+        </div>
+        <div class="body">
+          <h3>1. 溯源的业务主线</h3>
+          <div class="flow">
+            <div class="step">
+              <span>1</span>
+              <b>创建产品</b>
+              <small>录入名称、类别、产地、价格等基础信息。</small>
+            </div>
+            <div class="step">
+              <span>2</span>
+              <b>建立批次</b>
+              <small>一个产品可以有多个批次，批次号是业务追踪的核心标识。</small>
+            </div>
+            <div class="step">
+              <span>3</span>
+              <b>录入生产</b>
+              <small>记录生产活动、操作人员、活动日期和备注。</small>
+            </div>
+            <div class="step">
+              <span>4</span>
+              <b>录入质检</b>
+              <small>记录检测项目、结果、检测人员和检测日期。</small>
+            </div>
+            <div class="step">
+              <span>5</span>
+              <b>录入物流</b>
+              <small>记录物流节点、位置、操作人和更新时间。</small>
+            </div>
+          </div>
+
+          <div class="speech">
+            <strong>正式讲稿：</strong>
+            溯源功能的核心不是只展示一个产品详情，而是以“批次”为中心，把产品基础信息、生产记录、质检报告和物流轨迹关联起来。
+            例如同一种苹果可能有多个生产批次，不同批次的生产日期、质检结果和物流路线都可能不同。
+            因此系统把批次设计成溯源的关键业务单元，每条生产、质检、物流记录都归属于某一个批次。
+          </div>
+
+          <h3>2. 一次性新增：产品、批次和溯源记录保持一致</h3>
+          <p>
+            项目提供了复合新增接口 <code>/api/product/create-with-trace</code>。
+            前端可以一次提交产品信息、批次信息、生产记录、质检记录和物流记录。
+            后端使用事务保证这些数据要么全部保存成功，要么全部回滚，避免出现“产品有了，但溯源记录缺失”的半成品。
+          </p>
+
+          <pre><code>ProductController#createWithTrace
+1. productService.create(product)              创建产品并生成产品指纹
+2. batchService.create(batch, productId)       创建批次并生成批次指纹
+3. traceDataService.saveTraceRecords(...)      保存生产、质检、物流三类记录
+4. @Transactional                             任一环节失败则整体回滚</code></pre>
+
+          <div class="speech">
+            <strong>正式讲稿：</strong>
+            在新增产品时，系统支持同时维护关联批次和完整溯源信息。
+            这部分实现放在 <code>ProductController#createWithTrace</code> 中，方法上加了事务控制。
+            这样设计的好处是保证数据一致性：如果产品保存成功，但批次或质检记录保存失败，系统不会留下不完整的数据，而是整体回滚。
+          </div>
+
+          <h3>3. 批次维护：支持后续补充和更新溯源明细</h3>
+          <p>
+            批次管理接口也支持同步提交三类溯源记录。
+            新增批次时调用 <code>TraceDataService#saveTraceRecords</code>；
+            编辑批次时，如果请求体明确带了生产、质检、物流数组，就调用 <code>replaceTraceRecords</code> 先删后写。
+          </p>
+
+          <div class="tip">
+            <b>讲解重点：</b>
+            “先删后写”不是偷懒，而是适合动态表单的实现方式。因为前端可以新增、删除、调整多条记录，逐条比较会复杂；
+            直接在事务中删除旧明细再写入新明细，可以保证最终展示的是用户提交的完整版本。
+          </div>
+
+          <h3>4. 查询溯源：产品维度和批次维度两种入口</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>接口</th>
+                <th>入口含义</th>
+                <th>返回内容</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>GET /api/trace/{productId}</code></td>
+                <td>按产品查看全部批次溯源</td>
+                <td>产品信息、批次列表、所有批次的生产记录、质检记录、物流记录。</td>
+              </tr>
+              <tr>
+                <td><code>GET /api/trace/batch/{batchId}</code></td>
+                <td>按具体批次查看溯源</td>
+                <td>产品信息、单个批次信息、该批次的生产记录、质检记录、物流记录。</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="speech">
+            <strong>正式讲稿：</strong>
+            查询时系统提供了两个维度。消费者如果扫的是产品二维码，可以看到该产品下多个批次的整体追溯信息；
+            如果扫的是具体批次二维码，则可以只查看这一批次的生产、质检和物流明细。
+            这对应真实业务中两种常见场景：一种是了解某个产品的总体来源，另一种是精确追踪手中这批商品的流转记录。
+          </div>
+
+          <h3>5. 访问记录：溯源行为也被统计</h3>
+          <p>
+            每次访问溯源详情时，后端都会写入 <code>trace_record</code>，记录产品、访问时间和 IP。
+            这部分数据可用于首页统计“溯源查询次数”和近一周趋势。
+          </p>
+
+          <div class="speech">
+            <strong>正式讲稿：</strong>
+            另外，系统不仅记录产品本身的流转过程，也记录用户访问溯源页的行为。
+            每次访问 <code>/api/trace</code> 接口时，后端会保存访问记录，用于统计哪些产品被查询得最多、近期溯源访问趋势如何。
+            这能帮助企业了解消费者关注度，也能辅助监管人员发现异常关注的产品。
+          </div>
+        </div>
+      </section>
+
+      <section id="blockchain">
+        <div class="section-head">
+          <h2>四、区块链功能重点讲解</h2>
+          <p>这里要讲清楚：项目不是简单“用了区块链三个字”，而是实现了区块链中的关键思想。</p>
+        </div>
+        <div class="body">
+          <h3>1. 本项目中的区块链思想</h3>
+          <div class="grid-3">
+            <div class="card">
+              <h4>数据指纹</h4>
+              <p>对产品和批次关键字段计算 SHA-256，保存为 <code>data_hash</code>。</p>
+            </div>
+            <div class="card">
+              <h4>根哈希</h4>
+              <p>把产品当前指纹按固定顺序聚合，再计算一个全局摘要。</p>
+            </div>
+            <div class="card">
+              <h4>链式日志</h4>
+              <p>每条日志包含上一条日志哈希，形成不可随意篡改的链条。</p>
+            </div>
+          </div>
+
+          <div class="speech">
+            <strong>正式讲稿：</strong>
+            本项目的区块链功能不是接入真实公链，而是模拟区块链中的核心防篡改思想。
+            具体来说，系统做了三件事：第一，为产品和批次生成数据指纹；第二，为产品集合生成全局根哈希；
+            第三，为每次增删改操作生成链式审计日志。这样可以从当前业务数据和历史操作记录两个方向检查数据可信性。
+          </div>
+
+          <h3>2. 产品数据指纹：检查当前业务字段是否被改</h3>
+          <p>
+            产品的 <code>data_hash</code> 根据固定字段顺序生成：
+          </p>
+
+          <pre><code>productHash = SHA-256(
+  id | name | category | origin | normalizedPrice | createTime
+)</code></pre>
+
+          <p>
+            正常新增和修改会自动重算指纹。如果有人绕过系统直接修改数据库中的产品名称、产地或价格，
+            但没有同步修改 <code>data_hash</code>，那么校验时重新计算出的 <code>currentHash</code> 就会和数据库保存的 <code>storedHash</code> 不一致。
+          </p>
+
+          <div class="speech">
+            <strong>正式讲稿：</strong>
+            以产品为例，系统不是随便生成一个字符串，而是把产品 ID、名称、类别、产地、价格、创建时间这些关键字段按固定顺序拼接起来，
+            再使用 SHA-256 计算出 64 位十六进制哈希值。这个值就像产品记录的“数字指纹”。
+            只要参与计算的字段发生变化，哈希结果就会完全不同。
+          </div>
+
+          <h3>3. 批次数据指纹：检查批次信息是否被改</h3>
+          <pre><code>batchHash = SHA-256(
+  id | batchNo | productId | productionDate | remark | createTime
+)</code></pre>
+
+          <p>
+            批次指纹使用 <code>productId</code>，而不是产品名称。
+            这样即使产品后续改名，也不会导致历史批次指纹误报异常。
+          </p>
+
+          <div class="speech">
+            <strong>正式讲稿：</strong>
+            批次指纹的设计也很重要。系统使用产品 ID 而不是产品名称参与计算，是为了避免产品改名影响已有批次。
+            这说明哈希字段的选择要符合业务语义：真正代表批次身份的是关联的产品 ID 和批次号，而不是可能用于展示的名称。
+          </div>
+
+          <h3>4. 根哈希：给全局产品数据盖一个总印章</h3>
+          <p>
+            数据指纹页面会展示全局根哈希。项目中根哈希的计算方式是：
+          </p>
+
+          <pre><code>rootHash = SHA-256(
+  currentHash(product_1) | currentHash(product_2) | ... | currentHash(product_n)
+)</code></pre>
+
+          <div class="warn">
+            <b>准确表述：</b>
+            这里的根哈希是简化版全局摘要，不是完整的 Merkle Tree。
+            它的作用是模拟“全局完整性印章”：只要任意产品当前指纹变化，整体根哈希也会变化。
+          </div>
+
+          <div class="speech">
+            <strong>正式讲稿：</strong>
+            根哈希可以理解为整批产品数据的总指纹。系统先按产品 ID 升序排列，保证顺序稳定；
+            然后逐条计算每个产品的当前指纹，最后把这些指纹拼接起来再做一次 SHA-256。
+            这样根哈希就能代表当前产品集合的整体状态。只要其中任意一条产品数据被修改，最终的根哈希都会发生变化。
+          </div>
+
+          <h3>5. 链式审计日志：检查历史操作记录是否被改</h3>
+          <p>
+            产品和批次的创建、修改、删除都会写入 <code>blockchain_log</code>。
+            每条日志不仅保存自己的哈希，还保存上一条日志的哈希。
+          </p>
+
+          <pre><code>logHash = SHA-256(
+  actionType + targetId + operator + timestamp + previousHash + dataAfter
+)
+
+第 1 条日志: previous_hash = "0", data_hash = H1
+第 2 条日志: previous_hash = H1,  data_hash = H2
+第 3 条日志: previous_hash = H2,  data_hash = H3</code></pre>
+
+          <div class="speech">
+            <strong>正式讲稿：</strong>
+            审计日志链模拟的是区块链中“前一区块哈希指向后一区块”的结构。
+            第一条日志的上一哈希是 0，后面的每一条日志都必须保存上一条日志的哈希值。
+            如果有人修改了中间某条日志的内容，这条日志重新计算出的哈希会对不上；
+            如果有人删除或插入日志，下一条日志保存的上一哈希也会对不上。因此系统可以发现链条被破坏的位置。
+          </div>
+
+          <h3>6. 数据指纹和审计日志链的区别</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>机制</th>
+                <th>回答的问题</th>
+                <th>典型异常</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="tag green">数据指纹</span></td>
+                <td>当前产品或批次字段是不是原来的数据？</td>
+                <td>直接改数据库里的产地、价格、批次号，但没有更新 <code>data_hash</code>。</td>
+              </tr>
+              <tr>
+                <td><span class="tag blue">审计日志链</span></td>
+                <td>历史操作记录有没有被篡改、插入或删除？</td>
+                <td>修改 <code>blockchain_log.data_after</code> 或 <code>previous_hash</code>，导致链条断裂。</td>
+              </tr>
+              <tr>
+                <td><span class="tag amber">联动校验</span></td>
+                <td>日志链完整时，业务数据本身是否仍然可信？</td>
+                <td>日志没有被改，但业务表被绕过系统直接修改。</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="speech">
+            <strong>正式讲稿：</strong>
+            这里我想强调一个区别：日志链完整，不代表业务数据一定没有被改。
+            例如攻击者没有动日志表，只直接修改产品表中的价格，那么日志链本身可能仍然完整。
+            所以项目在审计日志校验通过以后，还会联动检查产品和批次的数据指纹。
+            这就是本项目比较完整的地方：它不是只看历史日志，也会检查当前业务数据。
+          </div>
+        </div>
+      </section>
+
+      <section id="integration">
+        <div class="section-head">
+          <h2>五、溯源和区块链如何结合</h2>
+          <p>这是答辩最值得强调的部分：溯源负责展示链路，区块链式校验负责证明链路可信。</p>
+        </div>
+        <div class="body">
+          <h3>1. 功能关系</h3>
+          <div class="grid-2">
+            <div class="card">
+              <h4>溯源功能解决“看见”</h4>
+              <p>用户能看到产品来源、生产过程、质检情况、物流轨迹，解决信息透明问题。</p>
+            </div>
+            <div class="card">
+              <h4>区块链功能解决“相信”</h4>
+              <p>管理员和监管员能验证数据指纹和日志链，判断数据是否被绕过系统篡改。</p>
+            </div>
+          </div>
+
+          <h3>2. 一条真实业务链路</h3>
+          <div class="timeline">
+            <div class="timeline-item">
+              <div class="time">采收前</div>
+              <div>企业录入产品基础信息，例如苹果、产地、类别、价格。系统生成产品 <code>data_hash</code> 并写入创建日志。</div>
+            </div>
+            <div class="timeline-item">
+              <div class="time">生产时</div>
+              <div>企业建立批次，例如 <code>BATCH-2026-001</code>，录入采摘、分拣、包装记录。系统生成批次 <code>data_hash</code>。</div>
+            </div>
+            <div class="timeline-item">
+              <div class="time">质检时</div>
+              <div>质检人员录入农残检测、外观检测、合格结果等记录，消费者后续可以在溯源页查看。</div>
+            </div>
+            <div class="timeline-item">
+              <div class="time">运输时</div>
+              <div>物流人员录入仓储、发货、到达门店等节点，形成产品流转轨迹。</div>
+            </div>
+            <div class="timeline-item">
+              <div class="time">消费时</div>
+              <div>消费者扫码访问公开溯源页，系统记录一次溯源访问，用于统计查询趋势。</div>
+            </div>
+            <div class="timeline-item">
+              <div class="time">监管时</div>
+              <div>监管员查看数据指纹和审计日志，验证当前业务数据和历史操作记录是否一致。</div>
+            </div>
+          </div>
+
+          <div class="speech">
+            <strong>正式讲稿：</strong>
+            两个功能结合起来以后，系统就形成了一个闭环。
+            对消费者来说，他看到的是清晰的产品来源和流转过程；
+            对企业来说，系统可以规范地保存生产、质检和物流记录；
+            对监管人员来说，系统不仅提供数据，还能提供校验依据。
+            如果数据被正常业务流程修改，系统会自动重算指纹并写入审计日志；
+            如果数据绕过系统被直接改库，指纹校验就会发现异常。
+          </div>
+
+          <h3>3. 一句话概括</h3>
+          <div class="tip">
+            溯源功能让农产品信息“可追踪”，区块链式功能让关键数据“可验证”。
+            前者提升透明度，后者提升可信度。
+          </div>
+        </div>
+      </section>
+
+      <section id="demo">
+        <div class="section-head">
+          <h2>六、现场演示话术</h2>
+          <p>如果需要现场演示，可以按这个顺序讲，逻辑最顺。</p>
+        </div>
+        <div class="body">
+          <h3>演示 1：新增产品并填写溯源信息</h3>
+          <ol>
+            <li>进入产品管理页面，点击新增。</li>
+            <li>填写产品名称、类别、产地、价格。</li>
+            <li>同时填写批次号、生产日期、生产记录、质检记录、物流记录。</li>
+            <li>保存后进入产品或批次列表，展示产品和批次已经生成数据指纹。</li>
+          </ol>
+          <div class="speech">
+            <strong>演示话术：</strong>
+            这里我新增一条产品数据，同时录入批次和三类溯源记录。
+            保存时后端会在同一个事务中完成产品创建、批次创建和溯源明细保存。
+            同时产品和批次都会生成 SHA-256 数据指纹，并追加审计日志。
+          </div>
+
+          <h3>演示 2：查看溯源详情</h3>
+          <ol>
+            <li>点击产品或批次的“溯源”按钮。</li>
+            <li>展示产品基础信息、二维码、批次列表。</li>
+            <li>向下展示生产记录、质检报告、物流轨迹。</li>
+            <li>说明消费者扫码也能访问公开溯源页。</li>
+          </ol>
+          <div class="speech">
+            <strong>演示话术：</strong>
+            这是溯源详情页。它不是单独展示产品表，而是把产品、批次、生产、质检和物流记录聚合起来。
+            这样消费者可以知道产品来自哪里、经历了哪些生产环节、质检是否合格、物流到过哪些节点。
+          </div>
+
+          <h3>演示 3：查看数据指纹和根哈希</h3>
+          <ol>
+            <li>进入“数据指纹”页面。</li>
+            <li>展示全局根哈希、生成时间、校验状态。</li>
+            <li>展示每条产品的存储指纹和当前指纹。</li>
+            <li>点击单条验证，说明一致代表当前业务数据未发现篡改。</li>
+          </ol>
+          <div class="speech">
+            <strong>演示话术：</strong>
+            这里的存储指纹是数据创建或正常修改时保存到数据库里的哈希；
+            当前指纹是系统根据当前字段实时重新计算出来的哈希。
+            如果两者一致，说明这条记录没有发现绕过系统修改的情况。
+            上方的根哈希代表当前产品集合的整体摘要。
+          </div>
+
+          <h3>演示 4：验证审计日志链</h3>
+          <ol>
+            <li>进入“审计日志”页面。</li>
+            <li>展示每条日志包含操作类型、目标类型、操作人、上一哈希、本条哈希。</li>
+            <li>点击“验证链条完整性”。</li>
+            <li>说明系统会先检查日志链，再检查当前产品和批次指纹。</li>
+          </ol>
+          <div class="speech">
+            <strong>演示话术：</strong>
+            审计日志相当于系统的操作账本。每条日志都包含上一条日志的哈希，所以它们不是孤立记录，而是串成了一条链。
+            如果中间任何一条日志被改动或删除，后面的哈希关系就会断裂，系统会提示链条异常。
+          </div>
+
+          <h3>演示 5：模拟篡改</h3>
+          <div class="danger">
+            <b>注意：</b>
+            篡改演示必须直接操作数据库，不能通过前端正常编辑。
+            因为前端正常编辑会走服务层，服务层会重算合法哈希，这是正常业务流程，不是篡改。
+          </div>
+          <ol>
+            <li>直接在数据库中修改某个产品的 <code>origin</code> 或 <code>price</code>，但不修改 <code>data_hash</code>。</li>
+            <li>刷新“数据指纹”页面。</li>
+            <li>展示该产品的存储指纹和当前指纹不一致。</li>
+            <li>进入审计日志验证，说明日志链可能完整，但业务数据指纹异常。</li>
+          </ol>
+          <div class="speech">
+            <strong>演示话术：</strong>
+            现在我模拟一种绕过系统的篡改：直接修改数据库中的业务字段，但是不更新对应的数据指纹。
+            刷新后可以看到，系统重新计算出的当前指纹已经和数据库中保存的存储指纹不同。
+            这说明系统能够发现直接改库这类异常操作。
+          </div>
+        </div>
+      </section>
+
+      <section id="value">
+        <div class="section-head">
+          <h2>七、现实价值与未来前景</h2>
+          <p>把项目从课堂系统提升到真实应用场景。</p>
+        </div>
+        <div class="body">
+          <h3>1. 现实应用价值</h3>
+          <div class="grid-2">
+            <div class="card">
+              <h4>对消费者</h4>
+              <p>扫码即可查看来源、生产、质检、物流信息，降低信息不对称。</p>
+            </div>
+            <div class="card">
+              <h4>对企业</h4>
+              <p>规范记录产品批次流转过程，提升品牌可信度和售后追责能力。</p>
+            </div>
+            <div class="card">
+              <h4>对监管部门</h4>
+              <p>通过数据指纹和审计日志快速识别异常数据，提高监管效率。</p>
+            </div>
+            <div class="card">
+              <h4>对供应链协同</h4>
+              <p>农业基地、质检机构、仓储物流和门店可以围绕同一批次共享可信记录。</p>
+            </div>
+          </div>
+
+          <h3>2. 和真实世界进一步集成的方式</h3>
+          <ul>
+            <li>使用二维码、RFID 或 NFC 标签，把实体商品和系统中的产品/批次绑定。</li>
+            <li>接入质检机构接口，让检测报告由第三方机构上传或签名。</li>
+            <li>接入物流和冷链 IoT 设备，自动记录温度、湿度、位置和时间。</li>
+            <li>定期把根哈希提交到联盟链、公链或第三方时间戳服务，防止单一数据库被整体重写。</li>
+            <li>为关键操作引入数字签名，证明“谁在什么时候提交了什么数据”。</li>
+          </ul>
+
+          <div class="speech">
+            <strong>正式讲稿：</strong>
+            如果把这个项目继续扩展到真实生产环境，可以接入二维码、RFID、质检机构接口、物流平台和 IoT 设备。
+            当前系统中的根哈希也可以定期写入联盟链或第三方存证平台。
+            这样即使本地数据库被整体篡改，也可以通过外部存证的根哈希进行对比，从而进一步提升可信度。
+          </div>
+
+          <h3>3. 未来前景</h3>
+          <p>
+            这类“溯源 + 可信校验”的设计不仅适合农产品，也适合食品安全、药品流通、冷链物流、绿色认证、碳足迹统计等场景。
+            它的核心价值是把业务数据从“可展示”升级到“可证明”。
+          </p>
+        </div>
+      </section>
+
+      <section id="qa">
+        <div class="section-head">
+          <h2>八、答辩问答准备</h2>
+          <p>这些是老师可能追问的问题，可以提前准备。</p>
+        </div>
+        <div class="body">
+          <div class="qa">
+            <details open>
+              <summary>问题 1：你们这个项目是真的用了区块链吗？</summary>
+              <p>
+                可以回答：本项目没有接入真实公链或联盟链，而是实现了区块链中的核心防篡改思想，
+                包括哈希指纹、根哈希和链式审计日志。它属于“区块链式模拟实现”或“轻量级链式存证”。
+                如果后续要生产化，可以把根哈希定期上链，进一步增强外部可信度。
+              </p>
+            </details>
+
+            <details>
+              <summary>问题 2：为什么要有数据指纹，数据库本身不能保证安全吗？</summary>
+              <p>
+                数据库可以做权限控制，但无法天然证明数据是否被管理员或脚本绕过系统修改。
+                数据指纹的作用是让系统能够重新计算当前字段的哈希，并与保存值比较。
+                如果业务字段被改但指纹没更新，就能发现异常。
+              </p>
+            </details>
+
+            <details>
+              <summary>问题 3：日志链完整是否代表业务数据一定没问题？</summary>
+              <p>
+                不一定。日志链检查的是历史操作记录有没有被篡改。
+                如果有人没有改日志，只直接改业务表，日志链可能仍然完整。
+                所以本项目在日志链校验通过后，还会联动检查产品和批次的数据指纹。
+              </p>
+            </details>
+
+            <details>
+              <summary>问题 4：根哈希和普通哈希有什么区别？</summary>
+              <p>
+                普通数据指纹对应单条产品或批次记录；根哈希对应一组产品数据的整体状态。
+                项目中根哈希通过聚合所有产品当前指纹再计算 SHA-256 得到。
+                它可以快速代表当前产品集合是否发生变化。
+              </p>
+            </details>
+
+            <details>
+              <summary>问题 5：为什么篡改演示要直接改数据库，不能用前端编辑？</summary>
+              <p>
+                因为前端编辑属于正常业务流程，会经过服务层，系统会自动重算 <code>data_hash</code> 并写入审计日志。
+                这不是篡改，而是合法更新。篡改场景指的是绕过系统直接修改数据库字段，但不更新对应指纹。
+              </p>
+            </details>
+
+            <details>
+              <summary>问题 6：这个系统未来如何更接近真实区块链应用？</summary>
+              <p>
+                可以引入联盟链或公链，把每日或每批数据的根哈希上链；
+                同时对质检机构、物流节点、监管账号引入数字签名；
+                再结合 IoT 设备自动上传冷链数据，这样就能从软件记录扩展到真实供应链协同。
+              </p>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <section id="closing">
+        <div class="section-head">
+          <h2>九、结尾总结</h2>
+          <p>用三句话收束，干净有力。</p>
+        </div>
+        <div class="body">
+          <div class="speech">
+            <strong>正式讲稿：</strong>
+            最后总结一下，本项目的核心不是单纯管理农产品信息，而是围绕农产品建立一条可查询、可验证、可监管的可信溯源链。
+            溯源模块让用户能够看到产品从生产、质检到物流的全过程；
+            区块链式模块通过数据指纹、根哈希和链式审计日志，让系统能够发现数据异常和日志篡改。
+            因此，这个系统实现了从“信息展示”到“可信追溯”的升级。
+            我的汇报结束，谢谢各位老师。
+          </div>
+
+          <div class="tip">
+            <b>最后一句可以背下来：</b>
+            “溯源解决的是数据从哪里来，区块链式校验解决的是数据还能不能信。”
+          </div>
+        </div>
+      </section>
+
+      <div class="footer">
+        农产品溯源系统演讲稿 HTML · 可直接打印或在浏览器中演示
+      </div>
+    </main>
+  </div>
+</body>
+</html>

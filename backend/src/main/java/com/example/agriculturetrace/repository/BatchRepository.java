@@ -19,6 +19,14 @@ public interface BatchRepository extends JpaRepository<Batch, String> {
     Optional<Batch> findByBatchNo(String batchNo);
 
     /**
+     * 取出当前编号最大的 batch_N 批次 ID（仅匹配 batch_ + 纯数字的规范 ID），
+     * 用于生成下一个可读的顺序批次 ID。历史遗留的随机 UUID 主键不参与计算。
+     */
+    @Query(value = "SELECT id FROM batch WHERE id REGEXP '^batch_[0-9]+$' "
+            + "ORDER BY CAST(SUBSTRING(id, 7) AS UNSIGNED) DESC LIMIT 1", nativeQuery = true)
+    String findMaxBatchId();
+
+    /**
      * 批次溯源详情需要产品基础信息，提前加载 product，避免懒加载失效。
      */
     @EntityGraph(attributePaths = "product")

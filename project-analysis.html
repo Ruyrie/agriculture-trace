@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>农产品溯源系统 · 项目分析与架构说明</title>
+<style>
+  :root{
+    --bg:#0f1419; --panel:#161d27; --panel2:#1c2733; --line:#2a3947;
+    --text:#e6edf3; --muted:#9fb0c0; --accent:#3fb950; --accent2:#58a6ff;
+    --warn:#d29922; --danger:#f85149; --chip:#21303f; --code:#0b1118;
+    --shadow:0 6px 24px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:linear-gradient(180deg,#0d1117,#0f1419 240px);
+    color:var(--text); font:15px/1.7 "Segoe UI",system-ui,"Microsoft YaHei","微软雅黑",sans-serif;
+  }
+  a{color:var(--accent2); text-decoration:none}
+  a:hover{text-decoration:underline}
+  code,.mono{font-family:"JetBrains Mono",Consolas,Menlo,monospace}
+  .layout{display:grid; grid-template-columns:268px 1fr; max-width:1500px; margin:0 auto}
+
+  /* 侧边栏 */
+  aside{
+    position:sticky; top:0; align-self:start; height:100vh; overflow-y:auto;
+    border-right:1px solid var(--line); padding:18px 14px; background:#0d1117;
+  }
+  aside h1{font-size:16px; margin:4px 6px 14px; color:#fff}
+  aside .tag{display:inline-block; font-size:11px; color:var(--muted); border:1px solid var(--line); border-radius:20px; padding:1px 8px; margin:2px 4px 8px 6px}
+  nav a{display:block; color:var(--muted); padding:6px 10px; border-radius:7px; font-size:13.5px}
+  nav a:hover{background:var(--panel); color:var(--text); text-decoration:none}
+  nav a.active{background:var(--chip); color:#fff; border-left:3px solid var(--accent)}
+  nav .grp{font-size:11px; letter-spacing:.08em; color:#5d7186; margin:14px 8px 4px}
+
+  /* 主体 */
+  main{padding:0 34px 120px; min-width:0}
+  header.top{
+    position:sticky; top:0; z-index:20; backdrop-filter:blur(8px);
+    background:rgba(13,17,23,.82); border-bottom:1px solid var(--line);
+    padding:14px 0; margin-bottom:8px; display:flex; gap:14px; align-items:center;
+  }
+  .search-wrap{position:relative; flex:1}
+  #search{
+    width:100%; padding:11px 40px 11px 40px; border-radius:10px; border:1px solid var(--line);
+    background:var(--panel); color:var(--text); font-size:14.5px; outline:none;
+  }
+  #search:focus{border-color:var(--accent2); box-shadow:0 0 0 3px rgba(88,166,255,.15)}
+  .search-wrap .ico{position:absolute; left:13px; top:50%; transform:translateY(-50%); color:var(--muted)}
+  #clearBtn{position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; color:var(--muted); cursor:pointer; font-size:18px; display:none}
+  #searchInfo{font-size:12.5px; color:var(--muted); white-space:nowrap}
+  mark{background:var(--warn); color:#1a1200; border-radius:3px; padding:0 2px}
+
+  h2.section{font-size:23px; margin:34px 0 4px; padding-top:10px; color:#fff; border-top:1px solid var(--line)}
+  h2.section:first-of-type{border-top:none}
+  .lead{color:var(--muted); margin:2px 0 16px; max-width:80ch}
+  h3{font-size:17px; margin:24px 0 8px; color:#dbe6f0}
+  p{margin:8px 0}
+
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px 20px; margin:14px 0; box-shadow:var(--shadow)}
+  .card.searchable{transition:opacity .15s}
+  .hidden{display:none !important}
+  .grid{display:grid; gap:14px}
+  .grid.two{grid-template-columns:1fr 1fr}
+  .grid.three{grid-template-columns:repeat(3,1fr)}
+  @media(max-width:980px){.grid.two,.grid.three{grid-template-columns:1fr}}
+
+  .chip{display:inline-block; background:var(--chip); border:1px solid var(--line); color:var(--text); border-radius:7px; padding:3px 10px; margin:3px 5px 3px 0; font-size:12.5px}
+  .chip.b{border-color:#1f6feb55; color:#79c0ff}
+  .chip.g{border-color:#2ea04355; color:#7ee787}
+  .chip.y{border-color:#d2992255; color:#e3b341}
+
+  table{width:100%; border-collapse:collapse; margin:10px 0; font-size:13.5px}
+  th,td{text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top}
+  th{color:#9db4c9; font-weight:600; background:var(--panel2)}
+  tr:hover td{background:#18222e}
+  td .mono{color:#9fe0a0}
+  .method{font-weight:700; font-size:11.5px; padding:2px 7px; border-radius:5px}
+  .GET{background:#0d3a2a; color:#7ee787} .POST{background:#0d2f4f; color:#79c0ff}
+  .PUT{background:#3a2f0d; color:#e3b341} .DELETE{background:#4a1414; color:#ff7b72}
+
+  pre{background:var(--code); border:1px solid var(--line); border-radius:10px; padding:14px 16px; overflow:auto; font-size:13px; line-height:1.55}
+  pre code{color:#c9d6e3}
+  .kw{color:#ff7b72}.str{color:#a5d6ff}.cm{color:#6a7a8a;font-style:italic}.fn{color:#d2a8ff}.num{color:#79c0ff}
+
+  .callout{border-left:4px solid var(--accent2); background:#13202f; padding:12px 16px; border-radius:0 10px 10px 0; margin:14px 0}
+  .callout.warn{border-color:var(--warn); background:#211c10}
+  .callout.danger{border-color:var(--danger); background:#241313}
+  .callout b{color:#fff}
+
+  figure{margin:16px 0; background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:14px; overflow-x:auto}
+  figure svg{display:block; margin:0 auto; max-width:100%; height:auto}
+  figcaption{color:var(--muted); font-size:12.5px; text-align:center; margin-top:8px}
+
+  .legend{display:flex; gap:18px; flex-wrap:wrap; font-size:12px; color:var(--muted); justify-content:center; margin-top:6px}
+  .legend span{display:inline-flex; align-items:center; gap:6px}
+  .dot{width:11px; height:11px; border-radius:3px; display:inline-block}
+
+  .stat{display:flex; gap:12px; flex-wrap:wrap}
+  .stat .b{flex:1; min-width:120px; background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:12px 14px; text-align:center}
+  .stat .b .n{font-size:26px; font-weight:700; color:#fff}
+  .stat .b .l{font-size:12px; color:var(--muted)}
+
+  .noresult{display:none; text-align:center; color:var(--muted); padding:40px; font-size:16px}
+  footer{color:#5d7186; font-size:12.5px; border-top:1px solid var(--line); margin-top:40px; padding-top:16px}
+
+  /* SVG 文本 */
+  text{font-family:"Segoe UI",system-ui,"Microsoft YaHei",sans-serif}
+  .svg-l{fill:var(--muted); font-size:11px}
+  .svg-t{fill:#fff; font-size:12.5px; font-weight:600}
+  .svg-s{fill:#cdd9e5; font-size:11px}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- ============ 侧边栏 ============ -->
+<aside>
+  <h1>🌾 农产品溯源系统</h1>
+  <div>
+    <span class="tag">Spring Boot 3</span>
+    <span class="tag">Vue 3</span>
+    <span class="tag">MySQL 8</span>
+    <span class="tag">SHA-256 链</span>
+  </div>
+  <nav id="nav">
+    <div class="grp">总览导读</div>
+    <a href="#overview">一 · 项目概览</a>
+    <a href="#stack">二 · 技术栈</a>
+    <a href="#architecture">三 · 系统架构</a>
+    <a href="#datamodel">四 · 数据模型（ER 图）</a>
+    <a href="#lifecycle">五 · 请求生命周期</a>
+    <div class="grp">功能流程</div>
+    <a href="#flow-auth">六 · 登录与会话认证</a>
+    <a href="#flow-product">七 · 产品增删改与指纹</a>
+    <a href="#flow-integrity">八 · 数据指纹校验</a>
+    <a href="#flow-chain">九 · 审计日志链</a>
+    <a href="#flow-trace">十 · 公开溯源查询</a>
+    <a href="#flow-dashboard">十一 · 数据概览与统计</a>
+    <div class="grp">参考资料</div>
+    <a href="#api">十二 · 接口清单</a>
+    <a href="#frontend">十三 · 前端结构</a>
+    <a href="#roles">十四 · 角色与权限</a>
+    <a href="#run">十五 · 启动方式</a>
+    <a href="#glossary">十六 · 术语表</a>
+  </nav>
+</aside>
+
+<!-- ============ 主体 ============ -->
+<main>
+  <header class="top">
+    <div class="search-wrap">
+      <span class="ico">🔍</span>
+      <input id="search" type="text" placeholder="全文搜索 —— 试试“哈希”“会话”“批次”“角色”“根哈希”…（按 / 快速聚焦）" autocomplete="off" />
+      <button id="clearBtn" title="清空">×</button>
+    </div>
+    <div id="searchInfo">输入即可筛选</div>
+  </header>
+
+  <!-- ---------- 一 概览 ---------- -->
+  <h2 class="section" id="overview">一 · 项目概览</h2>
+  <p class="lead">这是一套<b>前后端分离的农产品溯源系统</b>。它管理产品、批次及其生产 / 质检 / 物流履历，允许消费者扫码查看产品的流转过程，并在此基础上叠加了一层<b>区块链式防篡改机制</b>——基于 SHA-256 数据指纹和链式审计日志实现。</p>
+
+  <div class="card searchable">
+    <h3>系统能做什么</h3>
+    <div class="grid three">
+      <div><span class="chip g">数据概览</span><p style="color:var(--muted)">统计产品、批次、溯源记录数量，并展示近期趋势图表。</p></div>
+      <div><span class="chip g">产品管理</span><p style="color:var(--muted)">增删改查 + 分页搜索；每个产品都携带一份 <code>data_hash</code> 数据指纹。</p></div>
+      <div><span class="chip g">批次管理</span><p style="color:var(--muted)">增删改查、按产品筛选；批次同样有指纹，并拥有自己的溯源记录。</p></div>
+      <div><span class="chip g">溯源详情</span><p style="color:var(--muted)">公开页面，展示生产、质检、物流记录及二维码入口。</p></div>
+      <div><span class="chip y">数据指纹</span><p style="color:var(--muted)">重算并比对哈希，展示全局<b>根哈希</b>与异常项。</p></div>
+      <div><span class="chip y">审计日志链</span><p style="color:var(--muted)">对每次 CREATE/UPDATE/DELETE 形成 <code>previous_hash → data_hash</code> 链式日志。</p></div>
+      <div><span class="chip b">用户管理</span><p style="color:var(--muted)">管理员维护用户、角色、状态与密码。</p></div>
+      <div><span class="chip b">统计分析</span><p style="color:var(--muted)">类别分布 + 溯源趋势，用 ECharts 渲染。</p></div>
+      <div><span class="chip b">个人中心</span><p style="color:var(--muted)">昵称/手机号、修改密码、上传头像。</p></div>
+    </div>
+  </div>
+
+  <div class="card searchable">
+    <h3>知识图谱快照（来自 GitNexus）</h3>
+    <p style="color:var(--muted)">GitNexus 已将本仓库（<code>class01</code>）索引为代码知识图谱，下面是核心规模数据和它识别出的功能聚类。</p>
+    <div class="stat">
+      <div class="b"><div class="n">81</div><div class="l">源文件</div></div>
+      <div class="b"><div class="n">973</div><div class="l">代码符号</div></div>
+      <div class="b"><div class="n">68</div><div class="l">执行流程</div></div>
+      <div class="b"><div class="n">59</div><div class="l">社区聚类</div></div>
+    </div>
+    <table>
+      <tr><th>聚类</th><th>符号数</th><th>内聚度</th><th>含义</th></tr>
+      <tr><td>Controller 控制器</td><td>60</td><td>73%</td><td>HTTP 入口（REST 接口）</td></tr>
+      <tr><td>Service 服务</td><td>33</td><td>76%</td><td>业务逻辑、哈希计算、事务</td></tr>
+      <tr><td>Repository 仓库</td><td>21</td><td>72%</td><td>Spring Data JPA 数据访问</td></tr>
+      <tr><td>Mapper 映射器</td><td>9</td><td>87%</td><td>MyBatis 统计查询</td></tr>
+    </table>
+  </div>
+
+  <!-- ---------- 二 技术栈 ---------- -->
+  <h2 class="section" id="stack">二 · 技术栈</h2>
+  <p class="lead">经典的<b>前后端分离</b>结构：Vue 单页应用通过 JSON 与 Spring Boot REST 接口通信，认证依赖服务端会话 Cookie。</p>
+
+  <div class="grid two">
+    <div class="card searchable">
+      <h3>后端 — <span style="color:var(--accent2)">/backend</span></h3>
+      <table>
+        <tr><th>层次</th><th>技术</th></tr>
+        <tr><td>语言 / 构建</td><td><span class="chip">Java 17</span><span class="chip">Maven</span></td></tr>
+        <tr><td>框架</td><td><span class="chip b">Spring Boot 3.5.13</span></td></tr>
+        <tr><td>Web</td><td><span class="chip">spring-boot-starter-web</span>（REST）</td></tr>
+        <tr><td>安全</td><td><span class="chip">spring-boot-starter-security</span> 会话 + 记住我</td></tr>
+        <tr><td>ORM</td><td><span class="chip">Spring Data JPA</span>（实体/CRUD）</td></tr>
+        <tr><td>SQL 查询</td><td><span class="chip">MyBatis</span>（统计映射器）</td></tr>
+        <tr><td>数据库</td><td><span class="chip">MySQL 8</span>，经 mysql-connector-j</td></tr>
+        <tr><td>辅助</td><td><span class="chip">Lombok</span>、Jackson、<code>MessageDigest</code>（SHA-256）</td></tr>
+      </table>
+      <p style="color:var(--muted)">值得注意：JPA 与 MyBatis 共存——JPA 负责实体 CRUD，MyBatis 仅用于聚合统计（<code>StatisticsMapper.xml</code>）。</p>
+    </div>
+    <div class="card searchable">
+      <h3>前端 — <span style="color:var(--accent2)">/frontend</span></h3>
+      <table>
+        <tr><th>关注点</th><th>技术</th></tr>
+        <tr><td>框架</td><td><span class="chip g">Vue 3.5</span>（组合式 API、单文件组件）</td></tr>
+        <tr><td>构建工具</td><td><span class="chip">Vite 8</span></td></tr>
+        <tr><td>路由</td><td><span class="chip">vue-router 5</span>（history 模式 + 守卫）</td></tr>
+        <tr><td>UI 组件</td><td><span class="chip">Element Plus</span> + 图标</td></tr>
+        <tr><td>图表</td><td><span class="chip">ECharts 6</span></td></tr>
+        <tr><td>HTTP</td><td><span class="chip">axios</span>（<code>withCredentials</code>）</td></tr>
+        <tr><td>二维码</td><td><span class="chip">qrcode</span></td></tr>
+        <tr><td>开发 Mock</td><td><span class="chip">mockjs</span>（仅开发环境）</td></tr>
+      </table>
+      <p style="color:var(--muted)">状态管理刻意保持轻量：没有用 Pinia/Vuex。用户信息缓存在 <code>localStorage</code>，但真正的依据是后端会话 Cookie。</p>
+    </div>
+  </div>
+
+  <!-- ---------- 三 架构 ---------- -->
+  <h2 class="section" id="architecture">三 · 系统架构</h2>
+  <p class="lead">三层结构：浏览器单页应用、Spring Boot 接口（分为 控制器 → 服务 → 仓库 三层）、MySQL。横切的<b>完整性层</b>（哈希 + 审计日志）包裹住所有写入路径。</p>
+
+  <figure class="searchable">
+    <svg viewBox="0 0 980 560" role="img" aria-label="系统架构图">
+      <defs>
+        <marker id="arr" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#58a6ff"/></marker>
+        <marker id="arrG" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#3fb950"/></marker>
+      </defs>
+
+      <!-- 浏览器 -->
+      <rect x="20" y="30" width="250" height="500" rx="12" fill="#10202c" stroke="#2a3947"/>
+      <text x="145" y="55" text-anchor="middle" class="svg-t">浏览器 · Vue 3 单页应用</text>
+      <rect x="40" y="72" width="210" height="60" rx="8" fill="#16212e" stroke="#2e4d63"/>
+      <text x="145" y="96" text-anchor="middle" class="svg-s">页面 Views（产品/批次/溯源/</text>
+      <text x="145" y="112" text-anchor="middle" class="svg-s">指纹/审计/统计/用户）</text>
+      <rect x="40" y="142" width="210" height="48" rx="8" fill="#16212e" stroke="#2e4d63"/>
+      <text x="145" y="162" text-anchor="middle" class="svg-s">vue-router + beforeEach</text>
+      <text x="145" y="178" text-anchor="middle" class="svg-l">角色与会话守卫</text>
+      <rect x="40" y="200" width="210" height="48" rx="8" fill="#16212e" stroke="#2e4d63"/>
+      <text x="145" y="220" text-anchor="middle" class="svg-s">api/*.js（axios）</text>
+      <text x="145" y="236" text-anchor="middle" class="svg-l">request.js 拦截器</text>
+      <rect x="40" y="258" width="210" height="44" rx="8" fill="#16212e" stroke="#2e4d63"/>
+      <text x="145" y="285" text-anchor="middle" class="svg-s">Element Plus · ECharts · 二维码</text>
+
+      <!-- 后端 -->
+      <rect x="330" y="30" width="380" height="500" rx="12" fill="#13202f" stroke="#2a3947"/>
+      <text x="520" y="55" text-anchor="middle" class="svg-t">Spring Boot 接口 · :8080</text>
+
+      <rect x="350" y="72" width="340" height="56" rx="8" fill="#102a22" stroke="#2ea043"/>
+      <text x="520" y="94" text-anchor="middle" class="svg-s">安全过滤链（会话 Session + 记住我）</text>
+      <text x="520" y="112" text-anchor="middle" class="svg-l">CORS · 角色规则 · Result JSON 处理器</text>
+
+      <rect x="350" y="140" width="340" height="54" rx="8" fill="#16212e" stroke="#2e4d63"/>
+      <text x="520" y="162" text-anchor="middle" class="svg-s">控制器（@RestController）</text>
+      <text x="520" y="180" text-anchor="middle" class="svg-l">Product · Batch · Trace · Integrity · Blockchain · Dashboard · User</text>
+
+      <rect x="350" y="206" width="340" height="54" rx="8" fill="#16212e" stroke="#2e4d63"/>
+      <text x="520" y="228" text-anchor="middle" class="svg-s">服务（@Service, @Transactional）</text>
+      <text x="520" y="246" text-anchor="middle" class="svg-l">ProductService · BatchService · TraceDataService · UserService</text>
+
+      <rect x="350" y="272" width="165" height="58" rx="8" fill="#16212e" stroke="#2e4d63"/>
+      <text x="432" y="294" text-anchor="middle" class="svg-s">仓库（JPA）</text>
+      <text x="432" y="312" text-anchor="middle" class="svg-l">CRUD + 分页</text>
+      <rect x="525" y="272" width="165" height="58" rx="8" fill="#16212e" stroke="#2e4d63"/>
+      <text x="607" y="294" text-anchor="middle" class="svg-s">映射器（MyBatis）</text>
+      <text x="607" y="312" text-anchor="middle" class="svg-l">统计 SQL</text>
+
+      <!-- 完整性层 -->
+      <rect x="350" y="344" width="340" height="64" rx="8" fill="#211c10" stroke="#d29922"/>
+      <text x="520" y="366" text-anchor="middle" class="svg-s" style="fill:#e3b341">完整性层（横切关注点）</text>
+      <text x="520" y="384" text-anchor="middle" class="svg-l">HashUtil SHA-256 · data_hash 数据指纹</text>
+      <text x="520" y="400" text-anchor="middle" class="svg-l">BlockchainLog 日志链 · 根哈希 · schema 初始化器</text>
+
+      <rect x="350" y="422" width="340" height="44" rx="8" fill="#16212e" stroke="#2e4d63"/>
+      <text x="520" y="449" text-anchor="middle" class="svg-s">实体 Entity · DTO · Result&lt;T&gt; · 全局异常处理器</text>
+
+      <!-- 数据库 -->
+      <rect x="770" y="30" width="190" height="500" rx="12" fill="#10202c" stroke="#2a3947"/>
+      <text x="865" y="55" text-anchor="middle" class="svg-t">MySQL 8</text>
+      <text x="865" y="74" text-anchor="middle" class="svg-l">agriculture_trace</text>
+      <g>
+        <rect x="788" y="92"  width="154" height="30" rx="6" fill="#16212e" stroke="#2e4d63"/><text x="865" y="112" text-anchor="middle" class="svg-l">user · role · user_role</text>
+        <rect x="788" y="130" width="154" height="30" rx="6" fill="#16212e" stroke="#2e4d63"/><text x="865" y="150" text-anchor="middle" class="svg-l">product</text>
+        <rect x="788" y="168" width="154" height="30" rx="6" fill="#16212e" stroke="#2e4d63"/><text x="865" y="188" text-anchor="middle" class="svg-l">batch</text>
+        <rect x="788" y="206" width="154" height="30" rx="6" fill="#16212e" stroke="#2e4d63"/><text x="865" y="226" text-anchor="middle" class="svg-l">production_record</text>
+        <rect x="788" y="244" width="154" height="30" rx="6" fill="#16212e" stroke="#2e4d63"/><text x="865" y="264" text-anchor="middle" class="svg-l">inspection_record</text>
+        <rect x="788" y="282" width="154" height="30" rx="6" fill="#16212e" stroke="#2e4d63"/><text x="865" y="302" text-anchor="middle" class="svg-l">logistics_record</text>
+        <rect x="788" y="320" width="154" height="30" rx="6" fill="#211c10" stroke="#d29922"/><text x="865" y="340" text-anchor="middle" class="svg-l" style="fill:#e3b341">blockchain_log</text>
+        <rect x="788" y="358" width="154" height="30" rx="6" fill="#16212e" stroke="#2e4d63"/><text x="865" y="378" text-anchor="middle" class="svg-l">trace_record</text>
+      </g>
+
+      <!-- 箭头 -->
+      <line x1="270" y1="224" x2="328" y2="160" stroke="#58a6ff" stroke-width="2" marker-end="url(#arr)"/>
+      <text x="300" y="180" class="svg-l" text-anchor="middle">HTTP/JSON</text>
+      <line x1="710" y1="300" x2="786" y2="170" stroke="#3fb950" stroke-width="2" marker-end="url(#arrG)"/>
+      <text x="745" y="250" class="svg-l" text-anchor="middle">JDBC</text>
+    </svg>
+    <figcaption>端到端架构。琥珀色色带/表格 = 叠加在普通 CRUD 之上的防篡改（“区块链模拟”）关注点。</figcaption>
+    <div class="legend">
+      <span><span class="dot" style="background:#2e4d63"></span>应用组件</span>
+      <span><span class="dot" style="background:#2ea043"></span>安全</span>
+      <span><span class="dot" style="background:#d29922"></span>完整性层</span>
+      <span><span class="dot" style="background:#58a6ff"></span>HTTP</span>
+    </div>
+  </figure>
+
+  <div class="card searchable">
+    <h3>后端包结构</h3>
+    <pre><code><span class="cm"># com.example.agriculturetrace</span>
+config/      <span class="cm"># SecurityConfig、CorsConfig、WebMvcConfig、PasswordConfig、BlockchainSchemaInitializer</span>
+controller/  <span class="cm"># Product、Batch、Trace、Integrity、BlockchainLog、Dashboard、User + 全局异常处理器</span>
+service/     <span class="cm"># ProductService、BatchService、TraceDataService、UserService、CustomUserDetailsService</span>
+repository/  <span class="cm"># Spring Data JPA 接口（Product、Batch、*Record、BlockchainLog、User、Role…）</span>
+mapper/      <span class="cm"># StatisticsMapper（MyBatis）</span>
+entity/      <span class="cm"># Product、Batch、*Record、BlockchainLog、User、Role、UserRole…</span>
+dto/         <span class="cm"># LoginDto</span>
+util/        <span class="cm"># HashUtil（SHA-256）、Ids、TimeUtils、Result&lt;T&gt;</span></code></pre>
+  </div>
+
+  <!-- ---------- 四 数据模型 ---------- -->
+  <h2 class="section" id="datamodel">四 · 数据模型（ER 图）</h2>
+  <p class="lead">一个 <code>product</code> 拥有多个 <code>batch</code>；每个批次拥有自己的生产 / 质检 / 物流记录。<code>blockchain_log</code> 独立于业务表之外，作为只追加的变更账本。</p>
+
+  <figure class="searchable">
+    <svg viewBox="0 0 980 470" role="img" aria-label="实体关系图">
+      <defs><marker id="one" markerWidth="12" markerHeight="12" refX="10" refY="5" orient="auto"><path d="M2,0 L2,10 M2,5 L11,5" stroke="#58a6ff" stroke-width="1.4" fill="none"/></marker>
+      <marker id="many" markerWidth="14" markerHeight="14" refX="1" refY="6" orient="auto"><path d="M12,1 L1,6 L12,11" stroke="#58a6ff" stroke-width="1.4" fill="none"/></marker></defs>
+
+      <!-- 用户/角色 -->
+      <rect x="30" y="30" width="180" height="96" rx="8" fill="#16212e" stroke="#2e4d63"/>
+      <text x="120" y="50" text-anchor="middle" class="svg-t">user 用户</text>
+      <text x="44" y="70" class="svg-l">id (PK) · username (唯一)</text>
+      <text x="44" y="86" class="svg-l">password（BCrypt）</text>
+      <text x="44" y="102" class="svg-l">nickname · phone · avatar</text>
+      <text x="44" y="118" class="svg-l">enabled · create_time</text>
+
+      <rect x="30" y="160" width="180" height="58" rx="8" fill="#16212e" stroke="#2e4d63"/>
+      <text x="120" y="180" text-anchor="middle" class="svg-t">role 角色</text>
+      <text x="44" y="200" class="svg-l">id (PK) · name (唯一)</text>
+      <text x="44" y="214" class="svg-l">ROLE_ADMIN/FARMER/INSPECTOR</text>
+
+      <rect x="30" y="252" width="180" height="44" rx="8" fill="#1a2230" stroke="#3a4d63"/>
+      <text x="120" y="272" text-anchor="middle" class="svg-s">user_role（关联表）</text>
+      <text x="120" y="288" text-anchor="middle" class="svg-l">user_id · role_id</text>
+      <line x1="120" y1="126" x2="120" y2="250" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#many)"/>
+      <line x1="120" y1="218" x2="120" y2="250" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#many)"/>
+
+      <!-- 产品 -->
+      <rect x="300" y="60" width="190" height="110" rx="8" fill="#102a22" stroke="#2ea043"/>
+      <text x="395" y="80" text-anchor="middle" class="svg-t">product 产品</text>
+      <text x="314" y="100" class="svg-l">id (PK, prod_N)</text>
+      <text x="314" y="116" class="svg-l">name · category · origin</text>
+      <text x="314" y="132" class="svg-l">price · create_time</text>
+      <text x="314" y="150" class="svg-l" style="fill:#e3b341">data_hash（SHA-256）</text>
+
+      <!-- 批次 -->
+      <rect x="560" y="60" width="190" height="110" rx="8" fill="#102a22" stroke="#2ea043"/>
+      <text x="655" y="80" text-anchor="middle" class="svg-t">batch 批次</text>
+      <text x="574" y="100" class="svg-l">id (PK) · batch_no (唯一)</text>
+      <text x="574" y="116" class="svg-l">product_id (FK)</text>
+      <text x="574" y="132" class="svg-l">production_date · remark</text>
+      <text x="574" y="150" class="svg-l" style="fill:#e3b341">data_hash（SHA-256）</text>
+      <line x1="490" y1="115" x2="558" y2="115" stroke="#58a6ff" stroke-width="1.5" marker-start="url(#one)" marker-end="url(#many)"/>
+      <text x="524" y="108" text-anchor="middle" class="svg-l">1·N</text>
+
+      <!-- 记录 -->
+      <rect x="560" y="210" width="190" height="40" rx="8" fill="#16212e" stroke="#2e4d63"/>
+      <text x="655" y="234" text-anchor="middle" class="svg-s">production_record 生产</text>
+      <rect x="560" y="262" width="190" height="40" rx="8" fill="#16212e" stroke="#2e4d63"/>
+      <text x="655" y="286" text-anchor="middle" class="svg-s">inspection_record 质检</text>
+      <rect x="560" y="314" width="190" height="40" rx="8" fill="#16212e" stroke="#2e4d63"/>
+      <text x="655" y="338" text-anchor="middle" class="svg-s">logistics_record 物流</text>
+      <line x1="655" y1="170" x2="655" y2="208" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#many)"/>
+      <line x1="655" y1="170" x2="655" y2="260" stroke="#58a6ff" stroke-width="1" opacity=".5"/>
+      <line x1="655" y1="170" x2="655" y2="312" stroke="#58a6ff" stroke-width="1" opacity=".5"/>
+
+      <!-- 溯源记录 -->
+      <rect x="300" y="210" width="190" height="56" rx="8" fill="#16212e" stroke="#2e4d63"/>
+      <text x="395" y="232" text-anchor="middle" class="svg-s">trace_record 溯源访问</text>
+      <text x="395" y="250" text-anchor="middle" class="svg-l">product_id (FK) · trace_time · ip</text>
+      <line x1="395" y1="170" x2="395" y2="208" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#many)"/>
+
+      <!-- 区块链日志 -->
+      <rect x="300" y="310" width="220" height="120" rx="8" fill="#211c10" stroke="#d29922"/>
+      <text x="410" y="330" text-anchor="middle" class="svg-t" style="fill:#e3b341">blockchain_log 审计日志</text>
+      <text x="314" y="350" class="svg-l">id（时间前缀，单调递增）</text>
+      <text x="314" y="366" class="svg-l">action_type · target_type/id</text>
+      <text x="314" y="382" class="svg-l">operator · data_before/after</text>
+      <text x="314" y="398" class="svg-l" style="fill:#e3b341">data_hash · previous_hash</text>
+      <text x="314" y="414" class="svg-l">timestamp</text>
+      <line x1="520" y1="360" x2="640" y2="360" stroke="#d29922" stroke-width="1.3" stroke-dasharray="4 3"/>
+      <text x="600" y="353" text-anchor="middle" class="svg-l" style="fill:#e3b341">按 id 引用产品/批次</text>
+    </svg>
+    <figcaption>外键级联删除：删除产品会连带删除其批次及所有相关记录。<code>blockchain_log</code> 不设外键、与业务表解耦，因此账本能在删除后依然保留。</figcaption>
+  </figure>
+
+  <!-- ---------- 五 生命周期 ---------- -->
+  <h2 class="section" id="lifecycle">五 · 请求生命周期</h2>
+  <p class="lead">每个需要登录的接口调用都走同一条路径。理解这一条，就理解了所有功能。</p>
+  <figure class="searchable">
+    <svg viewBox="0 0 980 250" role="img" aria-label="请求生命周期">
+      <defs><marker id="a2" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#9fb0c0"/></marker></defs>
+      <g>
+        <rect x="10"  y="90" width="120" height="64" rx="8" fill="#16212e" stroke="#2e4d63"/><text x="70"  y="118" text-anchor="middle" class="svg-s">Vue 页面</text><text x="70" y="136" text-anchor="middle" class="svg-l">调用 api/*.js</text>
+        <rect x="160" y="90" width="120" height="64" rx="8" fill="#16212e" stroke="#2e4d63"/><text x="220" y="112" text-anchor="middle" class="svg-s">axios 请求</text><text x="220" y="130" text-anchor="middle" class="svg-l">withCredentials</text><text x="220" y="146" text-anchor="middle" class="svg-l">携带 JSESSIONID</text>
+        <rect x="310" y="90" width="130" height="64" rx="8" fill="#102a22" stroke="#2ea043"/><text x="375" y="112" text-anchor="middle" class="svg-s">安全过滤器</text><text x="375" y="130" text-anchor="middle" class="svg-l">认证 + 角色校验</text><text x="375" y="146" text-anchor="middle" class="svg-l">不通过则 401</text>
+        <rect x="470" y="90" width="120" height="64" rx="8" fill="#16212e" stroke="#2e4d63"/><text x="530" y="118" text-anchor="middle" class="svg-s">控制器</text><text x="530" y="136" text-anchor="middle" class="svg-l">@RequestMapping</text>
+        <rect x="620" y="90" width="120" height="64" rx="8" fill="#16212e" stroke="#2e4d63"/><text x="680" y="112" text-anchor="middle" class="svg-s">服务</text><text x="680" y="130" text-anchor="middle" class="svg-l">@Transactional</text><text x="680" y="146" text-anchor="middle" class="svg-l">+ 哈希计算</text>
+        <rect x="770" y="90" width="120" height="64" rx="8" fill="#16212e" stroke="#2e4d63"/><text x="830" y="112" text-anchor="middle" class="svg-s">仓库</text><text x="830" y="130" text-anchor="middle" class="svg-l">JPA / MyBatis</text>
+        <rect x="905" y="90" width="65" height="64" rx="8" fill="#10202c" stroke="#2a3947"/><text x="937" y="126" text-anchor="middle" class="svg-l">MySQL</text>
+      </g>
+      <line x1="130" y1="122" x2="158" y2="122" stroke="#9fb0c0" marker-end="url(#a2)"/>
+      <line x1="280" y1="122" x2="308" y2="122" stroke="#9fb0c0" marker-end="url(#a2)"/>
+      <line x1="440" y1="122" x2="468" y2="122" stroke="#9fb0c0" marker-end="url(#a2)"/>
+      <line x1="590" y1="122" x2="618" y2="122" stroke="#9fb0c0" marker-end="url(#a2)"/>
+      <line x1="740" y1="122" x2="768" y2="122" stroke="#9fb0c0" marker-end="url(#a2)"/>
+      <line x1="890" y1="122" x2="903" y2="122" stroke="#9fb0c0" marker-end="url(#a2)"/>
+      <text x="490" y="40" text-anchor="middle" class="svg-t">返回路径：服务 → 控制器包成 Result&lt;T&gt; → axios 拦截器拆包 → 页面渲染</text>
+      <line x1="70" y1="200" x2="830" y2="200" stroke="#3fb950" stroke-dasharray="5 4" stroke-width="1.5"/>
+      <text x="450" y="220" text-anchor="middle" class="svg-l" style="fill:#7ee787">统一信封：每个响应都是 { code, message, data }</text>
+    </svg>
+    <figcaption>后端始终返回 HTTP 200，业务状态放在 <code>Result{code,message,data}</code> 中；axios 拦截器把 <code>code:401</code> 视为“会话过期”并跳回登录页。</figcaption>
+  </figure>
+
+  <!-- ---------- 六 认证 ---------- -->
+  <h2 class="section" id="flow-auth">六 · 登录与会话认证</h2>
+  <p class="lead">采用 Spring Security <b>表单登录 + 服务端会话（JSESSIONID）</b>，可选写入持久化的“记住我”Cookie。前端不持有任何令牌——它依赖 Cookie，仅缓存展示信息。</p>
+
+  <figure class="searchable">
+    <svg viewBox="0 0 980 330" role="img" aria-label="登录流程">
+      <defs><marker id="aA" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#58a6ff"/></marker></defs>
+      <line x1="120" y1="40" x2="120" y2="300" stroke="#2e4d63"/><text x="120" y="28" text-anchor="middle" class="svg-t">Login.vue</text>
+      <line x1="400" y1="40" x2="400" y2="300" stroke="#2e4d63"/><text x="400" y="28" text-anchor="middle" class="svg-t">安全过滤器</text>
+      <line x1="660" y1="40" x2="660" y2="300" stroke="#2e4d63"/><text x="660" y="28" text-anchor="middle" class="svg-t">UserDetailsService</text>
+      <line x1="880" y1="40" x2="880" y2="300" stroke="#2e4d63"/><text x="880" y="28" text-anchor="middle" class="svg-t">MySQL</text>
+
+      <g class="svg-s">
+        <line x1="120" y1="60" x2="398" y2="60" stroke="#58a6ff" marker-end="url(#aA)"/><text x="250" y="54" text-anchor="middle" class="svg-l">POST /api/user/login（表单：username, password, remember-me）</text>
+        <line x1="400" y1="95" x2="658" y2="95" stroke="#58a6ff" marker-end="url(#aA)"/><text x="525" y="89" text-anchor="middle" class="svg-l">按用户名加载用户</text>
+        <line x1="660" y1="125" x2="878" y2="125" stroke="#58a6ff" marker-end="url(#aA)"/><text x="765" y="119" text-anchor="middle" class="svg-l">查询用户 + 角色</text>
+        <line x1="878" y1="155" x2="662" y2="155" stroke="#9fb0c0" stroke-dasharray="4 3"/><text x="770" y="149" text-anchor="middle" class="svg-l">UserDetails + 权限</text>
+        <line x1="658" y1="185" x2="402" y2="185" stroke="#9fb0c0" stroke-dasharray="4 3"/><text x="530" y="179" text-anchor="middle" class="svg-l">BCrypt 密码比对</text>
+        <line x1="398" y1="220" x2="122" y2="220" stroke="#3fb950" marker-end="url(#aA)"/><text x="250" y="214" text-anchor="middle" class="svg-l" style="fill:#7ee787">200 + Result(用户信息) + Set-Cookie JSESSIONID</text>
+        <rect x="40" y="245" width="160" height="44" rx="6" fill="#16212e" stroke="#2e4d63"/><text x="120" y="263" text-anchor="middle" class="svg-l">缓存到 localStorage</text><text x="120" y="279" text-anchor="middle" class="svg-l">跳转 /dashboard</text>
+      </g>
+    </svg>
+    <figcaption>登录成功后 <code>successHandler</code> 立即返回用户/角色 JSON，因此前端无需二次请求即可渲染菜单。</figcaption>
+  </figure>
+
+  <div class="grid two">
+    <div class="card searchable">
+      <h3>安全规则（SecurityConfig）</h3>
+      <table>
+        <tr><th>路径</th><th>访问权限</th></tr>
+        <tr><td class="mono">/api/user/login, /api/trace/**, /uploads/**</td><td>公开</td></tr>
+        <tr><td class="mono">/api/users/**</td><td>ROLE_ADMIN</td></tr>
+        <tr><td class="mono">/api/dashboard/reports</td><td>ADMIN, INSPECTOR</td></tr>
+        <tr><td class="mono">/api/blockchain/**</td><td>ADMIN, INSPECTOR</td></tr>
+        <tr><td class="mono">/api/integrity/fingerprints|products|root-hash</td><td>ADMIN, INSPECTOR</td></tr>
+        <tr><td class="mono">其余所有请求</td><td>需登录</td></tr>
+      </table>
+    </div>
+    <div class="card searchable">
+      <h3>双层守卫</h3>
+      <p>前端路由（<code>beforeEach</code>）是<b>便利性</b>守卫：它调用 <code>GET /api/user/info</code> 确认会话真实存在（这样手改 <code>localStorage</code> 无法伪造登录），再检查 <code>meta.roles</code>。</p>
+      <div class="callout"><b>关键点：</b>真正的权限拦截在服务端 <code>SecurityConfig</code>。路由守卫只是给出友好跳转；即便客户端被篡改，接口仍会返回 401/403。</div>
+    </div>
+  </div>
+
+  <!-- ---------- 七 产品 CRUD ---------- -->
+  <h2 class="section" id="flow-product">七 · 产品增删改与指纹生成</h2>
+  <p class="lead">最重要的写入路径。每次增/改/删都会：(1) 设定稳定的 id 与时间，(2) 按固定字段顺序计算 <code>data_hash</code>，(3) 追加一条链式审计日志——全部在同一个事务内完成。</p>
+
+  <figure class="searchable">
+    <svg viewBox="0 0 980 300" role="img" aria-label="产品创建流程">
+      <defs><marker id="aP" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#3fb950"/></marker></defs>
+      <rect x="20" y="120" width="150" height="60" rx="8" fill="#16212e" stroke="#2e4d63"/><text x="95" y="146" text-anchor="middle" class="svg-s">ProductController</text><text x="95" y="164" text-anchor="middle" class="svg-l">create-with-trace</text>
+      <rect x="210" y="60" width="560" height="180" rx="10" fill="#13202f" stroke="#2ea043"/><text x="490" y="82" text-anchor="middle" class="svg-t">ProductService.create() · @Transactional</text>
+      <rect x="230" y="96"  width="160" height="54" rx="7" fill="#16212e" stroke="#2e4d63"/><text x="310" y="118" text-anchor="middle" class="svg-s">1 · nextProductId()</text><text x="310" y="136" text-anchor="middle" class="svg-l">prod_N + create_time</text>
+      <rect x="410" y="96"  width="160" height="54" rx="7" fill="#211c10" stroke="#d29922"/><text x="490" y="118" text-anchor="middle" class="svg-s" style="fill:#e3b341">2 · computeProductHash</text><text x="490" y="136" text-anchor="middle" class="svg-l">SHA-256(id|name|…)</text>
+      <rect x="590" y="96"  width="160" height="54" rx="7" fill="#16212e" stroke="#2e4d63"/><text x="670" y="118" text-anchor="middle" class="svg-s">3 · repository.save</text><text x="670" y="136" text-anchor="middle" class="svg-l">写入产品行</text>
+      <rect x="320" y="166" width="340" height="54" rx="7" fill="#211c10" stroke="#d29922"/><text x="490" y="188" text-anchor="middle" class="svg-s" style="fill:#e3b341">4 · recordLog(CREATE, before=null, after=row)</text><text x="490" y="206" text-anchor="middle" class="svg-l">previous_hash ← 上一条日志 · data_hash ← SHA-256(内容)</text>
+      <rect x="820" y="120" width="140" height="60" rx="8" fill="#10202c" stroke="#2a3947"/><text x="890" y="146" text-anchor="middle" class="svg-s">MySQL</text><text x="890" y="164" text-anchor="middle" class="svg-l">产品 + 日志</text>
+      <line x1="170" y1="150" x2="208" y2="150" stroke="#3fb950" marker-end="url(#aP)"/>
+      <line x1="770" y1="150" x2="818" y2="150" stroke="#3fb950" marker-end="url(#aP)"/>
+    </svg>
+    <figcaption>顺序很重要：id 与 create_time 必须在计算哈希<i>之前</i>生成，因为它们本身就是哈希的一部分。更新时只有当指纹字段确实变化才会重算哈希。</figcaption>
+  </figure>
+
+  <div class="card searchable">
+    <h3>指纹公式（Java 与 SQL 必须完全一致）</h3>
+    <pre><code>data_hash = SHA-256( id | name | category | origin | 归一化价格 | createTime )
+<span class="cm">// 价格去掉末尾的 0：12.50 与 12.5 → "12.5"（指纹相同）</span></code></pre>
+    <div class="callout warn"><b>为什么三处必须保持一致：</b><code>ProductService.computeProductHash</code>、<code>schema.sql</code> 的回填语句、以及 <code>BlockchainSchemaInitializer</code> 计算的是同一个字符串。一旦字段顺序或价格归一化方式跑偏，同一行数据在 Java 与 SQL 中会算出不同哈希，完整性校验就会误报。</div>
+    <div class="callout danger"><b>防篡改的设计意图：</b>正常编辑都经过服务层，会重算哈希。要<i>模拟</i>篡改，必须直接改数据库的业务字段<u>而不</u>更新 <code>data_hash</code>——此时数据指纹页和审计日志校验都会把它标记为异常。</div>
+  </div>
+
+  <!-- ---------- 八 数据指纹 ---------- -->
+  <h2 class="section" id="flow-integrity">八 · 数据指纹校验</h2>
+  <p class="lead">回答“当前业务数据是否还是它声称的那份？”它对每一行实时重算哈希，与存储的 <code>data_hash</code> 比对；同时生成一个全局<b>根哈希</b>。</p>
+
+  <figure class="searchable">
+    <svg viewBox="0 0 980 250" role="img" aria-label="数据指纹校验流程">
+      <defs><marker id="aI" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#d29922"/></marker></defs>
+      <rect x="20" y="100" width="160" height="60" rx="8" fill="#16212e" stroke="#2e4d63"/><text x="100" y="126" text-anchor="middle" class="svg-s">IntegrityController</text><text x="100" y="144" text-anchor="middle" class="svg-l">/fingerprints, /verify</text>
+      <rect x="230" y="40" width="520" height="170" rx="10" fill="#211c10" stroke="#d29922"/><text x="490" y="62" text-anchor="middle" class="svg-t" style="fill:#e3b341">对每个产品（按 id 升序）</text>
+      <rect x="250" y="80" width="220" height="50" rx="7" fill="#16212e" stroke="#2e4d63"/><text x="360" y="100" text-anchor="middle" class="svg-s">storedHash = product.data_hash</text><text x="360" y="118" text-anchor="middle" class="svg-l">（来自数据库）</text>
+      <rect x="510" y="80" width="220" height="50" rx="7" fill="#16212e" stroke="#2e4d63"/><text x="620" y="100" text-anchor="middle" class="svg-s">currentHash = computeProductHash()</text><text x="620" y="118" text-anchor="middle" class="svg-l">（实时重算）</text>
+      <rect x="320" y="145" width="340" height="48" rx="7" fill="#102a22" stroke="#2ea043"/><text x="490" y="166" text-anchor="middle" class="svg-s">valid = storedHash == currentHash</text><text x="490" y="184" text-anchor="middle" class="svg-l">不一致 ⇒ 加入 invalidItems</text>
+      <rect x="800" y="90" width="160" height="80" rx="8" fill="#13202f" stroke="#2e4d63"/><text x="880" y="115" text-anchor="middle" class="svg-s">rootHash 根哈希</text><text x="880" y="135" text-anchor="middle" class="svg-l">SHA-256(用 | 连接</text><text x="880" y="151" text-anchor="middle" class="svg-l">所有 currentHash)</text>
+      <line x1="180" y1="130" x2="228" y2="130" stroke="#d29922" marker-end="url(#aI)"/>
+      <line x1="750" y1="130" x2="798" y2="130" stroke="#d29922" marker-end="url(#aI)"/>
+    </svg>
+    <figcaption>“根哈希”是一个简化的类 Merkle 摘要：把每个产品的当前指纹按固定顺序拼接后再做一次 SHA-256。它不是真正的 Merkle 树，但足以模拟一个全局完整性印章。</figcaption>
+  </figure>
+
+  <div class="card searchable">
+    <h3>数据指纹 vs. 审计日志链 —— 两个不同的问题</h3>
+    <table>
+      <tr><th>校验</th><th>它回答的问题</th><th>接口</th></tr>
+      <tr><td>数据指纹</td><td>业务行是否被系统外修改过？（当前数据 ≠ 存储哈希）</td><td class="mono">/api/integrity/*</td></tr>
+      <tr><td>审计日志链</td><td><i>日志表本身</i>是否被断链/插入/篡改？</td><td class="mono">/api/blockchain/logs/verify</td></tr>
+    </table>
+    <p style="color:var(--muted)">审计校验接口会<i>同时</i>跑两者：如果链条完整但某产品被直接改库，它依然会提示“日志链完整，但当前业务数据有 N 项指纹异常”。</p>
+  </div>
+
+  <!-- ---------- 九 日志链 ---------- -->
+  <h2 class="section" id="flow-chain">九 · 审计日志链（区块链模拟）</h2>
+  <p class="lead">每次写入都追加一条 <code>blockchain_log</code>，其哈希包含上一条的哈希——就像一个区块引用它的父区块。插入、删除或篡改任意中间一条都会破坏链条。</p>
+
+  <figure class="searchable">
+    <svg viewBox="0 0 980 250" role="img" aria-label="哈希链">
+      <defs><marker id="aC" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#d29922"/></marker></defs>
+      <g>
+        <rect x="30"  y="70" width="180" height="110" rx="10" fill="#211c10" stroke="#d29922"/>
+        <text x="120" y="92" text-anchor="middle" class="svg-t" style="fill:#e3b341">创世块</text>
+        <text x="120" y="116" text-anchor="middle" class="svg-l">previous_hash = "0"</text>
+        <text x="120" y="138" text-anchor="middle" class="svg-l">content = CREATE+id+…</text>
+        <text x="120" y="162" text-anchor="middle" class="svg-s">data_hash = H₁</text>
+
+        <rect x="290" y="70" width="180" height="110" rx="10" fill="#211c10" stroke="#d29922"/>
+        <text x="380" y="92" text-anchor="middle" class="svg-t" style="fill:#e3b341">日志 2</text>
+        <text x="380" y="116" text-anchor="middle" class="svg-l">previous_hash = H₁</text>
+        <text x="380" y="138" text-anchor="middle" class="svg-l">content = UPDATE+…+H₁</text>
+        <text x="380" y="162" text-anchor="middle" class="svg-s">data_hash = H₂</text>
+
+        <rect x="550" y="70" width="180" height="110" rx="10" fill="#211c10" stroke="#d29922"/>
+        <text x="640" y="92" text-anchor="middle" class="svg-t" style="fill:#e3b341">日志 3</text>
+        <text x="640" y="116" text-anchor="middle" class="svg-l">previous_hash = H₂</text>
+        <text x="640" y="138" text-anchor="middle" class="svg-l">content = DELETE+…+H₂</text>
+        <text x="640" y="162" text-anchor="middle" class="svg-s">data_hash = H₃</text>
+
+        <rect x="800" y="92" width="150" height="66" rx="10" fill="#102a22" stroke="#2ea043"/>
+        <text x="875" y="118" text-anchor="middle" class="svg-s">verify()</text>
+        <text x="875" y="138" text-anchor="middle" class="svg-l">逐条重算并比对</text>
+      </g>
+      <line x1="210" y1="125" x2="288" y2="125" stroke="#d29922" stroke-width="2" marker-end="url(#aC)"/>
+      <line x1="470" y1="125" x2="548" y2="125" stroke="#d29922" stroke-width="2" marker-end="url(#aC)"/>
+      <line x1="730" y1="125" x2="798" y2="125" stroke="#3fb950" stroke-width="2" marker-end="url(#aC)"/>
+      <text x="490" y="215" text-anchor="middle" class="svg-l">每个区块的哈希作为下一个区块的输入——改动其一，后续所有哈希都会对不上。</text>
+    </svg>
+    <figcaption>排序使用时间前缀、单调递增的 <code>id</code>（而非墙钟字符串 <code>timestamp</code>），这样同一秒内写入的多条日志也不会乱序而误判“链条断裂”。</figcaption>
+  </figure>
+
+  <div class="card searchable">
+    <h3>verify() 逻辑</h3>
+    <pre><code><span class="kw">for</span> 每条日志（按 id 升序）:
+   content   = actionType + targetId + operator + timestamp + previousHash + dataAfter
+   calcHash  = SHA-256(content)
+   <span class="kw">if</span> calcHash != log.dataHash        → <span class="str">“日志自身哈希不一致，可能被篡改”</span>（brokenIndex）
+   <span class="kw">if</span> previousHash != log.previousHash → <span class="str">“上一哈希不连续，日志链已断裂”</span>
+   previousHash = log.dataHash
+<span class="cm">// 链条通过 ⇒ 再对产品 + 批次运行 verifyBusinessData()</span>
+<span class="kw">return</span> { logChainValid, dataIntegrityValid, invalidItems, message }</code></pre>
+  </div>
+
+  <!-- ---------- 十 溯源 ---------- -->
+  <h2 class="section" id="flow-trace">十 · 公开溯源查询</h2>
+  <p class="lead">面向消费者、<b>无需登录</b>的路径。二维码编码 <code>/trace/:id</code>（或 <code>/trace/batch/:batchId</code>）；页面聚合生产、质检、物流记录进行展示。</p>
+
+  <figure class="searchable">
+    <svg viewBox="0 0 980 220" role="img" aria-label="溯源流程">
+      <defs><marker id="aT" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#58a6ff"/></marker></defs>
+      <rect x="20" y="80" width="140" height="60" rx="8" fill="#16212e" stroke="#2e4d63"/><text x="90" y="106" text-anchor="middle" class="svg-s">扫描二维码</text><text x="90" y="124" text-anchor="middle" class="svg-l">/trace/:id</text>
+      <rect x="195" y="80" width="150" height="60" rx="8" fill="#16212e" stroke="#2e4d63"/><text x="270" y="106" text-anchor="middle" class="svg-s">TraceDetail.vue</text><text x="270" y="124" text-anchor="middle" class="svg-l">requiresAuth:false</text>
+      <rect x="380" y="80" width="160" height="60" rx="8" fill="#102a22" stroke="#2ea043"/><text x="460" y="106" text-anchor="middle" class="svg-s">TraceController</text><text x="460" y="124" text-anchor="middle" class="svg-l">GET /api/trace/{id}</text>
+      <rect x="575" y="80" width="180" height="60" rx="8" fill="#13202f" stroke="#2e4d63"/><text x="665" y="102" text-anchor="middle" class="svg-s">TraceDataService</text><text x="665" y="120" text-anchor="middle" class="svg-l">生产/质检/物流记录</text>
+      <rect x="790" y="80" width="160" height="60" rx="8" fill="#10202c" stroke="#2a3947"/><text x="870" y="106" text-anchor="middle" class="svg-s">MySQL</text><text x="870" y="124" text-anchor="middle" class="svg-l">+ 写入 trace_record</text>
+      <line x1="160" y1="110" x2="193" y2="110" stroke="#58a6ff" marker-end="url(#aT)"/>
+      <line x1="345" y1="110" x2="378" y2="110" stroke="#58a6ff" marker-end="url(#aT)"/>
+      <line x1="540" y1="110" x2="573" y2="110" stroke="#58a6ff" marker-end="url(#aT)"/>
+      <line x1="755" y1="110" x2="788" y2="110" stroke="#58a6ff" marker-end="url(#aT)"/>
+      <text x="490" y="180" text-anchor="middle" class="svg-l">编辑批次溯源信息采用“先全删再重写”，整个过程在同一事务内（replaceTraceRecords）。</text>
+    </svg>
+    <figcaption>服务在规范字段名之外，还返回了兼容别名字段（<code>item/date</code>、<code>node/time</code>），让旧版本页面不至于断裂——这是一项刻意保留的向后兼容契约。</figcaption>
+  </figure>
+
+  <!-- ---------- 十一 概览统计 ---------- -->
+  <h2 class="section" id="flow-dashboard">十一 · 数据概览与统计</h2>
+  <p class="lead">只读聚合。数据概览拉取计数与趋势；统计分析使用 MyBatis 映射器做分组 SQL，再以 ECharts 渲染。</p>
+  <div class="card searchable">
+    <table>
+      <tr><th>接口</th><th>返回</th><th>来源</th></tr>
+      <tr><td class="mono">GET /api/dashboard/statistics</td><td>产品 / 批次 / 溯源计数</td><td>JPA count</td></tr>
+      <tr><td class="mono">GET /api/dashboard/categoryDistribution</td><td>各类别产品数量</td><td>StatisticsMapper</td></tr>
+      <tr><td class="mono">GET /api/dashboard/traceTrend</td><td>溯源查询随时间趋势</td><td>StatisticsMapper</td></tr>
+      <tr><td class="mono">GET /api/dashboard/reports</td><td>综合报表（ADMIN/INSPECTOR）</td><td>服务层</td></tr>
+    </table>
+  </div>
+
+  <!-- ---------- 十二 接口 ---------- -->
+  <h2 class="section" id="api">十二 · 接口清单</h2>
+  <p class="lead">所有接口都在 <code>/api</code> 之下。提示：用上方搜索框——例如输入 <code>verify</code> 也会筛选此表。</p>
+  <div class="card searchable">
+    <table>
+      <tr><th>方法</th><th>路径</th><th>用途</th><th>权限</th></tr>
+      <tr><td><span class="method POST">POST</span></td><td class="mono">/api/user/login</td><td>表单登录，设置会话 Cookie</td><td>公开</td></tr>
+      <tr><td><span class="method POST">POST</span></td><td class="mono">/api/user/logout</td><td>结束会话</td><td>需登录</td></tr>
+      <tr><td><span class="method GET">GET</span></td><td class="mono">/api/user/info</td><td>当前用户（会话探测）</td><td>需登录</td></tr>
+      <tr><td><span class="method PUT">PUT</span></td><td class="mono">/api/user/profile</td><td>更新自己的昵称/手机号</td><td>需登录</td></tr>
+      <tr><td><span class="method PUT">PUT</span></td><td class="mono">/api/user/password</td><td>修改自己的密码</td><td>需登录</td></tr>
+      <tr><td><span class="method POST">POST</span></td><td class="mono">/api/user/avatar</td><td>上传头像</td><td>需登录</td></tr>
+      <tr><td><span class="method GET">GET</span></td><td class="mono">/api/users</td><td>用户列表</td><td>ADMIN</td></tr>
+      <tr><td><span class="method POST">POST</span></td><td class="mono">/api/users</td><td>新建用户</td><td>ADMIN</td></tr>
+      <tr><td><span class="method PUT">PUT</span></td><td class="mono">/api/users/{id}</td><td>更新用户</td><td>ADMIN</td></tr>
+      <tr><td><span class="method PUT">PUT</span></td><td class="mono">/api/users/{id}/password</td><td>重置密码</td><td>ADMIN</td></tr>
+      <tr><td><span class="method PUT">PUT</span></td><td class="mono">/api/users/{id}/status</td><td>启用/禁用</td><td>ADMIN</td></tr>
+      <tr><td><span class="method DELETE">DELETE</span></td><td class="mono">/api/users/{id}</td><td>删除（不能删自己）</td><td>ADMIN</td></tr>
+      <tr><td><span class="method GET">GET</span></td><td class="mono">/api/product/list</td><td>分页产品列表 + 关键词</td><td>需登录</td></tr>
+      <tr><td><span class="method GET">GET</span></td><td class="mono">/api/product/{id}</td><td>产品详情</td><td>需登录</td></tr>
+      <tr><td><span class="method POST">POST</span></td><td class="mono">/api/product/create-with-trace</td><td>创建产品 + 批次 + 溯源记录</td><td>需登录</td></tr>
+      <tr><td><span class="method DELETE">DELETE</span></td><td class="mono">/api/product/{id}</td><td>删除产品</td><td>需登录</td></tr>
+      <tr><td><span class="method GET">GET</span></td><td class="mono">/api/product/origins</td><td>去重产地（筛选辅助）</td><td>需登录</td></tr>
+      <tr><td><span class="method GET">GET</span></td><td class="mono">/api/batch/list</td><td>分页批次列表 / 按产品</td><td>需登录</td></tr>
+      <tr><td><span class="method DELETE">DELETE</span></td><td class="mono">/api/batch/{id}</td><td>删除批次</td><td>需登录</td></tr>
+      <tr><td><span class="method GET">GET</span></td><td class="mono">/api/trace/{productId}</td><td>公开产品溯源</td><td>公开</td></tr>
+      <tr><td><span class="method GET">GET</span></td><td class="mono">/api/trace/batch/{batchId}</td><td>公开批次溯源</td><td>公开</td></tr>
+      <tr><td><span class="method GET">GET</span></td><td class="mono">/api/integrity/fingerprints</td><td>产品指纹 + 根哈希</td><td>ADMIN/INSPECTOR</td></tr>
+      <tr><td><span class="method GET">GET</span></td><td class="mono">/api/integrity/root-hash</td><td>全局根哈希</td><td>ADMIN/INSPECTOR</td></tr>
+      <tr><td><span class="method GET">GET</span></td><td class="mono">/api/integrity/verify/{id}</td><td>校验单个产品</td><td>需登录</td></tr>
+      <tr><td><span class="method GET">GET</span></td><td class="mono">/api/integrity/products/verify</td><td>校验全部产品</td><td>需登录</td></tr>
+      <tr><td><span class="method GET">GET</span></td><td class="mono">/api/integrity/batch/{id}/verify</td><td>校验单个批次</td><td>需登录</td></tr>
+      <tr><td><span class="method GET">GET</span></td><td class="mono">/api/integrity/batches/verify</td><td>校验全部批次</td><td>需登录</td></tr>
+      <tr><td><span class="method GET">GET</span></td><td class="mono">/api/blockchain/logs</td><td>分页审计日志</td><td>ADMIN/INSPECTOR</td></tr>
+      <tr><td><span class="method GET">GET</span></td><td class="mono">/api/blockchain/logs/verify</td><td>校验链条 + 业务数据</td><td>ADMIN/INSPECTOR</td></tr>
+      <tr><td><span class="method GET">GET</span></td><td class="mono">/api/dashboard/statistics</td><td>计数</td><td>需登录</td></tr>
+      <tr><td><span class="method GET">GET</span></td><td class="mono">/api/dashboard/categoryDistribution</td><td>类别图表数据</td><td>需登录</td></tr>
+      <tr><td><span class="method GET">GET</span></td><td class="mono">/api/dashboard/traceTrend</td><td>趋势图表数据</td><td>需登录</td></tr>
+      <tr><td><span class="method GET">GET</span></td><td class="mono">/api/dashboard/reports</td><td>综合报表</td><td>ADMIN/INSPECTOR</td></tr>
+    </table>
+  </div>
+
+  <!-- ---------- 十三 前端 ---------- -->
+  <h2 class="section" id="frontend">十三 · 前端结构</h2>
+  <div class="grid two">
+    <div class="card searchable">
+      <h3>路由 → 页面</h3>
+      <table>
+        <tr><th>路径</th><th>页面</th></tr>
+        <tr><td class="mono">/login</td><td>Login.vue</td></tr>
+        <tr><td class="mono">/dashboard</td><td>Dashboard.vue</td></tr>
+        <tr><td class="mono">/products</td><td>ProductList.vue</td></tr>
+        <tr><td class="mono">/batches</td><td>BatchList.vue</td></tr>
+        <tr><td class="mono">/integrity</td><td>IntegrityReport.vue</td></tr>
+        <tr><td class="mono">/blockchain/audit-log</td><td>blockchain/AuditLog.vue</td></tr>
+        <tr><td class="mono">/statistics</td><td>Statistics.vue</td></tr>
+        <tr><td class="mono">/users</td><td>UserManagement.vue</td></tr>
+        <tr><td class="mono">/profile</td><td>Profile.vue</td></tr>
+        <tr><td class="mono">/trace/:id, /trace/batch/:batchId</td><td>TraceDetail.vue（公开）</td></tr>
+      </table>
+    </div>
+    <div class="card searchable">
+      <h3>关键前端模块</h3>
+      <ul style="color:var(--muted); line-height:2">
+        <li><code>utils/request.js</code> —— axios 实例，<code>withCredentials</code>，拆包 <code>Result</code>，处理 401。</li>
+        <li><code>router/index.js</code> —— 会话 + 角色的 <code>beforeEach</code> 守卫。</li>
+        <li><code>api/*.js</code> —— 每个业务域一个模块（product、batch、trace、integrity、blockchain、dashboard、user）。</li>
+        <li><code>layout/Layout.vue</code> —— 外壳：按角色过滤的菜单 + <code>&lt;router-view/&gt;</code>。</li>
+        <li><code>components/</code> —— SearchBar、Pagination、ProductTable、ProductFormDialog、HashTag。</li>
+        <li><code>utils/echarts.js</code> —— 概览/统计页面的图表初始化。</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ---------- 十四 角色 ---------- -->
+  <h2 class="section" id="roles">十四 · 角色与权限</h2>
+  <div class="card searchable">
+    <table>
+      <tr><th>角色</th><th>菜单 / 能力</th></tr>
+      <tr><td><span class="chip g">farmer 农户</span></td><td>数据概览、产品管理、批次管理</td></tr>
+      <tr><td><span class="chip y">inspector 监管员</span></td><td>+ 数据指纹、审计日志、统计分析</td></tr>
+      <tr><td><span class="chip b">admin 管理员</span></td><td>+ 用户管理（全部权限）</td></tr>
+    </table>
+    <p style="color:var(--muted)">演示账号（密码均为 <code>123456</code>）：<code>admin</code>、<code>farmer</code>、<code>inspector</code>。密码在 <code>schema.sql</code> 中以 BCrypt 存储。</p>
+  </div>
+
+  <!-- ---------- 十五 启动 ---------- -->
+  <h2 class="section" id="run">十五 · 启动方式</h2>
+  <div class="grid two">
+    <div class="card searchable">
+      <h3>后端</h3>
+      <pre><code><span class="cm"># 需要 JDK 17+、Maven、MySQL 8（:3306）</span>
+cd backend
+mvn spring-boot:run     <span class="cm"># → http://localhost:8080</span>
+mvn test                <span class="cm"># 运行测试</span></code></pre>
+      <p style="color:var(--muted)">首次启动会自动创建 <code>agriculture_trace</code> 库、执行 <code>schema.sql</code>，并回填指纹/日志。<code>ddl-auto=none</code>；默认账号 <code>root / 123456</code>（可用 <code>MYSQL_*</code> 环境变量覆盖）。</p>
+    </div>
+    <div class="card searchable">
+      <h3>前端</h3>
+      <pre><code>cd frontend
+npm install
+npm run dev     <span class="cm"># → http://localhost:5173</span>
+npm run build   <span class="cm"># 生产构建 / 验证</span></code></pre>
+      <p style="color:var(--muted)">接口地址在 <code>frontend/.env.development</code> 中配置 → <code>VITE_API_BASE_URL=http://localhost:8080</code>。</p>
+    </div>
+  </div>
+
+  <!-- ---------- 十六 术语 ---------- -->
+  <h2 class="section" id="glossary">十六 · 术语表</h2>
+  <div class="card searchable">
+    <table>
+      <tr><th>术语</th><th>含义</th></tr>
+      <tr><td>data_hash 数据指纹</td><td>对一行业务字段做的 SHA-256；用于发现系统外的直接改库。</td></tr>
+      <tr><td>root hash 根哈希</td><td>把所有产品指纹拼接后再做一次 SHA-256——一个全局完整性印章。</td></tr>
+      <tr><td>blockchain_log 审计日志</td><td>只追加的账本；每行哈希都包含上一行的哈希。</td></tr>
+      <tr><td>previous_hash 前哈希</td><td>上一条日志的 data_hash（创世块为 "0"）；把链条串起来。</td></tr>
+      <tr><td>Result&lt;T&gt;</td><td>统一接口信封 <code>{code, message, data}</code>；code 401 = 会话过期。</td></tr>
+      <tr><td>JSESSIONID</td><td>服务端会话 Cookie；登录的真正凭据（而非 localStorage）。</td></tr>
+      <tr><td>remember-me 记住我</td><td>可选的持久化 Cookie（7 天），用于保持登录。</td></tr>
+      <tr><td>create-with-trace</td><td>同时创建产品 + 批次 + 溯源记录的单一接口。</td></tr>
+    </table>
+  </div>
+
+  <footer>
+    <p>本文档是对 <b>class01/ 农产品溯源系统</b> 仓库的静态、自包含分析，结合 GitNexus 知识图谱（81 文件 · 973 符号 · 68 流程）与源码直接审阅生成。用任意浏览器打开即可——上方搜索框可实时筛选所有章节。无需服务器或联网。</p>
+  </footer>
+</main>
+</div>
+
+<script>
+(function(){
+  const search = document.getElementById('search');
+  const clearBtn = document.getElementById('clearBtn');
+  const info = document.getElementById('searchInfo');
+  const cards = Array.from(document.querySelectorAll('.searchable'));
+  const sections = Array.from(document.querySelectorAll('h2.section'));
+  const navLinks = Array.from(document.querySelectorAll('#nav a'));
+
+  // 保存原始 HTML，方便清除/重新应用高亮
+  cards.forEach(c => c.dataset.html = c.innerHTML);
+
+  // ----- 无结果提示 -----
+  const banner = document.createElement('div');
+  banner.className = 'noresult';
+  banner.textContent = '没有匹配项。换个关键词试试（例如：哈希、会话、批次、角色）。';
+  document.querySelector('main').appendChild(banner);
+
+  function escapeReg(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
+
+  function walk(el, re){
+    for(const child of Array.from(el.childNodes)){
+      if(child.nodeType === 3){ // 文本节点
+        const txt = child.nodeValue;
+        if(re.test(txt)){
+          const span = document.createElement('span');
+          span.innerHTML = txt.replace(re, m => '<mark>'+m+'</mark>');
+          child.replaceWith(span);
+        }
+      } else if(child.nodeType === 1 && !['SCRIPT','STYLE','MARK','SVG','svg'].includes(child.tagName)){
+        walk(child, re);
+      }
+    }
+  }
+
+  function run(q){
+    q = q.trim();
+    clearBtn.style.display = q ? 'block' : 'none';
+
+    if(!q){
+      cards.forEach(c => { c.innerHTML = c.dataset.html; c.classList.remove('hidden'); });
+      sections.forEach(s => s.classList.remove('hidden'));
+      banner.style.display = 'none';
+      info.textContent = '输入即可筛选';
+      return;
+    }
+
+    const re = new RegExp(escapeReg(q), 'gi');
+    let hits = 0;
+
+    cards.forEach(c => {
+      c.innerHTML = c.dataset.html;               // 复位
+      const text = c.textContent.toLowerCase();
+      if(text.includes(q.toLowerCase())){
+        c.classList.remove('hidden');
+        walk(c, re);
+        hits++;
+      } else {
+        c.classList.add('hidden');
+      }
+    });
+
+    // 仅当某章节下还有可见卡片时才显示该章节标题
+    sections.forEach((sec) => {
+      let el = sec.nextElementSibling, visible = false;
+      while(el && !el.classList.contains('section')){
+        if(el.classList.contains('searchable') && !el.classList.contains('hidden')) visible = true;
+        el = el.nextElementSibling;
+      }
+      sec.classList.toggle('hidden', !visible);
+    });
+
+    banner.style.display = hits ? 'none' : 'block';
+    info.textContent = hits ? ('匹配到 ' + hits + ' 个区块') : '无匹配';
+  }
+
+  let t;
+  search.addEventListener('input', e => { clearTimeout(t); t = setTimeout(()=>run(e.target.value), 110); });
+  clearBtn.addEventListener('click', () => { search.value=''; run(''); search.focus(); });
+  // 快捷键：按 “/” 聚焦搜索框
+  document.addEventListener('keydown', e => {
+    if(e.key === '/' && document.activeElement !== search){ e.preventDefault(); search.focus(); }
+    if(e.key === 'Escape' && document.activeElement === search){ search.value=''; run(''); }
+  });
+
+  // ----- 导航滚动高亮 -----
+  const spy = () => {
+    let cur = '';
+    sections.forEach(s => { if(!s.classList.contains('hidden') && s.getBoundingClientRect().top < 140) cur = s.id; });
+    navLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#'+cur));
+  };
+  window.addEventListener('scroll', spy); spy();
+})();
+</script>
+</body>
+</html>

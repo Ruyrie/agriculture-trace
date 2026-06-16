@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>农产品溯源系统实验用例</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #f4f7fb;
+      color: #1f2937;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+      line-height: 1.68;
+    }
+    .page {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 34px 22px 56px;
+    }
+    .hero, section {
+      border: 1px solid #dce6f2;
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+    .hero {
+      padding: 30px 34px;
+      margin-bottom: 18px;
+    }
+    h1 {
+      margin: 0 0 10px;
+      color: #10243f;
+      font-size: 30px;
+      line-height: 1.25;
+    }
+    .subtitle {
+      margin: 0;
+      color: #5b6778;
+      font-size: 15px;
+    }
+    .meta {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 10px;
+      margin-top: 18px;
+    }
+    .meta div {
+      padding: 10px 12px;
+      border: 1px solid #e1e8f2;
+      border-radius: 7px;
+      background: #f8fbff;
+      font-size: 14px;
+    }
+    section {
+      margin-top: 18px;
+      padding: 24px 26px;
+    }
+    h2 {
+      margin: 0 0 14px;
+      color: #14365d;
+      font-size: 22px;
+      line-height: 1.3;
+    }
+    h3 {
+      margin: 22px 0 8px;
+      color: #1f4f7f;
+      font-size: 17px;
+    }
+    p { margin: 8px 0; }
+    ul, ol { margin: 8px 0 0 22px; padding: 0; }
+    li { margin: 5px 0; }
+    code {
+      padding: 2px 5px;
+      border-radius: 5px;
+      background: #eef4fb;
+      color: #0f3b66;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 0.94em;
+    }
+    pre {
+      margin: 10px 0 14px;
+      padding: 14px 16px;
+      overflow-x: auto;
+      border-radius: 7px;
+      background: #102033;
+      color: #d8e8f8;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+    pre code {
+      padding: 0;
+      background: transparent;
+      color: inherit;
+      font-size: inherit;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0 18px;
+      font-size: 13px;
+    }
+    th, td {
+      border: 1px solid #e1e8f2;
+      padding: 9px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      position: sticky;
+      top: 0;
+      background: #eef5fd;
+      color: #14365d;
+      z-index: 1;
+    }
+    tbody tr:nth-child(even) { background: #fbfdff; }
+    .case-id {
+      white-space: nowrap;
+      font-weight: 700;
+      color: #0f4c81;
+    }
+    .priority {
+      display: inline-block;
+      min-width: 38px;
+      padding: 1px 7px;
+      border-radius: 999px;
+      background: #e0f2fe;
+      color: #075985;
+      text-align: center;
+      font-weight: 700;
+    }
+    .p0 { background: #fee2e2; color: #991b1b; }
+    .p1 { background: #fef3c7; color: #92400e; }
+    .p2 { background: #dcfce7; color: #166534; }
+    .note {
+      margin: 12px 0;
+      padding: 12px 14px;
+      border-left: 4px solid #3b82f6;
+      border-radius: 6px;
+      background: #eff6ff;
+      color: #1e3a5f;
+    }
+    .warn {
+      border-left-color: #f59e0b;
+      background: #fff7ed;
+      color: #7c3f00;
+    }
+    .ok {
+      border-left-color: #22c55e;
+      background: #f0fdf4;
+      color: #166534;
+    }
+    .toc {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 10px;
+      margin-top: 18px;
+    }
+    .toc a {
+      padding: 10px 12px;
+      border: 1px solid #e1e8f2;
+      border-radius: 7px;
+      color: #2563eb;
+      text-decoration: none;
+      background: #fbfdff;
+      font-size: 14px;
+    }
+    @media (max-width: 760px) {
+      .page { padding: 20px 10px 36px; }
+      .hero, section { padding: 20px 14px; }
+      table { display: block; overflow-x: auto; white-space: nowrap; }
+      h1 { font-size: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="hero">
+      <h1>农产品溯源系统实验用例</h1>
+      <p class="subtitle">本用例根据当前项目代码编写，覆盖 Spring Boot 后端、Vue 3 前端、MySQL 初始化数据、Session 登录、权限控制、产品/批次管理、溯源、数据指纹和审计日志。</p>
+      <div class="meta">
+        <div><strong>项目目录：</strong><code>D:\6.12\agriculture-trace\class01</code></div>
+        <div><strong>后端：</strong><code>backend</code>，默认端口 <code>8080</code></div>
+        <div><strong>前端：</strong><code>frontend</code>，默认端口 <code>5173</code></div>
+        <div><strong>数据库：</strong><code>agriculture_trace</code>，MySQL 8+</div>
+      </div>
+      <nav class="toc" aria-label="目录">
+        <a href="#basis">1. 测试依据</a>
+        <a href="#environment">2. 环境与数据</a>
+        <a href="#functional">3. 功能实验用例</a>
+        <a href="#security">4. 权限与安全用例</a>
+        <a href="#integrity">5. 指纹与审计用例</a>
+        <a href="#regression">6. 回归用例</a>
+        <a href="#acceptance">7. 验收标准</a>
+      </nav>
+    </header>
+
+    <section id="basis">
+      <h2>1. 测试依据</h2>
+      <p>本实验用例基于当前项目的实际页面、接口和数据库脚本编写，主要依据如下：</p>
+      <ul>
+        <li>前端路由：<code>frontend/src/router/index.js</code>。</li>
+        <li>产品页面：<code>frontend/src/views/ProductList.vue</code>、<code>frontend/src/components/ProductFormDialog.vue</code>。</li>
+        <li>批次页面：<code>frontend/src/views/BatchList.vue</code>。</li>
+        <li>溯源页面：<code>frontend/src/views/TraceDetail.vue</code>。</li>
+        <li>数据指纹页面：<code>frontend/src/views/IntegrityReport.vue</code>。</li>
+        <li>审计日志页面：<code>frontend/src/views/blockchain/AuditLog.vue</code>。</li>
+        <li>接口控制器：<code>ProductController</code>、<code>BatchController</code>、<code>TraceController</code>、<code>IntegrityController</code>、<code>BlockchainLogController</code>、<code>UserController</code>、<code>DashboardController</code>。</li>
+        <li>安全配置：<code>SecurityConfig</code>，使用 Session/Cookie 登录，部分接口按角色授权。</li>
+        <li>数据库初始化：<code>backend/src/main/resources/schema.sql</code>。</li>
+      </ul>
+      <div class="note">
+        重要规则：产品和批次的 <code>data_hash</code> 不会自然过期。只有正常业务新增/修改时才应重算；直接改数据库业务字段但不改 <code>data_hash</code> 应被检测为异常。
+      </div>
+    </section>
+
+    <section id="environment">
+      <h2>2. 环境与初始数据</h2>
+      <h3>2.1 启动顺序</h3>
+      <ol>
+        <li>启动 MySQL。</li>
+        <li>启动后端：<code>cd backend</code>，执行 <code>mvn spring-boot:run</code>。</li>
+        <li>启动前端：<code>cd frontend</code>，首次执行 <code>npm install</code>，然后执行 <code>npm run dev</code>。</li>
+        <li>浏览器访问 <code>http://localhost:5173</code>。</li>
+      </ol>
+      <h3>2.2 测试账号</h3>
+      <table>
+        <thead>
+          <tr><th>账号</th><th>密码</th><th>角色</th><th>权限重点</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>admin</code></td><td><code>123456</code></td><td>ROLE_ADMIN</td><td>所有功能，包含用户管理、数据指纹、审计日志、统计分析。</td></tr>
+          <tr><td><code>inspector</code></td><td><code>123456</code></td><td>ROLE_INSPECTOR</td><td>可查看监管功能，不能进入用户管理。</td></tr>
+          <tr><td><code>farmer</code></td><td><code>123456</code></td><td>ROLE_FARMER</td><td>只能进入数据概览、产品管理、批次管理。</td></tr>
+        </tbody>
+      </table>
+      <h3>2.3 初始核心数据</h3>
+      <ul>
+        <li>产品：<code>prod_1</code> 有机苹果、<code>prod_2</code> 五常大米、<code>prod_3</code> 日照绿茶、<code>prod_4</code> 有机西兰花、<code>prod_5</code> 土鸡蛋。</li>
+        <li>批次：<code>batch_1</code> 到 <code>batch_23</code>，其中有机苹果、五常大米等产品有多个批次。</li>
+        <li>每个演示批次会补齐生产记录、质检记录、物流记录。</li>
+        <li>产品表和批次表均包含 <code>data_hash</code>；审计日志表为 <code>blockchain_log</code>。</li>
+      </ul>
+    </section>
+
+    <section id="functional">
+      <h2>3. 功能实验用例</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>编号</th>
+            <th>优先级</th>
+            <th>模块</th>
+            <th>前置条件</th>
+            <th>测试数据</th>
+            <th>操作步骤</th>
+            <th>预期结果</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="case-id">FUNC-001</td>
+            <td><span class="priority p0">P0</span></td>
+            <td>登录</td>
+            <td>后端、前端、MySQL 均已启动。</td>
+            <td><code>admin / 123456</code></td>
+            <td>打开登录页，输入账号密码，点击登录。</td>
+            <td>登录成功，进入系统布局页，左侧显示数据概览、产品管理、批次管理、数据指纹、审计日志、统计分析、用户管理等菜单。</td>
+          </tr>
+          <tr>
+            <td class="case-id">FUNC-002</td>
+            <td><span class="priority p1">P1</span></td>
+            <td>登录异常</td>
+            <td>登录页。</td>
+            <td><code>admin / wrong-password</code></td>
+            <td>输入错误密码并登录。</td>
+            <td>接口返回 <code>code=401</code>，页面提示用户名或密码错误，不进入系统。</td>
+          </tr>
+          <tr>
+            <td class="case-id">FUNC-003</td>
+            <td><span class="priority p1">P1</span></td>
+            <td>登录异常</td>
+            <td>登录页。</td>
+            <td><code>not_exists / 123456</code></td>
+            <td>输入不存在账号并登录。</td>
+            <td>页面提示账号不存在或登录失败，不创建 Session。</td>
+          </tr>
+          <tr>
+            <td class="case-id">FUNC-004</td>
+            <td><span class="priority p1">P1</span></td>
+            <td>Remember Me</td>
+            <td>登录页。</td>
+            <td><code>admin / 123456</code>，勾选记住我。</td>
+            <td>登录后关闭浏览器或刷新页面，再次访问受保护页面。</td>
+            <td>在 remember-me 有效期内可恢复登录状态，Cookie 名称包含 <code>AGRICULTURE_TRACE_REMEMBER_ME</code>。</td>
+          </tr>
+          <tr>
+            <td class="case-id">FUNC-005</td>
+            <td><span class="priority p0">P0</span></td>
+            <td>数据概览</td>
+            <td>已登录任意角色。</td>
+            <td>初始数据库。</td>
+            <td>进入 <code>/dashboard</code>。</td>
+            <td>展示产品数、批次数、溯源访问趋势、类别分布等统计图表；接口 <code>/api/dashboard/statistics</code>、<code>/api/dashboard/categoryDistribution</code>、<code>/api/dashboard/traceTrend</code> 返回成功。</td>
+          </tr>
+          <tr>
+            <td class="case-id">FUNC-006</td>
+            <td><span class="priority p0">P0</span></td>
+            <td>产品列表</td>
+            <td>以 admin 登录。</td>
+            <td>初始数据库。</td>
+            <td>进入产品管理页。</td>
+            <td>列表至少显示 <code>prod_1</code> 到 <code>prod_5</code>，包含 ID、产品名称、类别、产地、价格、数据指纹和操作按钮。</td>
+          </tr>
+          <tr>
+            <td class="case-id">FUNC-007</td>
+            <td><span class="priority p1">P1</span></td>
+            <td>产品搜索</td>
+            <td>产品管理页。</td>
+            <td>关键词：<code>苹果</code></td>
+            <td>在搜索框输入关键词并点击搜索。</td>
+            <td>仅显示产品名称包含苹果的记录，例如有机苹果；分页总数随搜索结果变化。</td>
+          </tr>
+          <tr>
+            <td class="case-id">FUNC-008</td>
+            <td><span class="priority p0">P0</span></td>
+            <td>新增产品</td>
+            <td>以 admin 或 farmer 登录。</td>
+            <td>产品名称：实验草莓；类别：水果；产地：中国；价格：18.50。</td>
+            <td>产品管理页点击新增产品，填写基本信息和批次/生产/质检/物流记录，点击确定保存。</td>
+            <td>保存成功，新增产品 ID 按 <code>prod_N</code> 递增，产品生成 <code>data_hash</code>，同时生成产品 CREATE 审计日志；若填写了批次，也生成批次和三类溯源记录。</td>
+          </tr>
+          <tr>
+            <td class="case-id">FUNC-009</td>
+            <td><span class="priority p1">P1</span></td>
+            <td>新增产品校验</td>
+            <td>产品新增弹窗。</td>
+            <td>产品名称为空，其他字段任意。</td>
+            <td>直接点击确定保存。</td>
+            <td>前端表单提示请输入产品名称，不提交后端。</td>
+          </tr>
+          <tr>
+            <td class="case-id">FUNC-010</td>
+            <td><span class="priority p1">P1</span></td>
+            <td>同名产品</td>
+            <td>产品管理页。</td>
+            <td>新增产品名称：有机苹果；类别：水果；产地：中国；价格：0。</td>
+            <td>新增一个与现有产品同名的产品并保存。</td>
+            <td>允许保存。产品管理可出现同名不同 ID 的产品，符合当前项目规则；后续批次新增时可通过 <code>产品名（产品ID）</code> 区分。</td>
+          </tr>
+          <tr>
+            <td class="case-id">FUNC-011</td>
+            <td><span class="priority p0">P0</span></td>
+            <td>编辑产品</td>
+            <td>产品列表存在 <code>prod_1</code>。</td>
+            <td>将 <code>prod_1</code> 价格改为 <code>13.00</code>。</td>
+            <td>点击编辑，修改价格，保存。</td>
+            <td>保存成功，产品 <code>data_hash</code> 重新计算，审计日志新增 PRODUCT UPDATE 记录，数据指纹验证通过。</td>
+          </tr>
+          <tr>
+            <td class="case-id">FUNC-012</td>
+            <td><span class="priority p0">P0</span></td>
+            <td>产品无变化保存</td>
+            <td>产品列表任意产品。</td>
+            <td>不修改任何字段。</td>
+            <td>打开编辑弹窗，直接点击保存。</td>
+            <td>后端不执行实际更新，不重算 <code>data_hash</code>，不新增 UPDATE 审计日志。若该记录此前因数据库直改处于哈希异常状态，不能被无变化保存修复。</td>
+          </tr>
+          <tr>
+            <td class="case-id">FUNC-013</td>
+            <td><span class="priority p1">P1</span></td>
+            <td>删除产品</td>
+            <td>存在实验新增产品，且确认可删除。</td>
+            <td>实验草莓。</td>
+            <td>点击删除并确认。</td>
+            <td>产品删除成功，写入 PRODUCT DELETE 审计日志；关联批次因数据库外键 <code>ON DELETE CASCADE</code> 一并删除。</td>
+          </tr>
+          <tr>
+            <td class="case-id">FUNC-014</td>
+            <td><span class="priority p0">P0</span></td>
+            <td>批次列表</td>
+            <td>已登录。</td>
+            <td>初始数据库。</td>
+            <td>进入批次管理页。</td>
+            <td>展示批次号、产品名称、生产日期、数据指纹和编辑/溯源/验证/删除按钮，总数为初始化批次数加实验新增批次数。</td>
+          </tr>
+          <tr>
+            <td class="case-id">FUNC-015</td>
+            <td><span class="priority p0">P0</span></td>
+            <td>批次按产品筛选</td>
+            <td>存在同名产品，例如两个有机苹果。</td>
+            <td>筛选项：有机苹果。</td>
+            <td>打开批次管理页，点击按产品筛选下拉。</td>
+            <td>下拉只显示一个“有机苹果”；选择后列表按 <code>productName=有机苹果</code> 查询，显示所有同名产品关联批次。</td>
+          </tr>
+          <tr>
+            <td class="case-id">FUNC-016</td>
+            <td><span class="priority p1">P1</span></td>
+            <td>批次搜索</td>
+            <td>批次管理页。</td>
+            <td>批次号关键词：<code>202601</code></td>
+            <td>输入批次号关键词并搜索。</td>
+            <td>返回批次号包含关键词的记录，支持与产品名称筛选组合查询。</td>
+          </tr>
+          <tr>
+            <td class="case-id">FUNC-017</td>
+            <td><span class="priority p0">P0</span></td>
+            <td>新增批次</td>
+            <td>产品列表存在至少一个产品。</td>
+            <td>产品：有机苹果；批次号：<code>B209901001</code>；生产日期：今天或过去日期；备注：实验批次。</td>
+            <td>批次管理页点击新增批次，填写基础信息和可选生产/质检/物流记录，保存。</td>
+            <td>保存成功，批次生成 <code>data_hash</code>，写入 BATCH CREATE 审计日志，三类记录保存到对应表。</td>
+          </tr>
+          <tr>
+            <td class="case-id">FUNC-018</td>
+            <td><span class="priority p1">P1</span></td>
+            <td>新增批次校验</td>
+            <td>批次新增弹窗。</td>
+            <td>批次号：<code>ABC</code>。</td>
+            <td>填写长度小于 5 的批次号并保存。</td>
+            <td>前端校验提示长度在 5 到 20 个字符，不提交后端。</td>
+          </tr>
+          <tr>
+            <td class="case-id">FUNC-019</td>
+            <td><span class="priority p1">P1</span></td>
+            <td>批次号唯一</td>
+            <td>已存在批次 <code>B202601001</code>。</td>
+            <td>新增批次号：<code>B202601001</code>。</td>
+            <td>新增批次时使用已存在批次号保存。</td>
+            <td>后端返回错误，提示批次号已存在，请更换批次号。</td>
+          </tr>
+          <tr>
+            <td class="case-id">FUNC-020</td>
+            <td><span class="priority p0">P0</span></td>
+            <td>编辑批次</td>
+            <td>存在批次 <code>batch_1</code>。</td>
+            <td>备注改为：复检合格。</td>
+            <td>点击编辑批次，修改备注并保存。</td>
+            <td>保存成功，批次 <code>data_hash</code> 重新计算，写入 BATCH UPDATE 审计日志。</td>
+          </tr>
+          <tr>
+            <td class="case-id">FUNC-021</td>
+            <td><span class="priority p0">P0</span></td>
+            <td>批次无变化保存</td>
+            <td>存在任意批次。</td>
+            <td>不修改任何批次字段。</td>
+            <td>打开编辑批次弹窗，直接点击保存。</td>
+            <td>后端不执行实际更新，不重算批次 <code>data_hash</code>，不新增 BATCH UPDATE 审计日志。</td>
+          </tr>
+          <tr>
+            <td class="case-id">FUNC-022</td>
+            <td><span class="priority p1">P1</span></td>
+            <td>溯源详情</td>
+            <td>存在产品 <code>prod_1</code>。</td>
+            <td><code>/trace/prod_1</code></td>
+            <td>从产品列表点击溯源，或直接访问产品溯源路由。</td>
+            <td>页面展示产品基本信息、批次折叠项、生产记录、质检报告、物流轨迹和二维码。</td>
+          </tr>
+          <tr>
+            <td class="case-id">FUNC-023</td>
+            <td><span class="priority p1">P1</span></td>
+            <td>批次溯源详情</td>
+            <td>存在批次 <code>batch_1</code>。</td>
+            <td><code>/trace/batch/batch_1</code></td>
+            <td>从批次列表点击溯源。</td>
+            <td>页面只展示该批次的基础信息、生产记录、质检报告和物流轨迹。</td>
+          </tr>
+          <tr>
+            <td class="case-id">FUNC-024</td>
+            <td><span class="priority p2">P2</span></td>
+            <td>公开溯源</td>
+            <td>退出登录或使用无 Session 浏览器。</td>
+            <td><code>/trace/prod_1</code>、<code>/trace/batch/batch_1</code></td>
+            <td>直接访问溯源 URL。</td>
+            <td>无需登录也可查看溯源详情；对应接口 <code>/api/trace/**</code> 放行。</td>
+          </tr>
+          <tr>
+            <td class="case-id">FUNC-025</td>
+            <td><span class="priority p1">P1</span></td>
+            <td>个人中心</td>
+            <td>已登录。</td>
+            <td>昵称：实验用户；手机号：13812345678。</td>
+            <td>进入个人中心修改资料并保存。</td>
+            <td>提示保存成功，再次进入个人中心显示新资料；接口 <code>/api/user/profile</code> 返回成功。</td>
+          </tr>
+          <tr>
+            <td class="case-id">FUNC-026</td>
+            <td><span class="priority p1">P1</span></td>
+            <td>修改密码</td>
+            <td>已登录测试账号，记录原密码。</td>
+            <td>原密码正确，新密码符合要求。</td>
+            <td>进入个人中心修改密码，退出后用新密码登录。</td>
+            <td>修改成功；原密码不能再登录，新密码可登录。</td>
+          </tr>
+          <tr>
+            <td class="case-id">FUNC-027</td>
+            <td><span class="priority p1">P1</span></td>
+            <td>头像上传</td>
+            <td>已登录。</td>
+            <td>小于 50MB 的 PNG/JPG 图片。</td>
+            <td>个人中心上传头像。</td>
+            <td>上传成功，返回头像 URL，静态资源可通过 <code>/uploads/**</code> 访问。</td>
+          </tr>
+          <tr>
+            <td class="case-id">FUNC-028</td>
+            <td><span class="priority p2">P2</span></td>
+            <td>头像异常</td>
+            <td>已登录。</td>
+            <td>非图片文件或大于 50MB 文件。</td>
+            <td>尝试上传。</td>
+            <td>前端或后端提示文件类型/大小不符合要求，不更新头像。</td>
+          </tr>
+          <tr>
+            <td class="case-id">FUNC-029</td>
+            <td><span class="priority p1">P1</span></td>
+            <td>统计分析</td>
+            <td>以 admin 或 inspector 登录。</td>
+            <td>初始化数据。</td>
+            <td>进入统计分析页面。</td>
+            <td>展示分类、产地、批次产量、访问排行、趋势图等统计结果；图表渲染正常。</td>
+          </tr>
+          <tr>
+            <td class="case-id">FUNC-030</td>
+            <td><span class="priority p1">P1</span></td>
+            <td>用户管理新增</td>
+            <td>以 admin 登录。</td>
+            <td>用户名：<code>tester01</code>；角色：农户；密码：123456。</td>
+            <td>进入用户管理页，新增用户。</td>
+            <td>新增成功，用户列表出现 tester01，角色显示正确，enabled 为启用。</td>
+          </tr>
+          <tr>
+            <td class="case-id">FUNC-031</td>
+            <td><span class="priority p1">P1</span></td>
+            <td>用户管理编辑</td>
+            <td>存在 tester01。</td>
+            <td>昵称：实验农户；角色改为监管员。</td>
+            <td>编辑用户并保存。</td>
+            <td>保存成功，用户信息和角色更新；重新登录后菜单按新角色显示。</td>
+          </tr>
+          <tr>
+            <td class="case-id">FUNC-032</td>
+            <td><span class="priority p1">P1</span></td>
+            <td>用户禁用</td>
+            <td>存在 tester01。</td>
+            <td>禁用 tester01。</td>
+            <td>admin 在用户管理页禁用该账号，再尝试登录。</td>
+            <td>登录失败，提示账号已被禁用；admin 不能禁用当前登录账号。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="security">
+      <h2>4. 权限与安全实验用例</h2>
+      <table>
+        <thead>
+          <tr><th>编号</th><th>优先级</th><th>场景</th><th>账号</th><th>操作步骤</th><th>预期结果</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="case-id">AUTH-001</td>
+            <td><span class="priority p0">P0</span></td>
+            <td>未登录访问保护页面</td>
+            <td>无</td>
+            <td>清除浏览器登录状态，访问 <code>/products</code> 或调用 <code>/api/product/list</code>。</td>
+            <td>前端跳转登录页；接口返回 <code>code=401</code>，消息为未登录或登录已过期。</td>
+          </tr>
+          <tr>
+            <td class="case-id">AUTH-002</td>
+            <td><span class="priority p0">P0</span></td>
+            <td>农户访问监管页面</td>
+            <td><code>farmer</code></td>
+            <td>登录 farmer，直接访问 <code>/integrity</code> 或 <code>/blockchain/audit-log</code>。</td>
+            <td>前端提示无权访问；后端受限接口拒绝访问。</td>
+          </tr>
+          <tr>
+            <td class="case-id">AUTH-003</td>
+            <td><span class="priority p0">P0</span></td>
+            <td>农户访问用户管理</td>
+            <td><code>farmer</code></td>
+            <td>登录 farmer，直接访问 <code>/users</code> 或调用 <code>/api/users</code>。</td>
+            <td>无权限访问；用户管理菜单不显示。</td>
+          </tr>
+          <tr>
+            <td class="case-id">AUTH-004</td>
+            <td><span class="priority p1">P1</span></td>
+            <td>监管员访问用户管理</td>
+            <td><code>inspector</code></td>
+            <td>登录 inspector，访问 <code>/users</code>。</td>
+            <td>被拒绝；但可访问数据指纹、审计日志、统计分析。</td>
+          </tr>
+          <tr>
+            <td class="case-id">AUTH-005</td>
+            <td><span class="priority p1">P1</span></td>
+            <td>公开溯源接口</td>
+            <td>无</td>
+            <td>未登录调用 <code>/api/trace/prod_1</code> 和 <code>/api/trace/batch/batch_1</code>。</td>
+            <td>接口返回成功，支持消费者通过二维码查看溯源。</td>
+          </tr>
+          <tr>
+            <td class="case-id">AUTH-006</td>
+            <td><span class="priority p1">P1</span></td>
+            <td>Session 失效处理</td>
+            <td>任意账号</td>
+            <td>登录后删除 <code>JSESSIONID</code> Cookie，再点击页面接口操作。</td>
+            <td>前端拦截器清理本地登录状态并跳转登录页。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="integrity">
+      <h2>5. 数据指纹与审计日志实验用例</h2>
+      <div class="warn">
+        以下篡改用例必须直接操作数据库，不能通过前端编辑。通过前端正常编辑会重新计算合法哈希，这是正常业务流程，不是篡改。
+      </div>
+      <table>
+        <thead>
+          <tr><th>编号</th><th>优先级</th><th>场景</th><th>前置条件</th><th>操作步骤</th><th>预期结果</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="case-id">HASH-001</td>
+            <td><span class="priority p0">P0</span></td>
+            <td>产品单条哈希验证正常</td>
+            <td>数据库未被篡改。</td>
+            <td>产品管理页对 <code>prod_1</code> 点击“验证哈希”。</td>
+            <td>提示产品哈希一致，数据未发现篡改。</td>
+          </tr>
+          <tr>
+            <td class="case-id">HASH-002</td>
+            <td><span class="priority p0">P0</span></td>
+            <td>批次单条哈希验证正常</td>
+            <td>数据库未被篡改。</td>
+            <td>批次管理页对 <code>batch_1</code> 点击“验证”。</td>
+            <td>提示批次哈希一致，数据未发现篡改。</td>
+          </tr>
+          <tr>
+            <td class="case-id">HASH-003</td>
+            <td><span class="priority p0">P0</span></td>
+            <td>产品一键验证正常</td>
+            <td>以 admin 或 inspector 登录。</td>
+            <td>进入数据指纹页或产品管理页点击一键验证。</td>
+            <td>返回 <code>valid=true</code>，异常项数量为 0；全局根哈希可复制。</td>
+          </tr>
+          <tr>
+            <td class="case-id">HASH-004</td>
+            <td><span class="priority p0">P0</span></td>
+            <td>直接篡改产品字段</td>
+            <td>记录 <code>prod_1</code> 当前名称和价格。</td>
+            <td>在 MySQL 执行：<pre><code>UPDATE product
+SET price = 99.99
+WHERE id = 'prod_1';</code></pre></td>
+            <td>不修改 <code>data_hash</code>。产品验证应提示哈希不一致；数据指纹页异常列表出现 <code>prod_1</code>，展示存储指纹和当前指纹。</td>
+          </tr>
+          <tr>
+            <td class="case-id">HASH-005</td>
+            <td><span class="priority p0">P0</span></td>
+            <td>直接篡改批次字段</td>
+            <td>记录 <code>batch_1</code> 当前备注。</td>
+            <td>在 MySQL 执行：<pre><code>UPDATE batch
+SET remark = '数据库直接篡改备注'
+WHERE id = 'batch_1';</code></pre></td>
+            <td>不修改 <code>data_hash</code>。批次验证应提示哈希不一致；批次一键验证异常项包含 <code>batch_1</code>。</td>
+          </tr>
+          <tr>
+            <td class="case-id">HASH-006</td>
+            <td><span class="priority p0">P0</span></td>
+            <td>篡改后重启后端</td>
+            <td>已执行 HASH-004 或 HASH-005。</td>
+            <td>停止并重启后端，再重新点击一键验证。</td>
+            <td>异常仍然存在。启动流程不得自动重算已有 <code>data_hash</code> 来掩盖篡改。</td>
+          </tr>
+          <tr>
+            <td class="case-id">HASH-007</td>
+            <td><span class="priority p0">P0</span></td>
+            <td>篡改后无变化保存</td>
+            <td>已直接篡改 <code>prod_1</code> 或 <code>batch_1</code>。</td>
+            <td>打开对应编辑弹窗，不修改任何字段，直接点击保存。</td>
+            <td>后端不重算 <code>data_hash</code>，不新增 UPDATE 审计日志，异常仍可被验证发现。</td>
+          </tr>
+          <tr>
+            <td class="case-id">HASH-008</td>
+            <td><span class="priority p1">P1</span></td>
+            <td>管理员修复业务数据</td>
+            <td>已知可信原始值，例如 <code>prod_1</code> 原价 12.50。</td>
+            <td>通过前端编辑把被篡改字段改回可信值并保存。</td>
+            <td>保存后系统重新计算哈希并写入 UPDATE 审计日志；再次验证通过。</td>
+          </tr>
+          <tr>
+            <td class="case-id">HASH-009</td>
+            <td><span class="priority p1">P1</span></td>
+            <td>审计日志列表</td>
+            <td>以 admin 或 inspector 登录。</td>
+            <td>进入审计日志页面。</td>
+            <td>展示 <code>CREATE</code>、<code>UPDATE</code>、<code>DELETE</code> 日志，包含目标类型、目标 ID、操作人、时间、哈希和上一条哈希。</td>
+          </tr>
+          <tr>
+            <td class="case-id">HASH-010</td>
+            <td><span class="priority p0">P0</span></td>
+            <td>审计日志链验证正常</td>
+            <td>未直接篡改 <code>blockchain_log</code>。</td>
+            <td>审计日志页点击验证链条完整性。</td>
+            <td>返回日志链完整；如果业务数据也未被篡改，则业务数据指纹状态也正常。</td>
+          </tr>
+          <tr>
+            <td class="case-id">HASH-011</td>
+            <td><span class="priority p0">P0</span></td>
+            <td>篡改审计日志内容</td>
+            <td>备份当前数据库或准备恢复。</td>
+            <td>直接修改任意 <code>blockchain_log.data_after</code> 或 <code>previous_hash</code>。</td>
+            <td>审计日志链验证失败，提示链条不完整或日志哈希异常。</td>
+          </tr>
+          <tr>
+            <td class="case-id">HASH-012</td>
+            <td><span class="priority p1">P1</span></td>
+            <td>只篡改业务表不破坏日志链</td>
+            <td>已执行 HASH-004。</td>
+            <td>审计日志页验证链条完整性。</td>
+            <td>日志链本身可能仍完整，但联动业务数据指纹检查应提示产品或批次业务数据异常。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="regression">
+      <h2>6. 当前项目重点回归用例</h2>
+      <table>
+        <thead>
+          <tr><th>编号</th><th>优先级</th><th>回归点</th><th>操作</th><th>预期结果</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="case-id">REG-001</td>
+            <td><span class="priority p0">P0</span></td>
+            <td>允许创建同名产品</td>
+            <td>新增一个名称同为“有机苹果”的产品。</td>
+            <td>保存成功，产品列表存在同名但不同 ID 的两条记录。</td>
+          </tr>
+          <tr>
+            <td class="case-id">REG-002</td>
+            <td><span class="priority p0">P0</span></td>
+            <td>批次管理产品筛选同名去重</td>
+            <td>打开批次管理页，展开按产品筛选。</td>
+            <td>同名产品只显示一个选项；选择该名称后查询所有同名产品对应批次。</td>
+          </tr>
+          <tr>
+            <td class="case-id">REG-003</td>
+            <td><span class="priority p1">P1</span></td>
+            <td>新增/编辑批次时仍能区分同名产品</td>
+            <td>批次新增或编辑弹窗中打开产品选择。</td>
+            <td>同名产品完整显示，并通过 <code>产品名（产品ID）</code> 区分。</td>
+          </tr>
+          <tr>
+            <td class="case-id">REG-004</td>
+            <td><span class="priority p0">P0</span></td>
+            <td>启动不修复篡改哈希</td>
+            <td>直接改产品或批次业务字段，不改 <code>data_hash</code>，重启后端。</td>
+            <td>验证仍失败，说明启动初始化没有覆盖已有哈希。</td>
+          </tr>
+          <tr>
+            <td class="case-id">REG-005</td>
+            <td><span class="priority p0">P0</span></td>
+            <td>无变化保存不重算哈希</td>
+            <td>直接改库制造异常后，前端打开编辑弹窗不修改内容直接保存。</td>
+            <td>哈希异常仍存在，不写无意义 UPDATE 审计日志。</td>
+          </tr>
+          <tr>
+            <td class="case-id">REG-006</td>
+            <td><span class="priority p1">P1</span></td>
+            <td>批次号唯一提示</td>
+            <td>新增批次使用已有批次号。</td>
+            <td>返回“批次号已存在，请更换批次号”，不会保存重复批次号。</td>
+          </tr>
+          <tr>
+            <td class="case-id">REG-007</td>
+            <td><span class="priority p1">P1</span></td>
+            <td>权限菜单与接口一致</td>
+            <td>分别使用 admin、inspector、farmer 登录并查看菜单。</td>
+            <td>菜单展示与 <code>SecurityConfig</code> 中接口权限一致；无权页面不可直接访问。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="acceptance">
+      <h2>7. 验收标准</h2>
+      <ul>
+        <li>所有 P0 用例必须通过；若失败，视为核心功能不可交付。</li>
+        <li>P1 用例建议全部通过；若有失败，需要记录影响范围和修复计划。</li>
+        <li>P2 用例用于体验和边界验证，不影响主流程交付，但应在最终答辩或演示前尽量通过。</li>
+        <li>执行指纹篡改类用例前，建议备份数据库，避免实验数据污染后续演示。</li>
+        <li>所有通过前端正常新增/编辑的数据，产品/批次哈希验证应一致；所有直接改库但不改 <code>data_hash</code> 的数据，应能被验证发现。</li>
+      </ul>
+      <h3>推荐最终验证命令</h3>
+      <pre><code>cd D:\6.12\agriculture-trace\class01\backend
+mvn test
+
+cd D:\6.12\agriculture-trace\class01\frontend
+npm run build</code></pre>
+      <div class="ok">
+        建议提交实验结果时，附上登录截图、产品/批次新增截图、数据指纹正常截图、数据库直改后的异常截图、审计日志验证截图。
+      </div>
+    </section>
+  </main>
+</body>
+</html>

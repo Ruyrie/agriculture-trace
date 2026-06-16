@@ -75,12 +75,31 @@ public class BatchService {
         return batchRepository.findByBatchNoContaining(batchNo.trim(), request);
     }
 
+    /**
+     * 生成下一个可读的顺序批次 ID（batch_N）。
+     * 取当前最大编号 +1；若库中暂无规范编号，则从 batch_1 起始。
+     * 与产品 ID（prod_N）保持一致的风格，避免审计日志“对象ID”出现去横线 UUID。
+     */
+    private String nextBatchId() {
+        String maxId = batchRepository.findMaxBatchId();
+        long next = 1L;
+        if (maxId != null && maxId.startsWith("batch_")) {
+            try {
+                next = Long.parseLong(maxId.substring("batch_".length())) + 1L;
+            } catch (NumberFormatException ignored) {
+                // 理论上 SQL 已用正则保证是纯数字后缀，这里仅做兜底，保持 next = 1。
+            }
+        }
+        return "batch_" + next;
+    }
+
     @Transactional
     public Batch create(Batch batch, String productId) {
         // 批次号是面向业务人员和二维码溯源的可读标识，必须全局唯一。
         ensureBatchNoAvailable(batch.getBatchNo(), null);
         Product product = productRepository.findById(productId).orElseThrow();
-        batch.setId(Ids.uuid32());
+        // 采用可读顺序编号 batch_N（ID 也是批次指纹的一部分，必须在计算哈希前确定）。
+        batch.setId(nextBatchId());
         batch.setProduct(product);
         batch.setCreateTime(TimeUtils.nowText());
         // productId、productionDate、remark 等字段共同构成批次指纹。
