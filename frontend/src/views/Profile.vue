@@ -265,9 +265,12 @@ onMounted(() => {
   cursor: pointer;
   position: relative;
   overflow: hidden;
+  /* Element Plus 运行时注入到 :root 的主题变量，IDE 静态分析无法解析，此处显式抑制误报 */
+  /*noinspection CssUnresolvedCustomProperty*/
   transition: var(--el-transition-duration-fast);
 }
 .avatar-uploader :deep(.el-upload:hover) {
+  /*noinspection CssUnresolvedCustomProperty*/
   border-color: var(--el-color-primary);
 }
 .avatar-uploader-icon {
