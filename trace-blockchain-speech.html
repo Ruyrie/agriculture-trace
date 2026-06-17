@@ -82,6 +82,85 @@
       letter-spacing: 0;
     }
 
+    .search {
+      margin: 16px 0 4px;
+    }
+
+    .search-box {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+    }
+
+    .search-box input {
+      flex: 1;
+      min-width: 0;
+      border: none;
+      outline: none;
+      background: transparent;
+      color: #f1f6fc;
+      font-size: 14px;
+      font-family: inherit;
+    }
+
+    .search-box input::placeholder {
+      color: #8ea2bb;
+    }
+
+    .search-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 8px;
+      font-size: 12px;
+      color: #9fb0c5;
+      min-height: 18px;
+    }
+
+    .search-nav button {
+      cursor: pointer;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: rgba(255, 255, 255, 0.06);
+      color: #d8e2f0;
+      border-radius: 6px;
+      padding: 2px 9px;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .search-nav button:hover {
+      background: rgba(255, 255, 255, 0.14);
+      color: #fff;
+    }
+
+    .search-nav button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .search-actions {
+      display: flex;
+      gap: 4px;
+    }
+
+    mark.search-hit {
+      background: #ffe08a;
+      color: #1a1300;
+      border-radius: 3px;
+      padding: 0 1px;
+    }
+
+    mark.search-hit.active {
+      background: #ff9f1c;
+      color: #1a1300;
+      box-shadow: 0 0 0 2px rgba(255, 159, 28, 0.4);
+    }
+
     .nav {
       display: flex;
       flex-direction: column;
@@ -514,6 +593,19 @@
         <small>答辩演讲稿</small>
         <h1>农产品溯源系统<br />溯源与区块链功能</h1>
       </div>
+      <div class="search">
+        <div class="search-box">
+          <span aria-hidden="true">🔍</span>
+          <input id="searchInput" type="search" placeholder="搜索讲稿内容…" autocomplete="off" />
+        </div>
+        <div class="search-nav">
+          <span id="searchCount"></span>
+          <span class="search-actions">
+            <button id="searchPrev" type="button" title="上一个 (Shift+Enter)" disabled>↑</button>
+            <button id="searchNext" type="button" title="下一个 (Enter)" disabled>↓</button>
+          </span>
+        </div>
+      </div>
       <nav class="nav">
         <a href="#opening">一、开场与主题</a>
         <a href="#overview">二、系统总体定位</a>
@@ -874,13 +966,96 @@
             每条日志不仅保存自己的哈希，还保存上一条日志的哈希。
           </p>
 
-          <pre><code>logHash = SHA-256(
-  actionType + targetId + operator + timestamp + previousHash + dataAfter
-)
-
-第 1 条日志: previous_hash = "0", data_hash = H1
+          <p>
+            链式结构示意（<code>previous_hash -&gt; data_hash</code>）：
+          </p>
+          <pre><code>第 1 条日志: previous_hash = "0", data_hash = H1
 第 2 条日志: previous_hash = H1,  data_hash = H2
 第 3 条日志: previous_hash = H2,  data_hash = H3</code></pre>
+
+          <p>
+            <b>写入日志（链式哈希生成）</b>—— 摘自 <code>ProductService#recordLog</code>，
+            批次在 <code>BatchService</code> 中以相同方式写入：
+          </p>
+          <pre><code>// 每条产品/批次的 CREATE、UPDATE、DELETE 都会调用 recordLog 写一条日志
+private void recordLog(String action, String targetId, Object before, Object after) {
+    BlockchainLog log = new BlockchainLog();
+    log.setId(Ids.logId());                 // 时间前缀、单调递增 ID，保证写入顺序
+    log.setActionType(action);              // CREATE / UPDATE / DELETE
+    log.setTargetType("PRODUCT");
+    log.setTargetId(targetId);
+    log.setOperator(currentOperator());
+    log.setDataBefore(toJson(before));
+    log.setDataAfter(toJson(after));
+    log.setTimestamp(LocalDateTime.now()
+            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+
+    // 取上一条日志哈希；第一条日志（创世块）约定 previousHash = "0"
+    BlockchainLog lastLog = logRepository.findLastLog();
+    String previousHash = (lastLog == null) ? "0" : lastLog.getDataHash();
+    log.setPreviousHash(previousHash);
+
+    // logHash = SHA-256(actionType + targetId + operator + timestamp + previousHash + dataAfter)
+    String content = action + targetId + log.getOperator() + log.getTimestamp() + previousHash
+            + (log.getDataAfter() != null ? log.getDataAfter() : "");
+    log.setDataHash(HashUtil.sha256(content));
+    logRepository.save(log);
+
+    anchorService.refresh(logRepository.count(), log.getDataHash()); // 推进链尾锚点
+}</code></pre>
+
+          <p>
+            <b>SHA-256 工具</b>—— 摘自 <code>HashUtil</code>：
+          </p>
+          <pre><code>public static String sha256(String input) {
+    try {
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        byte[] hashed = digest.digest(
+                (input == null ? "" : input).getBytes(StandardCharsets.UTF_8));
+        StringBuilder hex = new StringBuilder(hashed.length * 2);
+        for (byte b : hashed) {
+            hex.append(String.format("%02x", b));
+        }
+        return hex.toString();
+    } catch (NoSuchAlgorithmException e) {
+        throw new IllegalStateException("SHA-256算法不可用", e);
+    }
+}</code></pre>
+
+          <p>
+            <b>校验日志链（检测篡改）</b>—— 摘自
+            <code>BlockchainLogController#verify</code>，按 <code>id</code> 升序逐条重算哈希并检查链接：
+          </p>
+          <pre><code>String previousHash = "0";                       // 从创世值开始
+for (int i = 0; i &lt; logs.size(); i++) {
+    BlockchainLog log = logs.get(i);
+
+    // 用写入时完全相同的字段顺序重建内容，再 SHA-256
+    String content = log.getActionType() + log.getTargetId() + log.getOperator()
+            + log.getTimestamp() + log.getPreviousHash()
+            + (log.getDataAfter() != null ? log.getDataAfter() : "");
+    String calcHash = HashUtil.sha256(content);
+
+    boolean hashValid     = calcHash.equals(log.getDataHash());        // 本条是否被改
+    boolean previousValid = previousHash.equals(log.getPreviousHash()); // 是否接得上上一条
+
+    if (!hashValid || !previousValid) {
+        // 定位断裂位置 brokenIndex = i + 1，返回异常类型
+        result.put("logChainValid", false);
+        result.put("brokenIndex", i + 1);
+        result.put("message", hashValid ? "上一哈希不连续，日志链已断裂"
+                                        : "日志自身哈希不一致，可能被篡改");
+        return Result.success(result);
+    }
+    previousHash = log.getDataHash();            // 推进到下一条期望的 previous_hash
+}</code></pre>
+
+          <div class="warn">
+            <b>实现细节：</b>
+            日志按 <code>id</code>（时间前缀、单调、与时区无关）升序遍历，
+            <u>不能</u>按 <code>timestamp</code> 排序——后者是本地墙钟字符串，跨时区会乱序导致链条误判断裂。
+            写入顺序与校验顺序必须一致。
+          </div>
 
           <div class="speech">
             <strong>正式讲稿：</strong>
@@ -1214,5 +1389,156 @@
       </div>
     </main>
   </div>
+
+  <script>
+    (function () {
+      var input = document.getElementById("searchInput");
+      var countEl = document.getElementById("searchCount");
+      var prevBtn = document.getElementById("searchPrev");
+      var nextBtn = document.getElementById("searchNext");
+      var scope = document.querySelector(".content");
+
+      var hits = [];
+      var current = -1;
+      var debounceTimer = null;
+
+      // Remove all previous highlights and restore original text nodes.
+      function clearHighlights() {
+        var marks = scope.querySelectorAll("mark.search-hit");
+        marks.forEach(function (mark) {
+          var parent = mark.parentNode;
+          parent.replaceChild(document.createTextNode(mark.textContent), mark);
+          parent.normalize();
+        });
+        hits = [];
+        current = -1;
+      }
+
+      function escapeRegExp(str) {
+        return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      }
+
+      // Walk text nodes, skipping script/style, and wrap matches in <mark>.
+      function highlight(term) {
+        var regex = new RegExp(escapeRegExp(term), "gi");
+        var walker = document.createTreeWalker(
+          scope,
+          NodeFilter.SHOW_TEXT,
+          {
+            acceptNode: function (node) {
+              if (!node.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+              var tag = node.parentNode.nodeName;
+              if (tag === "SCRIPT" || tag === "STYLE" || tag === "MARK") {
+                return NodeFilter.FILTER_REJECT;
+              }
+              return regex.test(node.nodeValue)
+                ? NodeFilter.FILTER_ACCEPT
+                : NodeFilter.FILTER_REJECT;
+            }
+          }
+        );
+
+        var targets = [];
+        var node;
+        while ((node = walker.nextNode())) {
+          targets.push(node);
+        }
+
+        targets.forEach(function (textNode) {
+          var text = textNode.nodeValue;
+          var frag = document.createDocumentFragment();
+          var last = 0;
+          regex.lastIndex = 0;
+          var match;
+          while ((match = regex.exec(text))) {
+            if (match.index > last) {
+              frag.appendChild(
+                document.createTextNode(text.slice(last, match.index))
+              );
+            }
+            var mark = document.createElement("mark");
+            mark.className = "search-hit";
+            mark.textContent = match[0];
+            frag.appendChild(mark);
+            hits.push(mark);
+            last = match.index + match[0].length;
+            if (match[0].length === 0) regex.lastIndex++;
+          }
+          if (last < text.length) {
+            frag.appendChild(document.createTextNode(text.slice(last)));
+          }
+          textNode.parentNode.replaceChild(frag, textNode);
+        });
+      }
+
+      function setActive(index) {
+        if (!hits.length) return;
+        if (current >= 0 && hits[current]) {
+          hits[current].classList.remove("active");
+        }
+        current = (index + hits.length) % hits.length;
+        var active = hits[current];
+        active.classList.add("active");
+        active.scrollIntoView({ block: "center", behavior: "smooth" });
+        updateCount();
+      }
+
+      function updateCount() {
+        if (!input.value.trim()) {
+          countEl.textContent = "";
+        } else if (!hits.length) {
+          countEl.textContent = "无匹配";
+        } else {
+          countEl.textContent = current + 1 + " / " + hits.length;
+        }
+        var disabled = hits.length === 0;
+        prevBtn.disabled = disabled;
+        nextBtn.disabled = disabled;
+      }
+
+      function runSearch() {
+        clearHighlights();
+        var term = input.value.trim();
+        if (term) highlight(term);
+        if (hits.length) {
+          setActive(0);
+        } else {
+          updateCount();
+        }
+      }
+
+      input.addEventListener("input", function () {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(runSearch, 180);
+      });
+
+      input.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          if (!hits.length) {
+            runSearch();
+            return;
+          }
+          setActive(current + (e.shiftKey ? -1 : 1));
+        }
+      });
+
+      prevBtn.addEventListener("click", function () {
+        setActive(current - 1);
+      });
+      nextBtn.addEventListener("click", function () {
+        setActive(current + 1);
+      });
+
+      // Ctrl/Cmd+F focuses the in-page search instead of the browser's.
+      document.addEventListener("keydown", function (e) {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
+          e.preventDefault();
+          input.focus();
+          input.select();
+        }
+      });
+    })();
+  </script>
 </body>
 </html>

@@ -84,17 +84,29 @@ public class BlockchainLogController {
     @GetMapping("/logs/verify")
     public Result<?> verify() {
         List<BlockchainLog> logs = logRepository.findAllOrderedByIdAsc();
+        // 从创世值开始校验：第一条日志没有上一条日志，所以它的 previous_hash 约定为 "0"。
+        // 每校验通过一条日志，就把 previousHash 推进为当前日志的 data_hash，供下一条日志比对。
         String previousHash = "0";
         for (int i = 0; i < logs.size(); i++) {
             BlockchainLog log = logs.get(i);
-            // 重建写入日志时使用的原始字符串，再 SHA-256 得到 calcHash。
-            // 如果 calcHash != dataHash，说明日志内容被改；如果 previousHash 不连续，说明链断了。
+            // 按写入日志时完全相同的字段顺序重建原始内容，再 SHA-256 得到 calcHash。
+            // 只要日志的动作、目标、操作人、时间、上一哈希或变更后数据被改过，calcHash 都会变化。
             String content = log.getActionType() + log.getTargetId() + log.getOperator()
                     + log.getTimestamp() + log.getPreviousHash()
                     + (log.getDataAfter() != null ? log.getDataAfter() : "");
             String calcHash = HashUtil.sha256(content);
+
+            // 判断当前日志自身是否可信：
+            // calcHash 是根据当前数据库内容即时算出的哈希，dataHash 是写入日志时保存的哈希。
+            // 两者不一致，说明这一条日志内容可能被直接改库篡改。
             boolean hashValid = calcHash.equals(log.getDataHash());
+
+            // 判断当前日志能否接上上一条日志：
+            // previousHash 保存的是“上一条已校验日志的 data_hash”；
+            // 当前日志的 previous_hash 必须等于它，否则说明中间有日志被删除、插入或顺序被破坏。
             boolean previousValid = previousHash.equals(log.getPreviousHash());
+
+            // 两个条件任意一个失败，都说明链条在当前日志位置出现异常。
             if (!hashValid || !previousValid) {
                 Map<String, Object> result = new LinkedHashMap<>();
                 result.put("valid", false);
@@ -103,11 +115,14 @@ public class BlockchainLogController {
                 result.put("expectedTotal", null);
                 result.put("dataIntegrityValid", null);
                 result.put("total", logs.size());
+                // i 是 Java List 的下标，从 0 开始；页面展示给用户时从第 1 条开始数，所以返回 i + 1。
                 result.put("brokenIndex", i + 1);
                 result.put("brokenLogId", log.getId());
                 result.put("message", hashValid ? "上一哈希不连续，日志链已断裂" : "日志自身哈希不一致，可能被篡改");
                 return Result.success(result);
             }
+
+            // 当前日志通过校验后，下一条日志应该把当前日志的 data_hash 作为 previous_hash。
             previousHash = log.getDataHash();
         }
 
