@@ -32,6 +32,18 @@ public class ProductController {
     private final ProductService productService;
     private final BatchService batchService;
     private final TraceDataService traceDataService;
+    private static final List<String> INTERNATIONAL_ORIGINS = List.of(
+            "中国", "日本", "韩国", "泰国", "越南", "马来西亚", "印度尼西亚", "菲律宾", "印度", "巴基斯坦",
+            "澳大利亚", "新西兰", "美国", "加拿大", "墨西哥", "巴西", "阿根廷", "智利", "秘鲁", "哥伦比亚",
+            "英国", "法国", "德国", "意大利", "西班牙", "葡萄牙", "荷兰", "比利时", "丹麦", "挪威", "瑞典",
+            "俄罗斯", "乌克兰", "波兰", "土耳其", "以色列", "南非", "埃及", "摩洛哥", "埃塞俄比亚", "肯尼亚"
+    );
+    private static final List<String> DOMESTIC_ORIGINS = List.of(
+            "北京", "天津", "河北", "山西", "内蒙古", "辽宁", "吉林", "黑龙江", "上海", "江苏", "浙江", "安徽",
+            "福建", "江西", "山东", "河南", "湖北", "湖南", "广东", "广西", "海南", "重庆", "四川", "贵州",
+            "云南", "西藏", "陕西", "甘肃", "青海", "宁夏", "新疆", "香港", "澳门", "台湾",
+            "山东烟台", "黑龙江五常", "山东日照", "云南昆明", "河北保定"
+    );
 
     public ProductController(ProductService productService,
                              BatchService batchService,
@@ -130,8 +142,8 @@ public class ProductController {
     @GetMapping("/origins")
     public Result<?> origins() {
         return Result.success(Map.of(
-                "international", List.of("中国", "新西兰", "泰国", "越南"),
-                "domestic", List.of("山东烟台", "黑龙江五常", "山东日照", "云南昆明", "河北保定")
+                "international", INTERNATIONAL_ORIGINS,
+                "domestic", DOMESTIC_ORIGINS
         ));
     }
 

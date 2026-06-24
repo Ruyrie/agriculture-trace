@@ -150,7 +150,7 @@
                 <span class="row-index">{{ index + 1 }}</span>
                 <el-input v-model="record.activityName" placeholder="生产活动" />
                 <el-input v-model="record.operator" placeholder="操作员" />
-                <el-date-picker v-model="record.activityDate" type="date" value-format="YYYY-MM-DD" placeholder="默认今天，可修改" />
+                <el-date-picker v-model="record.activityDate" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" :disabled-date="disabledDate" placeholder="默认当前时间，可修改" />
                 <el-input v-model="record.remark" placeholder="备注" />
                 <el-button type="danger" plain circle :icon="Delete" @click="removeProduction(index)" />
               </div>
@@ -169,7 +169,7 @@
                 <el-input v-model="record.inspectionItem" placeholder="检测项目" />
                 <el-input v-model="record.result" placeholder="检测结果" />
                 <el-input v-model="record.inspector" placeholder="检测员" />
-                <el-date-picker v-model="record.inspectionDate" type="date" value-format="YYYY-MM-DD" placeholder="默认今天，可修改" />
+                <el-date-picker v-model="record.inspectionDate" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" :disabled-date="disabledDate" placeholder="默认当前时间，可修改" />
                 <el-button type="danger" plain circle :icon="Delete" @click="removeInspection(index)" />
               </div>
               <div v-if="form.inspectionRecords.length === 0" class="empty-trace-hint">暂无质检记录，检测完成后可回到编辑继续补充</div>
@@ -187,7 +187,7 @@
                 <el-input v-model="record.nodeName" placeholder="节点名称" />
                 <el-input v-model="record.location" placeholder="地点" />
                 <el-input v-model="record.operator" placeholder="操作员" />
-                <el-date-picker v-model="record.updateTime" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" placeholder="默认当前时间，可修改" />
+                <el-date-picker v-model="record.updateTime" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" :disabled-date="disabledDate" placeholder="默认当前时间，可修改" />
                 <el-button type="danger" plain circle :icon="Delete" @click="removeLogistics(index)" />
               </div>
               <div v-if="form.logisticsRecords.length === 0" class="empty-trace-hint">暂无物流轨迹，运输开始后可回到编辑继续补充</div>
@@ -281,17 +281,78 @@ const rules = {
   productionDate: [{ required: true, message: '请选择生产日期', trigger: 'change' }]
 }
 
-// 禁止选择未来生产日期，保证批次生产时间不晚于当前时间。
-const disabledDate = (time) => time.getTime() > Date.now()
+const pad = (value) => String(value).padStart(2, '0')
 
-// 生成 YYYY-MM-DD 当前日期文本，供日期字段默认值使用。
-const currentDateText = () => new Date().toISOString().slice(0, 10)
+// 生成本地时区的 YYYY-MM-DD，避免 toISOString() 在 UTC 转换时跨天。
+const currentDateText = () => {
+  const now = new Date()
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+}
 
-// 生成当前日期时间文本，供物流节点默认更新时间使用。
+// 生成当前本地日期时间文本，供物流节点默认更新时间使用。
 const currentDateTimeText = () => {
   const now = new Date()
-  const pad = (value) => String(value).padStart(2, '0')
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:00`
+  return `${currentDateText()} ${pad(now.getHours())}:${pad(now.getMinutes())}:00`
+}
+
+const parseLocalDate = (value) => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value || '')
+  if (!match) return null
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+  return date.getFullYear() === Number(match[1]) && date.getMonth() === Number(match[2]) - 1 && date.getDate() === Number(match[3])
+    ? date
+    : null
+}
+
+const parseLocalDateTime = (value) => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/.exec(value || '')
+  if (!match) return null
+  const date = new Date(
+    Number(match[1]),
+    Number(match[2]) - 1,
+    Number(match[3]),
+    Number(match[4]),
+    Number(match[5]),
+    Number(match[6] || 0)
+  )
+  return date.getFullYear() === Number(match[1]) &&
+    date.getMonth() === Number(match[2]) - 1 &&
+    date.getDate() === Number(match[3]) &&
+    date.getHours() === Number(match[4]) &&
+    date.getMinutes() === Number(match[5])
+    ? date
+    : null
+}
+
+const normalizeDateTimeText = (value) => {
+  if (!value) return ''
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return `${value} 00:00:00`
+  if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}$/.test(value)) return `${value.replace('T', ' ')}:00`
+  return String(value).replace('T', ' ')
+}
+
+const tomorrowStart = () => {
+  const now = new Date()
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
+}
+
+// 禁止选择未来日期；当天仍允许选择，具体未来时分秒在提交时校验。
+const disabledDate = (time) => time.getTime() >= tomorrowStart().getTime()
+const isFutureDateText = (value) => {
+  const date = parseLocalDate(value)
+  return date ? date.getTime() >= tomorrowStart().getTime() : false
+}
+const isFutureDateTimeText = (value) => {
+  const date = parseLocalDateTime(value)
+  return date ? date.getTime() > Date.now() : false
+}
+
+const ensureNoFutureTimes = (productionRecords, inspectionRecords, logisticsRecords) => {
+  if (isFutureDateText(form.productionDate)) return '生产日期不能晚于今天'
+  if (productionRecords.some(record => isFutureDateTimeText(record.activityDate))) return '生产记录时间不能晚于当前时间'
+  if (inspectionRecords.some(record => isFutureDateTimeText(record.inspectionDate))) return '质检时间不能晚于当前时间'
+  if (logisticsRecords.some(record => isFutureDateTimeText(record.updateTime))) return '物流时间不能晚于当前时间'
+  return ''
 }
 
 // 同名产品超过一个时在选项里附带 ID，帮助用户区分。
@@ -304,7 +365,7 @@ const productOptionLabel = (product) => {
 const onProductChange = (productId) => {
   const product = productOptions.value.find(p => p.id === productId)
   if (product && !form.id) {
-    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+    const dateStr = currentDateText().replace(/-/g, '')
     const randomNo = Math.floor(Math.random() * 900 + 100)
     form.batchNo = `B${dateStr}${randomNo}`
   }
@@ -343,12 +404,12 @@ const handleSizeChange = (val) => { pageSize.value = val; fetchData() }
 // 修改当前页后刷新批次列表。
 const handleCurrentChange = (val) => { page.value = val; fetchData() }
 
-// 新增生产记录行，日期默认当天。
-const addProduction = () => form.productionRecords.push({ activityName: '', operator: '', activityDate: currentDateText(), remark: '' })
+// 新增生产记录行，时间默认当前本地时间。
+const addProduction = () => form.productionRecords.push({ activityName: '', operator: '', activityDate: currentDateTimeText(), remark: '' })
 // 删除生产记录行。
 const removeProduction = (index) => form.productionRecords.splice(index, 1)
-// 新增质检记录行，日期默认当天。
-const addInspection = () => form.inspectionRecords.push({ inspectionItem: '', result: '', inspector: '', inspectionDate: currentDateText() })
+// 新增质检记录行，时间默认当前本地时间。
+const addInspection = () => form.inspectionRecords.push({ inspectionItem: '', result: '', inspector: '', inspectionDate: currentDateTimeText() })
 // 删除质检记录行。
 const removeInspection = (index) => form.inspectionRecords.splice(index, 1)
 // 新增物流记录行，时间默认当前日期时间。
@@ -402,7 +463,7 @@ const loadTraceRows = async (batchId) => {
         ...(res.data.productionRecords || []).map(record => ({
           activityName: record.activityName || '',
           operator: record.operator || '',
-          activityDate: record.activityDate || '',
+          activityDate: normalizeDateTimeText(record.activityDate || ''),
           remark: record.remark || ''
         }))
       )
@@ -413,7 +474,7 @@ const loadTraceRows = async (batchId) => {
           inspectionItem: record.inspectionItem || record.item || '',
           result: record.result || '',
           inspector: record.inspector || '',
-          inspectionDate: record.inspectionDate || record.date || ''
+          inspectionDate: normalizeDateTimeText(record.inspectionDate || record.date || '')
         }))
       )
       form.logisticsRecords.splice(
@@ -466,6 +527,11 @@ const submitForm = async () => {
   const missingLogistics = logisticsRecords.some(record => !record.nodeName || !record.location || !record.operator || !record.updateTime)
   if (missingProduction || missingInspection || missingLogistics) {
     ElMessage.warning('已填写的生产、质检或物流记录需要补完整；暂时没有的信息可以删除该行后先保存')
+    return
+  }
+  const futureTimeMessage = ensureNoFutureTimes(productionRecords, inspectionRecords, logisticsRecords)
+  if (futureTimeMessage) {
+    ElMessage.warning(futureTimeMessage)
     return
   }
   submitting.value = true
@@ -707,11 +773,11 @@ onMounted(() => {
 }
 
 .production-grid {
-  grid-template-columns: 30px minmax(130px, 1fr) minmax(100px, 0.8fr) minmax(150px, 1fr) minmax(140px, 1fr) 34px;
+  grid-template-columns: 30px minmax(120px, 1fr) minmax(95px, 0.7fr) minmax(190px, 1.25fr) minmax(120px, 0.85fr) 34px;
 }
 
 .inspection-grid {
-  grid-template-columns: 30px minmax(130px, 1fr) minmax(110px, 0.8fr) minmax(100px, 0.8fr) minmax(150px, 1fr) 34px;
+  grid-template-columns: 30px minmax(120px, 1fr) minmax(105px, 0.75fr) minmax(95px, 0.7fr) minmax(190px, 1.25fr) 34px;
 }
 
 .logistics-grid {

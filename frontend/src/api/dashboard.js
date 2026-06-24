@@ -19,3 +19,8 @@ export const getTraceTrend = () => {
 export const getReports = () => {
   return request.get('/dashboard/reports')
 }
+
+// 获取数据概览页下方的链上操作类型图表。
+export const getOverviewCharts = () => {
+  return request.get('/dashboard/overviewCharts')
+}

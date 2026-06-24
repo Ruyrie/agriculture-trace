@@ -1,21 +1,21 @@
 <template>
   <el-container class="layout-container">
     <!-- 侧边栏 -->
-    <el-aside :width="isCollapse ? '64px' : '220px'" class="aside">
+    <el-aside :width="asideWidth" class="aside">
       <!-- Logo区域 -->
-      <div class="logo" :class="{ 'logo-collapse': isCollapse }">
+      <div class="logo" :class="{ 'logo-collapse': menuCollapsed }">
         <el-icon class="logo-icon"><Goods /></el-icon>
-        <span v-if="!isCollapse" class="logo-text">农产品溯源系统</span>
+        <span v-if="!menuCollapsed" class="logo-text">农产品溯源系统</span>
       </div>
 
       <!-- 动态菜单 -->
       <el-menu
         :default-active="activeMenu"
-        :collapse="isCollapse"
+        :collapse="menuCollapsed"
         :collapse-transition="false"
         router
         class="side-menu"
-        :class="{ 'side-menu--collapse': isCollapse }"
+        :class="{ 'side-menu--collapse': menuCollapsed }"
       >
         <template v-for="item in menuList" :key="item.path">
           <el-sub-menu v-if="item.children && item.children.length" :index="item.path">
@@ -37,8 +37,8 @@
 
       <!-- 折叠按钮 -->
       <div class="collapse-btn" @click="toggleCollapse">
-        <el-icon><Fold v-if="!isCollapse" /><Expand v-else /></el-icon>
-        <span v-if="!isCollapse" class="collapse-text">收起菜单</span>
+        <el-icon><Fold v-if="!menuCollapsed" /><Expand v-else /></el-icon>
+        <span v-if="!menuCollapsed" class="collapse-text">收起菜单</span>
       </div>
     </el-aside>
 
@@ -99,7 +99,10 @@ import { Fold, Expand, ArrowDown, Refresh, User, SwitchButton, Goods } from '@el
 import { logout } from '@/api/user'
 
 const isCollapse = ref(false)
+const isMobile = ref(window.innerWidth <= 768)
 const activeMenu = computed(() => route.path)
+const menuCollapsed = computed(() => isMobile.value || isCollapse.value)
+const asideWidth = computed(() => menuCollapsed.value ? '64px' : '220px')
 
 const defaultAvatar = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjAiIGhlaWdodD0iMTIwIiB2aWV3Qm94PSIwIDAgMTIwIDEyMCI+PHJlY3Qgd2lkdGg9IjEyMCIgaGVpZ2h0PSIxMjAiIGZpbGw9IiNFMEUwRTAiLz48Y2lyY2xlIGN4PSI2MCIgY3k9IjQ1IiByPSIyMCIgZmlsbD0iIzlFOUU5RSIvPjxwYXRoIGZpbGw9IiM5RTlFOUUiIGQ9Ik0zMCA4MCBMOTAgODAgTDgwIDY1IEw3MCA2NSBMNzAgNzUgTDUwIDc1IEw1MCA2NSBMNDAgNjVaIi8+PC9zdmc+'
 
@@ -124,16 +127,19 @@ const currentPageTitle = computed(() => {
 
 const showHeaderRefresh = computed(() => route.path !== '/statistics')
 
-// 从 localStorage 读取当前用户资料，并把相对头像 URL 拼成后端完整地址。
+const resolveAssetUrl = (url) => {
+  if (!url || url.startsWith('http') || url.startsWith('data:')) return url
+  return import.meta.env.DEV ? url : `${import.meta.env.VITE_API_BASE_URL}${url}`
+}
+
+// 从 localStorage 读取当前用户资料，并把相对头像 URL 转成浏览器可访问地址。
 const getUserInfo = () => {
   const userInfo = localStorage.getItem('userInfo')
   if (userInfo) {
     const { username: name, avatar } = JSON.parse(userInfo)
     username.value = name || '用户'
     if (avatar) {
-      // 后端返回 /uploads/xxx 时，补齐后端域名用于头像展示。
-      const apiBase = import.meta.env.VITE_API_BASE_URL
-      userAvatar.value = avatar.startsWith('http') ? avatar : `${apiBase}${avatar}`
+      userAvatar.value = resolveAssetUrl(avatar)
     } else {
       userAvatar.value = defaultAvatar
     }
@@ -190,6 +196,10 @@ const toggleCollapse = () => {
   isCollapse.value = !isCollapse.value
 }
 
+const handleResize = () => {
+  isMobile.value = window.innerWidth <= 768
+}
+
 // 刷新当前页面，用于重新拉取当前路由组件中的数据。
 const refreshPage = () => {
   window.location.reload()
@@ -214,10 +224,12 @@ onMounted(() => {
   fetchMenu()
   // 监听个人中心保存头像/信息后派发的事件，实时同步右上角头像
   window.addEventListener('userInfoUpdated', getUserInfo)
+  window.addEventListener('resize', handleResize)
 })
 
 onUnmounted(() => {
   window.removeEventListener('userInfoUpdated', getUserInfo)
+  window.removeEventListener('resize', handleResize)
 })
 </script>
 
@@ -229,7 +241,7 @@ onUnmounted(() => {
 
 /* 侧边栏 */
 .aside {
-  background: linear-gradient(180deg, #1b5e20 0%, #2e7d32 50%, #388e3c 100%);
+  background: linear-gradient(180deg, #1e293b 0%, #283548 55%, #334155 100%);
   transition: width 0.3s ease;
   overflow: hidden;
   display: flex;
@@ -306,7 +318,7 @@ onUnmounted(() => {
   transform: translateY(-50%);
   width: 3px;
   height: 60%;
-  background: #a5d6a7;
+  background: #60a5fa;
   border-radius: 0 2px 2px 0;
 }
 

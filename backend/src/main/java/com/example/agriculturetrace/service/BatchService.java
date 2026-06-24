@@ -18,6 +18,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -111,6 +112,7 @@ public class BatchService {
         batch.setId(nextBatchId());
         batch.setProduct(product);
         batch.setCreateTime(TimeUtils.nowText());
+        ensureNotFutureProductionDate(batch.getProductionDate());
         // productId、productionDate、remark 等字段共同构成批次指纹。
         batch.setDataHash(computeBatchHash(batch));
         Batch saved = batchRepository.save(batch);
@@ -134,6 +136,7 @@ public class BatchService {
         // 更新前快照进入 data_before；更新后快照进入 data_after，便于审计页面对比。
         Map<String, Object> before = toAuditRow(existing);
         ensureBatchNoAvailable(batch.getBatchNo(), existing.getId());
+        ensureNotFutureProductionDate(batch.getProductionDate());
         if (targetProduct != null) {
             existing.setProduct(targetProduct);
         }
@@ -204,6 +207,15 @@ public class BatchService {
                 .ifPresent(existing -> {
                     throw new IllegalArgumentException("批次号已存在，请更换批次号");
                 });
+    }
+
+    /**
+     * 生产日期不能晚于服务器本地日期，防止绕过前端直接提交未来批次。
+     */
+    private void ensureNotFutureProductionDate(LocalDate productionDate) {
+        if (productionDate != null && productionDate.isAfter(LocalDate.now())) {
+            throw new IllegalArgumentException("生产日期不能晚于今天");
+        }
     }
 
     /**

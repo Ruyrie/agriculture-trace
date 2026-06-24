@@ -10,8 +10,6 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDate;
-
 /**
  * 生产环节记录。
  *
@@ -37,8 +35,8 @@ public class ProductionRecord {
     @Column(length = 64)
     private String operator;
 
-    @Column(name = "activity_date")
-    private LocalDate activityDate;
+    @Column(name = "activity_date", length = 19)
+    private String activityDate;
 
     @Column(length = 256)
     private String remark;

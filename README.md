@@ -114,6 +114,8 @@ npm run dev
 VITE_API_BASE_URL=http://localhost:8080
 ```
 
+开发环境前端请求 `/api`，由 Vite 代理转发到上面的后端地址；生产环境会使用 `VITE_API_BASE_URL` 直连后端。
+
 ## 测试账号
 
 密码均为：`123456`

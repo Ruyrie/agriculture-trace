@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS `production_record` (
   `batch_id` varchar(32) NOT NULL COMMENT '批次ID',
   `activity_name` varchar(128) NOT NULL COMMENT '生产活动',
   `operator` varchar(64) DEFAULT NULL COMMENT '操作员',
-  `activity_date` date DEFAULT NULL COMMENT '活动日期',
+  `activity_date` varchar(19) DEFAULT NULL COMMENT '活动时间',
   `remark` varchar(256) DEFAULT NULL COMMENT '备注',
   `sort_order` int DEFAULT 0 COMMENT '排序',
   PRIMARY KEY (`id`),
@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS `inspection_record` (
   `inspection_item` varchar(128) NOT NULL COMMENT '检测项目',
   `result` varchar(128) DEFAULT NULL COMMENT '检测结果',
   `inspector` varchar(64) DEFAULT NULL COMMENT '检测员',
-  `inspection_date` date DEFAULT NULL COMMENT '检测日期',
+  `inspection_date` varchar(19) DEFAULT NULL COMMENT '检测时间',
   `sort_order` int DEFAULT 0 COMMENT '排序',
   PRIMARY KEY (`id`),
   KEY `idx_inspection_batch` (`batch_id`),
@@ -199,28 +199,28 @@ WHERE (`data_hash` IS NULL OR `data_hash` = '')
   AND NOT EXISTS (SELECT 1 FROM `blockchain_log`);
 
 INSERT IGNORE INTO `production_record` (`id`, `batch_id`, `activity_name`, `operator`, `activity_date`, `remark`, `sort_order`) VALUES
-('prodrec_1', 'batch_1', '果园采摘', '张三', '2026-01-10', '晴天采摘，糖度抽检达标', 1),
-('prodrec_2', 'batch_1', '冷库预冷', '王仓管', '2026-01-10', '2小时内入库预冷', 2),
-('prodrec_3', 'batch_2', '稻谷脱壳', '李四', '2026-02-15', '低温碾米，保留胚芽', 1),
-('prodrec_4', 'batch_2', '真空包装', '赵包装', '2026-02-15', '5kg规格抽检封装', 2),
-('prodrec_5', 'batch_3', '鲜叶采摘', '陈茶农', '2026-03-05', '一芽一叶标准', 1),
-('prodrec_6', 'batch_3', '杀青揉捻', '周师傅', '2026-03-05', '低温杀青保香', 2),
-('prodrec_7', 'batch_4', '基地采收', '刘农户', '2026-04-01', '有机地块采收', 1),
-('prodrec_8', 'batch_4', '分拣装箱', '孙分拣', '2026-04-01', '去除破损花球', 2),
-('prodrec_9', 'batch_5', '鲜蛋收集', '杨养殖', '2026-05-10', '当日收集', 1),
-('prodrec_10', 'batch_5', '清洁装托', '吴包装', '2026-05-10', '紫外线消杀后装托', 2);
+('prodrec_1', 'batch_1', '果园采摘', '张三', '2026-01-10 08:30:00', '晴天采摘，糖度抽检达标', 1),
+('prodrec_2', 'batch_1', '冷库预冷', '王仓管', '2026-01-10 11:00:00', '2小时内入库预冷', 2),
+('prodrec_3', 'batch_2', '稻谷脱壳', '李四', '2026-02-15 09:20:00', '低温碾米，保留胚芽', 1),
+('prodrec_4', 'batch_2', '真空包装', '赵包装', '2026-02-15 15:10:00', '5kg规格抽检封装', 2),
+('prodrec_5', 'batch_3', '鲜叶采摘', '陈茶农', '2026-03-05 07:40:00', '一芽一叶标准', 1),
+('prodrec_6', 'batch_3', '杀青揉捻', '周师傅', '2026-03-05 13:20:00', '低温杀青保香', 2),
+('prodrec_7', 'batch_4', '基地采收', '刘农户', '2026-04-01 08:15:00', '有机地块采收', 1),
+('prodrec_8', 'batch_4', '分拣装箱', '孙分拣', '2026-04-01 14:30:00', '去除破损花球', 2),
+('prodrec_9', 'batch_5', '鲜蛋收集', '杨养殖', '2026-05-10 06:50:00', '当日收集', 1),
+('prodrec_10', 'batch_5', '清洁装托', '吴包装', '2026-05-10 10:25:00', '紫外线消杀后装托', 2);
 
 INSERT IGNORE INTO `inspection_record` (`id`, `batch_id`, `inspection_item`, `result`, `inspector`, `inspection_date`, `sort_order`) VALUES
-('insp_1', 'batch_1', '农药残留', '未检出', '李监管', '2026-01-11', 1),
-('insp_2', 'batch_1', '糖度检测', '合格', '李监管', '2026-01-11', 2),
-('insp_3', 'batch_2', '重金属检测', '合格', '王质检', '2026-02-16', 1),
-('insp_4', 'batch_2', '水分含量', '合格', '王质检', '2026-02-16', 2),
-('insp_5', 'batch_3', '农残快检', '未检出', '赵质检', '2026-03-06', 1),
-('insp_6', 'batch_3', '感官评审', '合格', '赵质检', '2026-03-06', 2),
-('insp_7', 'batch_4', '有机抽检', '合格', '李监管', '2026-04-02', 1),
-('insp_8', 'batch_4', '农残快检', '未检出', '李监管', '2026-04-02', 2),
-('insp_9', 'batch_5', '新鲜度检测', '合格', '王质检', '2026-05-11', 1),
-('insp_10', 'batch_5', '沙门氏菌检测', '未检出', '王质检', '2026-05-11', 2);
+('insp_1', 'batch_1', '农药残留', '未检出', '李监管', '2026-01-11 09:00:00', 1),
+('insp_2', 'batch_1', '糖度检测', '合格', '李监管', '2026-01-11 09:40:00', 2),
+('insp_3', 'batch_2', '重金属检测', '合格', '王质检', '2026-02-16 10:15:00', 1),
+('insp_4', 'batch_2', '水分含量', '合格', '王质检', '2026-02-16 10:55:00', 2),
+('insp_5', 'batch_3', '农残快检', '未检出', '赵质检', '2026-03-06 09:30:00', 1),
+('insp_6', 'batch_3', '感官评审', '合格', '赵质检', '2026-03-06 10:20:00', 2),
+('insp_7', 'batch_4', '有机抽检', '合格', '李监管', '2026-04-02 09:20:00', 1),
+('insp_8', 'batch_4', '农残快检', '未检出', '李监管', '2026-04-02 10:05:00', 2),
+('insp_9', 'batch_5', '新鲜度检测', '合格', '王质检', '2026-05-11 08:40:00', 1),
+('insp_10', 'batch_5', '沙门氏菌检测', '未检出', '王质检', '2026-05-11 09:15:00', 2);
 
 INSERT IGNORE INTO `logistics_record` (`id`, `batch_id`, `node_name`, `location`, `operator`, `update_time`, `sort_order`) VALUES
 ('log_1', 'batch_1', '产地入库', '山东烟台仓', '王仓管', '2026-01-11 09:30:00', 1),
@@ -241,23 +241,23 @@ INSERT IGNORE INTO `logistics_record` (`id`, `batch_id`, `node_name`, `location`
 
 -- 为所有演示批次补齐默认溯源数据，避免后续月份批次只有基础信息没有生产、质检、物流明细。
 INSERT INTO `production_record` (`id`, `batch_id`, `activity_name`, `operator`, `activity_date`, `remark`, `sort_order`)
-SELECT REPLACE(UUID(), '-', ''), b.id, '采收/加工', '生产员', b.production_date, CONCAT(p.name, '批次完成采收或加工'), 1
+SELECT REPLACE(UUID(), '-', ''), b.id, '采收/加工', '生产员', DATE_FORMAT(b.production_date, '%Y-%m-%d 08:30:00'), CONCAT(p.name, '批次完成采收或加工'), 1
 FROM `batch` b
 JOIN `product` p ON p.id = b.product_id
 WHERE NOT EXISTS (SELECT 1 FROM `production_record` pr WHERE pr.batch_id = b.id)
 UNION ALL
-SELECT REPLACE(UUID(), '-', ''), b.id, '分拣包装', '包装员', b.production_date, CONCAT(p.name, '完成分拣、称重和包装'), 2
+SELECT REPLACE(UUID(), '-', ''), b.id, '分拣包装', '包装员', DATE_FORMAT(b.production_date, '%Y-%m-%d 14:30:00'), CONCAT(p.name, '完成分拣、称重和包装'), 2
 FROM `batch` b
 JOIN `product` p ON p.id = b.product_id
 WHERE NOT EXISTS (SELECT 1 FROM `production_record` pr WHERE pr.batch_id = b.id);
 
 -- 为所有演示批次补齐默认质检数据，保证批次溯源页能完整呈现质量报告。
 INSERT INTO `inspection_record` (`id`, `batch_id`, `inspection_item`, `result`, `inspector`, `inspection_date`, `sort_order`)
-SELECT REPLACE(UUID(), '-', ''), b.id, '农残快检', '合格', '质检员', DATE_ADD(b.production_date, INTERVAL 1 DAY), 1
+SELECT REPLACE(UUID(), '-', ''), b.id, '农残快检', '合格', '质检员', DATE_FORMAT(DATE_ADD(b.production_date, INTERVAL 1 DAY), '%Y-%m-%d 09:30:00'), 1
 FROM `batch` b
 WHERE NOT EXISTS (SELECT 1 FROM `inspection_record` ir WHERE ir.batch_id = b.id)
 UNION ALL
-SELECT REPLACE(UUID(), '-', ''), b.id, '外观抽检', '合格', '质检员', DATE_ADD(b.production_date, INTERVAL 1 DAY), 2
+SELECT REPLACE(UUID(), '-', ''), b.id, '外观抽检', '合格', '质检员', DATE_FORMAT(DATE_ADD(b.production_date, INTERVAL 1 DAY), '%Y-%m-%d 10:30:00'), 2
 FROM `batch` b
 WHERE NOT EXISTS (SELECT 1 FROM `inspection_record` ir WHERE ir.batch_id = b.id);
 

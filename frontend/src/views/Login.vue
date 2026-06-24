@@ -116,7 +116,7 @@
             </el-form-item>
             <div class="login-options">
               <el-checkbox v-model="form.rememberMe">记住登录状态</el-checkbox>
-              <span>7 天内自动登录</span>
+              <el-link type="primary" :underline="false" class="forgot-link" @click="openForgot">忘记密码？</el-link>
             </div>
             <el-form-item>
               <el-button
@@ -141,15 +141,60 @@
         </div>
       </div>
     </div>
+
+    <!-- 忘记密码：图形验证码 + 用户名 + 手机号 校验后重置 -->
+    <el-dialog
+      v-model="forgotVisible"
+      title="找回密码"
+      width="420px"
+      append-to-body
+      class="forgot-dialog"
+      @closed="resetForgot"
+    >
+      <p class="forgot-hint">通过注册时填写的手机号验证身份，校验图形验证码后即可重置密码。</p>
+      <el-form :model="forgotForm" :rules="forgotRules" ref="forgotRef" label-position="top" class="forgot-form">
+        <el-form-item label="用户名" prop="username">
+          <el-input v-model="forgotForm.username" placeholder="请输入用户名" :prefix-icon="User" clearable />
+        </el-form-item>
+        <el-form-item label="注册手机号" prop="phone">
+          <el-input v-model="forgotForm.phone" placeholder="请输入注册手机号" :prefix-icon="Iphone" clearable maxlength="11" />
+        </el-form-item>
+        <el-form-item label="图形验证码" prop="captcha">
+          <div class="captcha-row">
+            <el-input v-model="forgotForm.captcha" placeholder="请输入图中字符" :prefix-icon="Key" clearable @keyup.enter="submitForgot" />
+            <el-tooltip content="看不清？点击刷新" placement="top">
+              <img
+                v-if="captchaImg"
+                :src="captchaImg"
+                class="captcha-img"
+                alt="图形验证码"
+                @click="refreshCaptcha"
+              />
+              <div v-else class="captcha-img captcha-img--loading" @click="refreshCaptcha">加载中…</div>
+            </el-tooltip>
+          </div>
+        </el-form-item>
+        <el-form-item label="新密码" prop="newPassword">
+          <el-input v-model="forgotForm.newPassword" type="password" placeholder="请输入 6-20 位新密码" :prefix-icon="Lock" show-password />
+        </el-form-item>
+        <el-form-item label="确认新密码" prop="confirmPassword">
+          <el-input v-model="forgotForm.confirmPassword" type="password" placeholder="请再次输入新密码" :prefix-icon="Lock" show-password @keyup.enter="submitForgot" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="forgotVisible = false">取消</el-button>
+        <el-button type="primary" :loading="forgotLoading" @click="submitForgot">重置密码</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { nextTick, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
-import { CircleCheck, Goods, InfoFilled, Lock, TrendCharts, User } from '@element-plus/icons-vue'
-import { login } from '@/api/user'
+import { CircleCheck, Goods, InfoFilled, Iphone, Key, Lock, TrendCharts, User } from '@element-plus/icons-vue'
+import { forgotPassword, getCaptcha, login } from '@/api/user'
 
 const router = useRouter()
 const formRef = ref()
@@ -175,6 +220,107 @@ onMounted(() => {
 // 用户名输入框回车后聚焦密码框，提升键盘登录体验。
 const focusPassword = () => {
   passwordRef.value?.focus()
+}
+
+/* ===== 忘记密码 ===== */
+const forgotVisible = ref(false)
+const forgotLoading = ref(false)
+const captchaImg = ref('')
+const forgotRef = ref()
+const forgotForm = reactive({
+  username: '',
+  phone: '',
+  captcha: '',
+  newPassword: '',
+  confirmPassword: ''
+})
+
+const forgotRules = {
+  username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
+  phone: [
+    { required: true, message: '请输入注册手机号', trigger: 'blur' },
+    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' }
+  ],
+  captcha: [{ required: true, message: '请输入图形验证码', trigger: 'blur' }],
+  newPassword: [
+    { required: true, message: '请输入新密码', trigger: 'blur' },
+    { min: 6, max: 20, message: '密码长度 6-20 个字符', trigger: 'blur' }
+  ],
+  confirmPassword: [
+    { required: true, message: '请再次输入新密码', trigger: 'blur' },
+    {
+      validator: (rule, value, callback) => {
+        if (value !== forgotForm.newPassword) {
+          callback(new Error('两次输入密码不一致'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur'
+    }
+  ]
+}
+
+// 向后端请求一张新的图形验证码；答案保存在后端 Session，前端只拿到图片。
+const refreshCaptcha = async () => {
+  try {
+    const res = await getCaptcha()
+    if (res.code === 200) captchaImg.value = res.data.image
+  } catch {
+    // 网络异常已由拦截器统一提示，这里保持安静即可。
+  }
+}
+
+// 打开找回密码弹窗：用当前登录框用户名预填，并加载验证码。
+const openForgot = () => {
+  forgotForm.username = form.username
+  forgotVisible.value = true
+  nextTick(() => {
+    forgotRef.value?.clearValidate()
+    refreshCaptcha()
+  })
+}
+
+// 弹窗关闭后清空表单，避免下次打开残留上次输入。
+const resetForgot = () => {
+  forgotRef.value?.resetFields()
+  forgotForm.captcha = ''
+  forgotForm.newPassword = ''
+  forgotForm.confirmPassword = ''
+}
+
+// 提交找回密码；验证码为一次性，任何失败都刷新验证码再让用户重试。
+const submitForgot = async () => {
+  if (forgotLoading.value) return
+  try {
+    await forgotRef.value.validate()
+  } catch {
+    return
+  }
+  forgotLoading.value = true
+  try {
+    const res = await forgotPassword({
+      username: forgotForm.username,
+      phone: forgotForm.phone,
+      captcha: forgotForm.captcha,
+      newPassword: forgotForm.newPassword
+    })
+    if (res.code === 200) {
+      ElMessage.success('密码重置成功，请使用新密码登录')
+      form.username = forgotForm.username
+      forgotVisible.value = false
+    } else {
+      ElMessage.error(res.message || '重置失败')
+      forgotForm.captcha = ''
+      refreshCaptcha()
+    }
+  } catch (error) {
+    if (!error.__handled) ElMessage.error('重置请求失败')
+    forgotForm.captcha = ''
+    refreshCaptcha()
+  } finally {
+    forgotLoading.value = false
+  }
 }
 
 // 校验表单并发起登录；成功后缓存用户信息和角色，再进入仪表盘。
@@ -513,6 +659,56 @@ const handleLogin = async () => {
 .login-options :deep(.el-checkbox__label) {
   font-size: 13px;
   color: #606266;
+}
+
+.forgot-link {
+  font-size: 13px;
+}
+
+/* ===== 找回密码弹窗 ===== */
+.forgot-hint {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: #909399;
+  line-height: 1.6;
+}
+
+.forgot-form :deep(.el-form-item) {
+  margin-bottom: 16px;
+}
+
+.captcha-row {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+
+.captcha-row .el-input {
+  flex: 1;
+}
+
+.captcha-img {
+  width: 120px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid #e4e7ed;
+  cursor: pointer;
+  flex-shrink: 0;
+  object-fit: cover;
+  transition: border-color 0.2s;
+}
+
+.captcha-img:hover {
+  border-color: #4caf50;
+}
+
+.captcha-img--loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: #c0c4cc;
+  background: #f5f7fa;
 }
 
 .login-btn {

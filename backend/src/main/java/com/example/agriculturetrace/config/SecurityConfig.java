@@ -50,8 +50,9 @@ public class SecurityConfig {
                 .cors(cors -> {
                 })
                 .authorizeHttpRequests(auth -> auth
-                        // 登录、公开溯源页、上传头像静态资源不需要登录。
-                        .requestMatchers("/api/user/login", "/api/trace/**", "/uploads/**").permitAll()
+                        // 登录、找回密码、图形验证码、公开溯源页、上传头像静态资源不需要登录。
+                        .requestMatchers("/api/user/login", "/api/user/forgot-password", "/api/captcha",
+                                "/api/trace/**", "/uploads/**").permitAll()
                         // 用户管理只给管理员；数据指纹和审计日志给管理员、监管员。
                         .requestMatchers("/api/users/**").hasRole("ADMIN")
                         .requestMatchers("/api/dashboard/reports").hasAnyRole("ADMIN", "INSPECTOR")

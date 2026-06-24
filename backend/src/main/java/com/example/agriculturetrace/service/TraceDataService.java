@@ -12,7 +12,9 @@ import com.example.agriculturetrace.util.TimeUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -25,6 +27,8 @@ import java.util.Map;
  */
 @Service
 public class TraceDataService {
+
+    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private final ProductionRecordRepository productionRecordRepository;
     private final InspectionRecordRepository inspectionRecordRepository;
@@ -146,7 +150,7 @@ public class TraceDataService {
             record.setBatch(batch);
             record.setActivityName(text(row, "activityName"));
             record.setOperator(text(row, "operator"));
-            record.setActivityDate(localDate(row, "activityDate"));
+            record.setActivityDate(notFutureDateTime(row, "activityDate", TimeUtils.nowText(), "生产记录时间不能晚于当前时间"));
             record.setRemark(text(row, "remark"));
             record.setSortOrder(i + 1);
             records.add(record);
@@ -170,7 +174,7 @@ public class TraceDataService {
             record.setInspectionItem(text(row, "inspectionItem"));
             record.setResult(text(row, "result"));
             record.setInspector(text(row, "inspector"));
-            record.setInspectionDate(localDate(row, "inspectionDate"));
+            record.setInspectionDate(notFutureDateTime(row, "inspectionDate", TimeUtils.nowText(), "质检时间不能晚于当前时间"));
             record.setSortOrder(i + 1);
             records.add(record);
         }
@@ -193,7 +197,7 @@ public class TraceDataService {
             record.setNodeName(text(row, "nodeName"));
             record.setLocation(text(row, "location"));
             record.setOperator(text(row, "operator"));
-            record.setUpdateTime(defaultText(row, "updateTime", TimeUtils.nowText()));
+            record.setUpdateTime(notFutureDateTime(row, "updateTime", TimeUtils.nowText(), "物流时间不能晚于当前时间"));
             record.setSortOrder(i + 1);
             records.add(record);
         }
@@ -208,7 +212,7 @@ public class TraceDataService {
         row.put("batchNo", record.getBatch().getBatchNo());
         row.put("activityName", record.getActivityName());
         row.put("operator", record.getOperator());
-        row.put("activityDate", record.getActivityDate());
+        row.put("activityDate", normalizeDateTimeText(record.getActivityDate()));
         row.put("remark", record.getRemark());
         return row;
     }
@@ -224,8 +228,8 @@ public class TraceDataService {
         row.put("item", record.getInspectionItem());
         row.put("result", record.getResult());
         row.put("inspector", record.getInspector());
-        row.put("inspectionDate", record.getInspectionDate());
-        row.put("date", record.getInspectionDate());
+        row.put("inspectionDate", normalizeDateTimeText(record.getInspectionDate()));
+        row.put("date", normalizeDateTimeText(record.getInspectionDate()));
         return row;
     }
 
@@ -262,10 +266,36 @@ public class TraceDataService {
     }
 
     /**
-     * 从前端 YYYY-MM-DD 字符串解析 LocalDate，空字符串表示未填写日期。
+     * 将旧版日期值补成日期时间，避免历史库中 YYYY-MM-DD 进入 datetime picker 后无法显示。
      */
-    private LocalDate localDate(Map<String, Object> row, String key) {
-        String value = text(row, key);
-        return value.isBlank() ? null : LocalDate.parse(value);
+    private String normalizeDateTimeText(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        String text = value.trim();
+        if (text.matches("\\d{4}-\\d{2}-\\d{2}")) {
+            return text + " 00:00:00";
+        }
+        if (text.matches("\\d{4}-\\d{2}-\\d{2}[ T]\\d{2}:\\d{2}")) {
+            return text.replace('T', ' ') + ":00";
+        }
+        return text.replace('T', ' ');
+    }
+
+    /**
+     * 解析日期时间并禁止未来时间，按服务器本地时间判断。
+     */
+    private String notFutureDateTime(Map<String, Object> row, String key, String fallback, String message) {
+        String value = normalizeDateTimeText(defaultText(row, key, fallback));
+        LocalDateTime dateTime;
+        try {
+            dateTime = LocalDateTime.parse(value, DATE_TIME_FORMATTER);
+        } catch (DateTimeParseException e) {
+            throw new IllegalArgumentException("时间格式不正确，请使用 yyyy-MM-dd HH:mm:ss");
+        }
+        if (dateTime.isAfter(LocalDateTime.now())) {
+            throw new IllegalArgumentException(message);
+        }
+        return value;
     }
 }

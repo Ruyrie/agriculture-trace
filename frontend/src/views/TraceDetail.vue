@@ -131,7 +131,7 @@
               <el-empty v-if="batch.production.length === 0" description="暂无生产记录" :image-size="50" />
               <el-table v-else :data="batch.production" border stripe>
                 <el-table-column prop="activityName" label="生产活动" min-width="160" />
-                <el-table-column prop="activityDate" label="操作日期" width="140" />
+                <el-table-column prop="activityDate" label="操作时间" width="170" />
                 <el-table-column prop="operator" label="操作员" width="120" />
                 <el-table-column prop="remark" label="备注" min-width="200" show-overflow-tooltip />
               </el-table>
@@ -154,7 +154,7 @@
                   </template>
                 </el-table-column>
                 <el-table-column prop="inspector" label="检测员" width="120" />
-                <el-table-column prop="inspectionDate" label="检测日期" width="140" />
+                <el-table-column prop="inspectionDate" label="检测时间" width="170" />
               </el-table>
             </div>
 
@@ -332,13 +332,13 @@ const exportToCSV = (batchDataList, filename) => {
     lines.push(`批次号,${escape(batch.batchNo)},日期,${escape(batch.date)}`)
     lines.push('')
     lines.push('【生产记录】')
-    lines.push('生产活动,操作日期,操作员,备注')
+    lines.push('生产活动,操作时间,操作员,备注')
     batch.production.forEach(r =>
       lines.push([r.activityName, r.activityDate, r.operator, r.remark].map(escape).join(','))
     )
     lines.push('')
     lines.push('【质检报告】')
-    lines.push('检测项目,检测结果,检测员,检测日期')
+    lines.push('检测项目,检测结果,检测员,检测时间')
     batch.inspection.forEach(r =>
       lines.push([r.inspectionItem, r.result, r.inspector, r.inspectionDate].map(escape).join(','))
     )

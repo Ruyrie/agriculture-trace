@@ -16,6 +16,16 @@ export const logout = () => {
   return request.post('/user/logout')
 }
 
+// 获取图形验证码（base64 图片），答案保存在后端 Session，找回密码时校验。
+export const getCaptcha = () => {
+  return request.get('/captcha')
+}
+
+// 忘记密码：凭用户名 + 手机号 + 图形验证码重置密码。
+export const forgotPassword = (data) => {
+  return request.post('/user/forgot-password', data)
+}
+
 // 获取当前 Session 用户信息。
 export const getCurrentUser = () => {
   return request.get('/user/info')

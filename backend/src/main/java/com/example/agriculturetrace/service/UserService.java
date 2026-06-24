@@ -153,14 +153,42 @@ public class UserService {
     }
 
     /**
-     * 当前用户修改密码。
-     * matches 会使用数据库 BCrypt 哈希中的盐值比对旧密码，验证通过后再保存新密码哈希。
+     * 当前登录用户修改自己的密码。
+     * 不再校验原密码（由 Controller 的图形验证码确认是本人操作），但仍限制长度，
+     * 并通过 BCrypt 比对拦截“新密码与原密码相同”的无效修改。
      */
     @Transactional
-    public void changePassword(String id, String oldPassword, String newPassword) {
+    public void changeOwnPassword(String id, String newPassword) {
         User user = userRepository.findById(id).orElseThrow();
-        if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
-            throw new IllegalArgumentException("原密码错误");
+        if (newPassword == null || newPassword.length() < 6 || newPassword.length() > 20) {
+            throw new IllegalArgumentException("新密码长度需为 6-20 位");
+        }
+        // 新密码与原密码相同没有意义，且容易让用户误以为已更换，这里直接拦截。
+        if (passwordEncoder.matches(newPassword, user.getPassword())) {
+            throw new IllegalArgumentException("新密码不能与原密码相同");
+        }
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
+
+    /**
+     * 忘记密码场景：凭“用户名 + 注册手机号”校验身份后重置密码。
+     * 不依赖登录态，由调用方（Controller）先完成图形验证码校验再进入这里，
+     * 双重校验降低被脚本批量爆破的风险。身份不匹配时统一返回模糊提示，避免泄露账号是否存在。
+     */
+    @Transactional
+    public void resetPasswordByIdentity(String username, String phone, String newPassword) {
+        if (newPassword == null || newPassword.length() < 6 || newPassword.length() > 20) {
+            throw new IllegalArgumentException("新密码长度需为 6-20 位");
+        }
+        if (phone == null || phone.isBlank()) {
+            throw new IllegalArgumentException("请填写注册手机号");
+        }
+        User user = findByUsername(username)
+                .filter(candidate -> phone.equals(candidate.getPhone()))
+                .orElseThrow(() -> new IllegalArgumentException("用户名与手机号不匹配"));
+        if (Boolean.FALSE.equals(user.getEnabled())) {
+            throw new IllegalArgumentException("账号已被禁用，请联系管理员");
         }
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);

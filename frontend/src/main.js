@@ -34,9 +34,5 @@ app.use(router)
 // 使用状态管理（若有） 
 // app.use(pinia) 
 
-// Mock 已关闭，使用真实后端接口
-// if (import.meta.env.MODE === 'development') {
-//     import('./mock').catch(err => console.warn('Mock加载失败', err))
-// }
 // 挂载应用 
 app.mount('#app') 

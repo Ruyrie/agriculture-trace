@@ -10,8 +10,6 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDate;
-
 /**
  * 质检记录。
  *
@@ -40,8 +38,8 @@ public class InspectionRecord {
     @Column(length = 64)
     private String inspector;
 
-    @Column(name = "inspection_date")
-    private LocalDate inspectionDate;
+    @Column(name = "inspection_date", length = 19)
+    private String inspectionDate;
 
     @Column(name = "sort_order")
     private Integer sortOrder;

@@ -3,6 +3,7 @@ package com.example.agriculturetrace.controller;
 import com.example.agriculturetrace.entity.User;
 import com.example.agriculturetrace.service.UserService;
 import com.example.agriculturetrace.util.Result;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.data.domain.Page;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -56,13 +57,44 @@ public class UserController {
 
     /**
      * 当前用户修改自己的密码。
-     * Service 会先校验 oldPassword，再用 BCrypt 重新加盐哈希保存 newPassword。
+     * 无需输入原密码，改由图形验证码确认为本人操作；Service 仍校验长度并拦截“新旧密码相同”。
      */
     @PutMapping("/user/password")
-    public Result<?> changePassword(Authentication authentication, @RequestBody Map<String, String> body) {
+    public Result<?> changePassword(Authentication authentication, @RequestBody Map<String, String> body, HttpSession session) {
+        // 图形验证码确认是本人操作，防止他人趁登录态未锁屏时直接改密。
+        validateCaptcha(session, body.get("captcha"));
         User current = userService.getByUsername(authentication.getName());
-        userService.changePassword(current.getId(), body.get("oldPassword"), body.get("newPassword"));
+        userService.changeOwnPassword(current.getId(), body.get("newPassword"));
         return Result.success(null);
+    }
+
+    /**
+     * 忘记密码：无需登录，凭“图形验证码 + 用户名 + 注册手机号”重置密码。
+     * 先校验 Session 中的验证码（一次性、5 分钟有效），再交给 Service 校验身份并改密。
+     */
+    @PostMapping("/user/forgot-password")
+    public Result<?> forgotPassword(@RequestBody Map<String, String> body, HttpSession session) {
+        validateCaptcha(session, body.get("captcha"));
+        userService.resetPasswordByIdentity(body.get("username"), body.get("phone"), body.get("newPassword"));
+        return Result.success(null);
+    }
+
+    /**
+     * 校验 Session 中的图形验证码：检查存在性、5 分钟有效期与大小写无关的内容匹配。
+     * 验证码一次性使用，校验后立即作废；任何不通过都抛 IllegalArgumentException，由全局异常处理返回 400。
+     */
+    private void validateCaptcha(HttpSession session, String input) {
+        Object expected = session.getAttribute(CaptchaController.CAPTCHA_CODE);
+        Object issuedAt = session.getAttribute(CaptchaController.CAPTCHA_TIME);
+        if (expected == null || issuedAt == null
+                || System.currentTimeMillis() - (Long) issuedAt > CaptchaController.CAPTCHA_TTL_MILLIS) {
+            throw new IllegalArgumentException("验证码已过期，请刷新后重试");
+        }
+        if (input == null || !((String) expected).equalsIgnoreCase(input.trim())) {
+            throw new IllegalArgumentException("验证码错误");
+        }
+        session.removeAttribute(CaptchaController.CAPTCHA_CODE);
+        session.removeAttribute(CaptchaController.CAPTCHA_TIME);
     }
 
     /**

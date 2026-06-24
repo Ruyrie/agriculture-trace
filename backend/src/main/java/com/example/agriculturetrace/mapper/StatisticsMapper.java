@@ -57,4 +57,9 @@ public interface StatisticsMapper {
      * 按产品统计批次数量。
      */
     List<Map<String, Object>> productBatchOutput();
+
+    /**
+     * 按链上日志操作类型聚合数量，用于数据概览页链上操作图表。
+     */
+    List<Map<String, Object>> blockchainActionMix();
 }

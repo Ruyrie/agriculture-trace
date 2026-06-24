@@ -1,62 +1,114 @@
 <template>
-  <div class="profile-container">
-    <el-card>
-      <template #header>
-        <span>个人中心</span>
-      </template>
+  <div class="profile-page">
+    <!-- 顶部资料横幅：头像 + 昵称 + 角色 -->
+    <div class="profile-hero">
+      <el-upload
+        class="hero-avatar-upload"
+        action="#"
+        :show-file-list="false"
+        :before-upload="beforeAvatarUpload"
+        :http-request="handleAvatarUpload"
+      >
+        <div class="hero-avatar">
+          <img v-if="profileForm.avatar" :src="profileForm.avatar" class="hero-avatar-img" alt="头像" />
+          <el-icon v-else class="hero-avatar-icon"><UserFilled /></el-icon>
+          <div class="hero-avatar-mask">
+            <el-icon><Camera /></el-icon>
+            <span>更换头像</span>
+          </div>
+        </div>
+      </el-upload>
 
-      <el-tabs v-model="activeTab">
-        <!-- 基本信息选项卡 -->
-        <el-tab-pane label="基本信息" name="info">
-          <el-form :model="profileForm" :rules="profileRules" ref="profileFormRef" label-width="100px">
-            <el-form-item label="头像">
-              <el-upload
-                  class="avatar-uploader"
-                  action="#"
-                  :show-file-list="false"
-                  :before-upload="beforeAvatarUpload"
-                  :http-request="handleAvatarUpload"
-              >
-                <img v-if="profileForm.avatar" :src="profileForm.avatar" class="avatar" />
-                <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
-              </el-upload>
-            </el-form-item>
-            <el-form-item label="用户名">
-              <el-input v-model="profileForm.username" disabled />
-            </el-form-item>
-            <el-form-item label="昵称" prop="nickname">
-              <el-input v-model="profileForm.nickname" placeholder="请输入昵称" />
-            </el-form-item>
-            <el-form-item label="手机号" prop="phone">
-              <el-input v-model="profileForm.phone" placeholder="请输入手机号" />
-            </el-form-item>
-            <el-form-item label="角色">
-              <el-input v-model="profileForm.role" disabled />
-            </el-form-item>
-            <el-form-item>
-              <el-button type="primary" @click="updateProfile" :loading="saving">保存修改</el-button>
-            </el-form-item>
-          </el-form>
-        </el-tab-pane>
+      <div class="hero-info">
+        <h1 class="hero-name">{{ profileForm.nickname || profileForm.username || '未命名用户' }}</h1>
+        <div class="hero-meta">
+          <el-tag class="hero-role" effect="light" round>{{ profileForm.role || '用户' }}</el-tag>
+          <span class="hero-username">@{{ profileForm.username }}</span>
+        </div>
+        <p class="hero-phone">
+          <el-icon><Iphone /></el-icon>
+          {{ profileForm.phone || '未绑定手机号' }}
+        </p>
+      </div>
+    </div>
 
-        <!-- 修改密码选项卡 -->
-        <el-tab-pane label="修改密码" name="password">
-          <el-form :model="pwdForm" :rules="pwdRules" ref="pwdFormRef" label-width="100px">
-            <el-form-item label="原密码" prop="oldPassword">
-              <el-input v-model="pwdForm.oldPassword" type="password" show-password />
-            </el-form-item>
-            <el-form-item label="新密码" prop="newPassword">
-              <el-input v-model="pwdForm.newPassword" type="password" show-password />
-            </el-form-item>
-            <el-form-item label="确认新密码" prop="confirmPassword">
-              <el-input v-model="pwdForm.confirmPassword" type="password" show-password />
-            </el-form-item>
-            <el-form-item>
-              <el-button type="primary" @click="changePassword" :loading="changing">修改密码</el-button>
-            </el-form-item>
-          </el-form>
-        </el-tab-pane>
-      </el-tabs>
+    <!-- 资料编辑卡片：左侧表单 + 右侧说明，充分利用横向空间 -->
+    <el-card class="profile-card" shadow="never">
+      <div class="card-grid">
+        <div class="card-main">
+          <el-tabs v-model="activeTab" class="profile-tabs" @tab-change="handleTabChange">
+            <!-- 基本信息选项卡 -->
+            <el-tab-pane name="info">
+              <template #label>
+                <span class="tab-label"><el-icon><User /></el-icon> 基本信息</span>
+              </template>
+              <el-form :model="profileForm" :rules="profileRules" ref="profileFormRef" label-width="100px" class="profile-form">
+                <el-form-item label="用户名">
+                  <el-input v-model="profileForm.username" disabled />
+                </el-form-item>
+                <el-form-item label="昵称" prop="nickname">
+                  <el-input v-model="profileForm.nickname" placeholder="请输入昵称" :prefix-icon="EditPen" />
+                </el-form-item>
+                <el-form-item label="手机号" prop="phone">
+                  <el-input v-model="profileForm.phone" placeholder="请输入手机号" :prefix-icon="Iphone" maxlength="11" />
+                </el-form-item>
+                <el-form-item label="角色">
+                  <el-input v-model="profileForm.role" disabled />
+                </el-form-item>
+                <el-form-item>
+                  <el-button type="primary" @click="updateProfile" :loading="saving">保存修改</el-button>
+                </el-form-item>
+              </el-form>
+            </el-tab-pane>
+
+            <!-- 修改密码选项卡 -->
+            <el-tab-pane name="password">
+              <template #label>
+                <span class="tab-label"><el-icon><Lock /></el-icon> 修改密码</span>
+              </template>
+              <el-form :model="pwdForm" :rules="pwdRules" ref="pwdFormRef" label-width="100px" class="profile-form">
+                <el-form-item label="新密码" prop="newPassword">
+                  <el-input v-model="pwdForm.newPassword" type="password" placeholder="请输入 6-20 位新密码（不能与原密码相同）" :prefix-icon="Key" show-password />
+                </el-form-item>
+                <el-form-item label="确认新密码" prop="confirmPassword">
+                  <el-input v-model="pwdForm.confirmPassword" type="password" placeholder="请再次输入新密码" :prefix-icon="Key" show-password />
+                </el-form-item>
+                <el-form-item label="图形验证码" prop="captcha">
+                  <div class="captcha-row">
+                    <el-input v-model="pwdForm.captcha" placeholder="请输入图中字符" :prefix-icon="Picture" clearable />
+                    <el-tooltip content="看不清？点击刷新" placement="top">
+                      <img
+                        v-if="captchaImg"
+                        :src="captchaImg"
+                        class="captcha-img"
+                        alt="图形验证码"
+                        @click="refreshPwdCaptcha"
+                      />
+                      <div v-else class="captcha-img captcha-img--loading" @click="refreshPwdCaptcha">加载中…</div>
+                    </el-tooltip>
+                  </div>
+                </el-form-item>
+                <el-form-item>
+                  <el-button type="primary" @click="changePassword" :loading="changing">修改密码</el-button>
+                </el-form-item>
+              </el-form>
+            </el-tab-pane>
+          </el-tabs>
+        </div>
+
+        <aside class="card-side">
+          <h3 class="side-title"><el-icon><InfoFilled /></el-icon> 账号与安全</h3>
+          <ul class="side-list">
+            <li><span class="dot"></span>用户名与角色由管理员分配，无法自行修改。</li>
+            <li><span class="dot"></span>建议绑定常用手机号，便于忘记密码时找回。</li>
+            <li><span class="dot"></span>新密码长度 6-20 位，且不能与原密码相同。</li>
+            <li><span class="dot"></span>修改密码成功后需要重新登录。</li>
+          </ul>
+          <div class="side-tip">
+            忘记原密码？可在登录页通过「忘记密码」+ 图形验证码重置。
+          </div>
+        </aside>
+      </div>
     </el-card>
   </div>
 </template>
@@ -64,8 +116,8 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
-import { updateProfile as updateProfileApi, changePassword as changePasswordApi, uploadAvatar as uploadAvatarApi } from '@/api/user'
+import { Camera, EditPen, InfoFilled, Iphone, Key, Lock, Picture, User, UserFilled } from '@element-plus/icons-vue'
+import { updateProfile as updateProfileApi, changePassword as changePasswordApi, uploadAvatar as uploadAvatarApi, getCaptcha } from '@/api/user'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -91,14 +143,14 @@ const profileRules = {
 
 // 密码表单
 const pwdFormRef = ref()
+const captchaImg = ref('')
 const pwdForm = reactive({
-  oldPassword: '',
   newPassword: '',
-  confirmPassword: ''
+  confirmPassword: '',
+  captcha: ''
 })
 
 const pwdRules = {
-  oldPassword: [{ required: true, message: '请输入原密码', trigger: 'blur' }],
   newPassword: [
     { required: true, message: '请输入新密码', trigger: 'blur' },
     { min: 6, max: 20, message: '密码长度6-20个字符', trigger: 'blur' }
@@ -115,24 +167,29 @@ const pwdRules = {
       },
       trigger: 'blur'
     }
-  ]
+  ],
+  captcha: [{ required: true, message: '请输入图形验证码', trigger: 'blur' }]
 }
 
 // 设置默认头像
 const defaultAvatar =
 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjAiIGhlaWdodD0iMTIwIiB2aWV3Qm94PSIwIDAgMTIwIDEyMCI+PHJlY3Qgd2lkdGg9IjEyMCIgaGVpZ2h0PSIxMjAiIGZpbGw9IiNFMEUwRTAiLz48Y2lyY2xlIGN4PSI2MCIgY3k9IjQ1IiByPSIyMCIgZmlsbD0iIzlFOUU5RSIvPjxwYXRoIGZpbGw9IiM5RTlFOUUiIGQ9Ik0zMCA4MCBMOTAgODAgTDgwIDY1IEw3MCA2NSBMNzAgNzUgTDUwIDc1IEw1MCA2NSBMNDAgNjVaIi8+PC9zdmc+'
 
-// 从 localStorage 加载用户信息，并把后端相对头像路径转换成浏览器可访问的完整 URL。
+const resolveAssetUrl = (url) => {
+  if (!url || url.startsWith('http') || url.startsWith('data:')) return url
+  return import.meta.env.DEV ? url : `${import.meta.env.VITE_API_BASE_URL}${url}`
+}
+
+// 从 localStorage 加载用户信息，并把后端相对头像路径转换成浏览器可访问地址。
 const loadUserInfo = () => {
   const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
   profileForm.id = userInfo.id || null
   profileForm.username = userInfo.username || ''
   profileForm.nickname = userInfo.nickname || userInfo.username || ''
   profileForm.phone = userInfo.phone || ''
-  // 处理头像相对路径，需要拼上后端域名。
   const avatarPath = userInfo.avatar
   if (avatarPath) {
-    profileForm.avatar = avatarPath.startsWith('http') ? avatarPath : `${import.meta.env.VITE_API_BASE_URL}${avatarPath}`
+    profileForm.avatar = resolveAssetUrl(avatarPath)
   } else {
     profileForm.avatar = defaultAvatar
   }
@@ -178,17 +235,38 @@ const updateProfile = async () => {
   }
 }
 
-// 修改密码；成功后清空本地登录态并跳回登录页，要求用户重新登录。
+// 请求一张新的图形验证码；答案保存在后端 Session，前端只拿到图片。
+const refreshPwdCaptcha = async () => {
+  try {
+    const res = await getCaptcha()
+    if (res.code === 200) captchaImg.value = res.data.image
+  } catch {
+    // 网络异常已由拦截器统一提示。
+  }
+}
+
+// 切到“修改密码”标签时按需加载验证码，避免进页面就请求。
+const handleTabChange = (name) => {
+  if (name === 'password' && !captchaImg.value) {
+    refreshPwdCaptcha()
+  }
+}
+
+// 修改密码；验证码为一次性，成功后清本地登录态并跳回登录页，失败则刷新验证码重试。
 const changePassword = async () => {
-  await pwdFormRef.value.validate()
+  try {
+    await pwdFormRef.value.validate()
+  } catch {
+    return
+  }
   changing.value = true
   try {
     const res = await changePasswordApi({
       id: profileForm.id,
-      oldPassword: pwdForm.oldPassword,
-      newPassword: pwdForm.newPassword
+      newPassword: pwdForm.newPassword,
+      captcha: pwdForm.captcha
     })
-    
+
     if (res.code === 200) {
       ElMessage.success('密码修改成功，请重新登录')
       localStorage.removeItem('sessionActive')
@@ -197,11 +275,14 @@ const changePassword = async () => {
         router.push('/login')
       }, 1500)
     } else {
-      ElMessage.error(res.message || '原密码错误')
+      ElMessage.error(res.message || '修改失败')
+      pwdForm.captcha = ''
+      refreshPwdCaptcha()
     }
   } catch (error) {
-    console.error(error)
-    ElMessage.error('修改异常，请稍后重试')
+    if (!error.__handled) ElMessage.error('修改异常，请稍后重试')
+    pwdForm.captcha = ''
+    refreshPwdCaptcha()
   } finally {
     changing.value = false
   }
@@ -227,12 +308,11 @@ const handleAvatarUpload = async (options) => {
   const file = options.file
   const formData = new FormData()
   formData.append('file', file)
-  
+
   try {
     const res = await uploadAvatarApi(formData)
     if (res.code === 200) {
-      const avatarUrl = `${import.meta.env.VITE_API_BASE_URL}${res.data.url}`
-      profileForm.avatar = avatarUrl
+      profileForm.avatar = resolveAssetUrl(res.data.url)
       if (res.data.user) {
         localStorage.setItem('userInfo', JSON.stringify(res.data.user))
         window.dispatchEvent(new CustomEvent('userInfoUpdated'))
@@ -253,38 +333,254 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.profile-container {
-  padding: 20px;
+.profile-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
 }
-.avatar-uploader {
-  display: inline-block;
+
+/* ===== 顶部资料横幅 ===== */
+.profile-hero {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 28px 32px;
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 88% 12%, rgba(255, 255, 255, 0.18), transparent 42%),
+    linear-gradient(135deg, #1b5e20 0%, #2e7d32 55%, #43a047 100%);
+  color: #fff;
+  box-shadow: 0 10px 28px rgba(46, 125, 50, 0.28);
 }
-.avatar-uploader :deep(.el-upload) {
-  border: 1px dashed #d9d9d9;
-  border-radius: 6px;
-  cursor: pointer;
+
+.hero-avatar-upload :deep(.el-upload) {
+  border-radius: 50%;
+}
+
+.hero-avatar {
   position: relative;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
   overflow: hidden;
-  /* Element Plus 运行时注入到 :root 的主题变量，IDE 静态分析无法解析，此处显式抑制误报 */
-  /*noinspection CssUnresolvedCustomProperty*/
-  transition: var(--el-transition-duration-fast);
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.18);
+  border: 3px solid rgba(255, 255, 255, 0.55);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.avatar-uploader :deep(.el-upload:hover) {
-  /*noinspection CssUnresolvedCustomProperty*/
-  border-color: var(--el-color-primary);
-}
-.avatar-uploader-icon {
-  font-size: 28px;
-  color: #8c939d;
-  width: 120px;
-  height: 120px;
-  text-align: center;
-  line-height: 120px;
-}
-.avatar {
-  width: 120px;
-  height: 120px;
-  display: block;
+
+.hero-avatar-img {
+  width: 100%;
+  height: 100%;
   object-fit: cover;
+}
+
+.hero-avatar-icon {
+  font-size: 46px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.hero-avatar-mask {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-size: 12px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.hero-avatar-mask .el-icon {
+  font-size: 20px;
+}
+
+.hero-avatar:hover .hero-avatar-mask {
+  opacity: 1;
+}
+
+.hero-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.hero-name {
+  margin: 0 0 10px;
+  font-size: 24px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.5px;
+}
+
+.hero-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.hero-role {
+  border: none;
+  font-weight: 600;
+}
+
+.hero-username {
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.hero-phone {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+/* ===== 资料编辑卡片 ===== */
+.profile-card {
+  border-radius: 14px;
+  border: 1px solid #eef0f3;
+}
+
+.profile-card :deep(.el-card__body) {
+  padding: 8px 24px 24px;
+}
+
+/* 左表单 + 右说明的两列布局，填满卡片横向空间 */
+.card-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(240px, 1fr);
+  gap: 32px;
+}
+
+.card-main {
+  min-width: 0;
+}
+
+.tab-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.profile-tabs :deep(.el-tabs__item) {
+  font-size: 15px;
+}
+
+.profile-form {
+  max-width: 520px;
+  margin-top: 18px;
+}
+
+.profile-form :deep(.el-form-item) {
+  margin-bottom: 22px;
+}
+
+.captcha-row {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+
+.captcha-row .el-input {
+  flex: 1;
+}
+
+.captcha-img {
+  width: 120px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid #e4e7ed;
+  cursor: pointer;
+  flex-shrink: 0;
+  object-fit: cover;
+  transition: border-color 0.2s;
+}
+
+.captcha-img:hover {
+  border-color: #409eff;
+}
+
+.captcha-img--loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: #c0c4cc;
+  background: #f5f7fa;
+}
+
+/* 右侧账号与安全说明 */
+.card-side {
+  margin-top: 18px;
+  padding: 20px;
+  border-radius: 12px;
+  background: linear-gradient(160deg, #f4f9f4, #eef5ff);
+  border: 1px solid #eef0f3;
+}
+
+.side-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 14px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.side-list {
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.side-list li {
+  position: relative;
+  padding-left: 16px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #5a6570;
+}
+
+.side-list .dot {
+  position: absolute;
+  left: 0;
+  top: 8px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #2e7d32;
+}
+
+.side-tip {
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px dashed #cfe0d2;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: #5a8a5e;
+}
+
+/* 窄屏回落为单列 */
+@media (max-width: 900px) {
+  .card-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
 }
 </style>

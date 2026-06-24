@@ -1,9 +1,13 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 
-// 全局 axios 实例：baseURL 指向后端 /api，withCredentials 让浏览器携带 JSESSIONID。
+const apiBaseURL = import.meta.env.DEV
+  ? '/api'
+  : `${import.meta.env.VITE_API_BASE_URL}/api`
+
+// 全局 axios 实例：开发环境请求 /api 由 Vite 代理转发，生产环境直连配置的后端域名。
 const request = axios.create({
-  baseURL: `${import.meta.env.VITE_API_BASE_URL}/api`,
+  baseURL: apiBaseURL,
   timeout: 10000,
   withCredentials: true
 })

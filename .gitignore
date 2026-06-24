@@ -41,6 +41,18 @@ backend/logs/
 AGENTS.md
 CLAUDE.md
 
+# ===== 文档/分析类 HTML（不纳入仓库，本地查看用） =====
+/blockchain-trace-architecture.html
+/experiment-test-cases.html
+/install-guide.html
+/mysql-cheatsheet.html
+/project-analysis-report.html
+/project-analysis.html
+/trace-blockchain-speech.html
+
+# ===== 运行时上传目录 =====
+/uploads/
+
 # ===== 必须上传的项目描述文件 =====
 # 这些文件是别人拉取后安装依赖、运行项目的入口，不要忽略。
 !backend/pom.xml

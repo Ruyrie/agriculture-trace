@@ -66,7 +66,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { CopyDocument, Refresh } from '@element-plus/icons-vue'
 import { getProductFingerprints, verifyProductHash } from '@/api/integrity'
@@ -76,9 +76,20 @@ const records = ref([])
 const total = ref(0)
 const rootHash = ref('')
 const generatedAt = ref('')
+let clockTimer = null
 
 // 统计当前指纹列表中不一致的记录数，用于页面头部风险提示。
 const invalidCount = computed(() => records.value.filter(item => !item.valid).length)
+
+// 与页面停留时间保持一致的实时时钟，不依赖刷新接口。
+const formatDateTime = (date) => {
+  const pad = value => String(value).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+}
+
+const updateClock = () => {
+  generatedAt.value = formatDateTime(new Date())
+}
 
 // 拉取产品指纹列表、总数、根哈希和生成时间。
 const fetchData = async () => {
@@ -89,7 +100,7 @@ const fetchData = async () => {
       records.value = res.data.records || []
       total.value = res.data.total || 0
       rootHash.value = res.data.rootHash || ''
-      generatedAt.value = res.data.generatedAt || ''
+      updateClock()
     } else {
       ElMessage.error(res.message || '数据指纹加载失败')
     }
@@ -119,7 +130,15 @@ const copyRootHash = async () => {
   }
 }
 
-fetchData()
+onMounted(() => {
+  updateClock()
+  clockTimer = window.setInterval(updateClock, 1000)
+  fetchData()
+})
+
+onUnmounted(() => {
+  if (clockTimer) window.clearInterval(clockTimer)
+})
 </script>
 
 <style scoped>

@@ -81,6 +81,7 @@
               v-model="mergedForm.productionDate"
               type="date"
               value-format="YYYY-MM-DD"
+              :disabled-date="disableFutureDate"
               placeholder="选择生产日期"
             />
           </el-form-item>
@@ -111,8 +112,8 @@
               <el-form-item :prop="`productionRecords.${idx}.operator`" :rules="rowRequired('操作员')">
                 <el-input v-model="rec.operator" placeholder="操作员" />
               </el-form-item>
-              <el-form-item :prop="`productionRecords.${idx}.activityDate`" :rules="rowRequired('日期')">
-                <el-date-picker v-model="rec.activityDate" type="date" value-format="YYYY-MM-DD" placeholder="日期" />
+              <el-form-item :prop="`productionRecords.${idx}.activityDate`" :rules="rowRequired('时间')">
+                <el-date-picker v-model="rec.activityDate" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" :disabled-date="disableFutureDate" placeholder="时间" />
               </el-form-item>
               <el-input v-model="rec.remark" placeholder="备注" />
               <el-button class="delete-btn" type="danger" :icon="Delete" circle plain @click="removeProduction(idx)" />
@@ -143,8 +144,8 @@
               <el-form-item :prop="`inspectionRecords.${idx}.inspector`" :rules="rowRequired('检测员')">
                 <el-input v-model="rec.inspector" placeholder="检测员" />
               </el-form-item>
-              <el-form-item :prop="`inspectionRecords.${idx}.inspectionDate`" :rules="rowRequired('日期')">
-                <el-date-picker v-model="rec.inspectionDate" type="date" value-format="YYYY-MM-DD" placeholder="日期" />
+              <el-form-item :prop="`inspectionRecords.${idx}.inspectionDate`" :rules="rowRequired('时间')">
+                <el-date-picker v-model="rec.inspectionDate" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" :disabled-date="disableFutureDate" placeholder="时间" />
               </el-form-item>
               <el-button class="delete-btn" type="danger" :icon="Delete" circle plain @click="removeInspection(idx)" />
             </div>
@@ -175,7 +176,7 @@
                 <el-input v-model="rec.operator" placeholder="操作员" />
               </el-form-item>
               <el-form-item :prop="`logisticsRecords.${idx}.updateTime`" :rules="rowRequired('时间')">
-                <el-date-picker v-model="rec.updateTime" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" placeholder="时间" />
+                <el-date-picker v-model="rec.updateTime" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" :disabled-date="disableFutureDate" placeholder="时间" />
               </el-form-item>
               <el-button class="delete-btn" type="danger" :icon="Delete" circle plain @click="removeLogistics(idx)" />
             </div>
@@ -244,6 +245,65 @@ const currentDateText = () => {
 const currentDateTimeText = () => {
   const now = new Date()
   return `${currentDateText()} ${pad(now.getHours())}:${pad(now.getMinutes())}:00`
+}
+
+const parseLocalDate = (value) => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value || '')
+  if (!match) return null
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+  return date.getFullYear() === Number(match[1]) && date.getMonth() === Number(match[2]) - 1 && date.getDate() === Number(match[3])
+    ? date
+    : null
+}
+
+const parseLocalDateTime = (value) => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/.exec(value || '')
+  if (!match) return null
+  const date = new Date(
+    Number(match[1]),
+    Number(match[2]) - 1,
+    Number(match[3]),
+    Number(match[4]),
+    Number(match[5]),
+    Number(match[6] || 0)
+  )
+  return date.getFullYear() === Number(match[1]) &&
+    date.getMonth() === Number(match[2]) - 1 &&
+    date.getDate() === Number(match[3]) &&
+    date.getHours() === Number(match[4]) &&
+    date.getMinutes() === Number(match[5])
+    ? date
+    : null
+}
+
+const normalizeDateTimeText = (value) => {
+  if (!value) return ''
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return `${value} 00:00:00`
+  if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}$/.test(value)) return `${value.replace('T', ' ')}:00`
+  return String(value).replace('T', ' ')
+}
+
+const tomorrowStart = () => {
+  const now = new Date()
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
+}
+
+const disableFutureDate = (time) => time.getTime() >= tomorrowStart().getTime()
+const isFutureDateText = (value) => {
+  const date = parseLocalDate(value)
+  return date ? date.getTime() >= tomorrowStart().getTime() : false
+}
+const isFutureDateTimeText = (value) => {
+  const date = parseLocalDateTime(value)
+  return date ? date.getTime() > Date.now() : false
+}
+
+const ensureNoFutureTimes = () => {
+  if (isFutureDateText(mergedForm.productionDate)) return '生产日期不能晚于今天'
+  if (mergedForm.productionRecords.some(record => isFutureDateTimeText(record.activityDate))) return '生产记录时间不能晚于当前时间'
+  if (mergedForm.inspectionRecords.some(record => isFutureDateTimeText(record.inspectionDate))) return '质检时间不能晚于当前时间'
+  if (mergedForm.logisticsRecords.some(record => isFutureDateTimeText(record.updateTime))) return '物流时间不能晚于当前时间'
+  return ''
 }
 
 // 根据当前是否在维护批次动态追加批次号、生产日期校验规则。
@@ -379,7 +439,7 @@ const loadBatchTraceRows = async (batchId, session = loadSession) => {
       ...(res.data.productionRecords || []).map(record => ({
         activityName: record.activityName || '',
         operator: record.operator || '',
-        activityDate: record.activityDate || '',
+        activityDate: normalizeDateTimeText(record.activityDate || ''),
         remark: record.remark || ''
       }))
     )
@@ -390,7 +450,7 @@ const loadBatchTraceRows = async (batchId, session = loadSession) => {
         inspectionItem: record.inspectionItem || record.item || '',
         result: record.result || '',
         inspector: record.inspector || '',
-        inspectionDate: record.inspectionDate || record.date || ''
+        inspectionDate: normalizeDateTimeText(record.inspectionDate || record.date || '')
       }))
     )
     mergedForm.logisticsRecords.splice(
@@ -408,12 +468,12 @@ const loadBatchTraceRows = async (batchId, session = loadSession) => {
   }
 }
 
-// 新增一行生产记录，日期默认当天。
-const addProduction = () => mergedForm.productionRecords.push({ activityName: '', operator: '', activityDate: currentDateText(), remark: '' })
+// 新增一行生产记录，时间默认当前本地时间。
+const addProduction = () => mergedForm.productionRecords.push({ activityName: '', operator: '', activityDate: currentDateTimeText(), remark: '' })
 // 删除指定生产记录行。
 const removeProduction = (i) => mergedForm.productionRecords.splice(i, 1)
-// 新增一行质检记录，日期默认当天。
-const addInspection = () => mergedForm.inspectionRecords.push({ inspectionItem: '', result: '', inspector: '', inspectionDate: currentDateText() })
+// 新增一行质检记录，时间默认当前本地时间。
+const addInspection = () => mergedForm.inspectionRecords.push({ inspectionItem: '', result: '', inspector: '', inspectionDate: currentDateTimeText() })
 // 删除指定质检记录行。
 const removeInspection = (i) => mergedForm.inspectionRecords.splice(i, 1)
 // 新增一行物流记录，时间默认当前日期时间。
@@ -446,6 +506,12 @@ const handleSubmit = async () => {
     await formRef.value.validate()
   } catch {
     ElMessage.warning('请检查必填项是否填写完整')
+    return
+  }
+
+  const futureTimeMessage = ensureNoFutureTimes()
+  if (futureTimeMessage) {
+    ElMessage.warning(futureTimeMessage)
     return
   }
 
@@ -610,11 +676,11 @@ onMounted(() => {
 }
 
 .production-grid {
-  grid-template-columns: 30px minmax(150px, 1.3fr) minmax(100px, 0.8fr) minmax(150px, 1fr) minmax(140px, 1fr) 34px;
+  grid-template-columns: 30px minmax(140px, 1.2fr) minmax(100px, 0.75fr) minmax(190px, 1.25fr) minmax(130px, 0.9fr) 34px;
 }
 
 .inspection-grid {
-  grid-template-columns: 30px minmax(150px, 1.3fr) minmax(110px, 0.8fr) minmax(110px, 0.8fr) minmax(150px, 1fr) 34px;
+  grid-template-columns: 30px minmax(140px, 1.15fr) minmax(105px, 0.75fr) minmax(105px, 0.75fr) minmax(190px, 1.25fr) 34px;
 }
 
 .logistics-grid {

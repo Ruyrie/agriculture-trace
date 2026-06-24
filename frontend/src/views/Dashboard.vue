@@ -60,7 +60,7 @@
               <el-tag type="success" size="small">实时</el-tag>
             </div>
           </template>
-          <div ref="pieChartRef" style="height: 280px"></div>
+          <div ref="pieChartRef" class="chart-box"></div>
         </el-card>
       </el-col>
       <el-col :span="12">
@@ -71,7 +71,21 @@
               <el-tag type="primary" size="small">近7天</el-tag>
             </div>
           </template>
-          <div ref="lineChartRef" style="height: 280px"></div>
+          <div ref="lineChartRef" class="chart-box"></div>
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <el-row :gutter="20" class="charts-row">
+      <el-col :span="24">
+        <el-card class="chart-card" shadow="never">
+          <template #header>
+            <div class="card-header">
+              <span class="card-title">链上操作类型概览</span>
+              <el-tag type="warning" size="small">审计日志</el-tag>
+            </div>
+          </template>
+          <div ref="blockchainChartRef" class="chart-box chart-box--wide"></div>
         </el-card>
       </el-col>
     </el-row>
@@ -85,20 +99,25 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Box, Goods, List, Loading, Search, Tickets } from '@element-plus/icons-vue'
-import * as echarts from 'echarts'
-import { getStatistics, getCategoryDistribution, getTraceTrend } from '@/api/dashboard'
+import echarts from '@/utils/echarts'
+import { getCategoryDistribution, getOverviewCharts, getStatistics, getTraceTrend } from '@/api/dashboard'
 
 const router = useRouter()
 const loading = ref(true)
 const stats = ref({ productCount: 0, batchCount: 0, traceCount: 0 })
 const pieChartRef = ref(null)
 const lineChartRef = ref(null)
+const blockchainChartRef = ref(null)
 let pieChart = null
 let lineChart = null
+let blockchainChart = null
+const overviewCharts = ref({
+  blockchainActionMix: []
+})
 
 const username = computed(() => {
   const info = JSON.parse(localStorage.getItem('userInfo') || '{}')
@@ -123,28 +142,22 @@ const fetchCategoryDistribution = async () => {
   try {
     const res = await getCategoryDistribution()
     if (res.code === 200) {
-      const data = res.data
-      if (pieChart) {
-        pieChart.setOption({ series: [{ data }] })
-      } else {
-        pieChart = echarts.init(pieChartRef.value)
-        pieChart.setOption({
-          tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
-          legend: { bottom: 0, itemWidth: 12, itemHeight: 12 },
-          color: ['#4caf50', '#81c784', '#a5d6a7', '#ff9800', '#64b5f6', '#f06292'],
-          series: [{
-            name: '产品类别',
-            type: 'pie',
-            radius: ['35%', '60%'],
-            center: ['50%', '45%'],
-            data,
-            label: { show: true, formatter: '{b}\n{d}%', fontSize: 12 },
-            emphasis: {
-              itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.2)' }
-            }
-          }]
-        })
-      }
+      const data = res.data || []
+      pieChart ||= echarts.init(pieChartRef.value)
+      pieChart.setOption({
+        tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+        legend: { bottom: 0, itemWidth: 12, itemHeight: 12 },
+        color: ['#4caf50', '#81c784', '#a5d6a7', '#ff9800', '#64b5f6', '#f06292'],
+        series: [{
+          name: '产品类别',
+          type: 'pie',
+          radius: ['35%', '60%'],
+          center: ['50%', '45%'],
+          data,
+          label: { show: true, formatter: '{b}\n{d}%', fontSize: 12 },
+          emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.2)' } }
+        }]
+      })
     }
   } catch { ElMessage.error('获取类别分布失败') }
 }
@@ -154,52 +167,105 @@ const fetchTraceTrend = async () => {
   try {
     const res = await getTraceTrend()
     if (res.code === 200) {
-      const { dates, counts } = res.data
-      if (lineChart) {
-        lineChart.setOption({ xAxis: { data: dates }, series: [{ data: counts }] })
-      } else {
-        lineChart = echarts.init(lineChartRef.value)
-        lineChart.setOption({
-          tooltip: { trigger: 'axis' },
-          grid: { top: 20, right: 20, bottom: 40, left: 50 },
-          xAxis: { type: 'category', data: dates, axisLine: { lineStyle: { color: '#e0e0e0' } } },
-          yAxis: { type: 'value', splitLine: { lineStyle: { color: '#f0f0f0' } } },
-          series: [{
-            name: '溯源查询次数',
-            type: 'line',
-            data: counts,
-            smooth: true,
-            symbol: 'circle',
-            symbolSize: 6,
-            lineStyle: { color: '#4caf50', width: 3 },
-            itemStyle: { color: '#4caf50' },
-            areaStyle: {
-              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                { offset: 0, color: 'rgba(76, 175, 80, 0.3)' },
-                { offset: 1, color: 'rgba(76, 175, 80, 0.02)' }
-              ])
-            }
-          }]
-        })
-      }
+      const { dates = [], counts = [] } = res.data || {}
+      lineChart ||= echarts.init(lineChartRef.value)
+      lineChart.setOption({
+        tooltip: { trigger: 'axis' },
+        grid: { top: 20, right: 20, bottom: 40, left: 50 },
+        xAxis: { type: 'category', data: dates, axisLine: { lineStyle: { color: '#e0e0e0' } } },
+        yAxis: { type: 'value', splitLine: { lineStyle: { color: '#f0f0f0' } } },
+        series: [{
+          name: '溯源查询次数',
+          type: 'line',
+          data: counts,
+          smooth: true,
+          symbol: 'circle',
+          symbolSize: 6,
+          lineStyle: { color: '#4caf50', width: 3 },
+          itemStyle: { color: '#4caf50' },
+          areaStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: 'rgba(76, 175, 80, 0.3)' },
+              { offset: 1, color: 'rgba(76, 175, 80, 0.02)' }
+            ])
+          }
+        }]
+      })
     }
   } catch { ElMessage.error('获取趋势数据失败') }
+}
+
+// 渲染区块链审计日志中的操作类型分布。
+const renderBlockchainChart = () => {
+  if (!blockchainChartRef.value) return
+  blockchainChart ||= echarts.init(blockchainChartRef.value)
+  const compact = blockchainChartRef.value.clientWidth < 320
+  const rows = overviewCharts.value.blockchainActionMix || []
+  blockchainChart.setOption({
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    grid: { top: 20, right: 36, bottom: 36, left: 48 },
+    xAxis: { type: 'category', data: rows.map(item => item.name), axisLine: { lineStyle: { color: '#dcdfe6' } } },
+    yAxis: { type: 'value', minInterval: 1, splitLine: { lineStyle: { color: '#f0f2f5' } } },
+    series: [{
+      name: '日志数量',
+      type: 'bar',
+      data: rows.map(item => Number(item.value || 0)),
+      barMaxWidth: 44,
+      itemStyle: {
+        borderRadius: [6, 6, 0, 0],
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: '#64b5f6' },
+          { offset: 1, color: '#1976d2' }
+        ])
+      },
+      label: { show: !compact, position: 'top', color: '#606266' }
+    }]
+  })
+}
+
+const renderOverviewCharts = async () => {
+  await nextTick()
+  renderBlockchainChart()
+}
+
+// 获取数据概览下方的链上操作类型图表。
+const fetchOverviewCharts = async () => {
+  try {
+    const res = await getOverviewCharts()
+    if (res.code === 200) {
+      overviewCharts.value = {
+        blockchainActionMix: res.data?.blockchainActionMix || []
+      }
+      await renderOverviewCharts()
+    }
+  } catch { ElMessage.error('获取链上操作图表失败') }
 }
 
 // 并发加载首页所有数据，最后关闭加载遮罩。
 const loadDashboardData = async () => {
   loading.value = true
   try {
-    await Promise.all([fetchStatistics(), fetchCategoryDistribution(), fetchTraceTrend()])
+    await Promise.all([fetchStatistics(), fetchCategoryDistribution(), fetchTraceTrend(), fetchOverviewCharts()])
   } finally {
     loading.value = false
   }
 }
 
-onMounted(() => { loadDashboardData() })
+const resizeCharts = () => {
+  pieChart?.resize()
+  lineChart?.resize()
+  blockchainChart?.resize()
+}
+
+onMounted(() => {
+  loadDashboardData()
+  window.addEventListener('resize', resizeCharts)
+})
 onUnmounted(() => {
+  window.removeEventListener('resize', resizeCharts)
   pieChart?.dispose()
   lineChart?.dispose()
+  blockchainChart?.dispose()
 })
 </script>
 
@@ -328,6 +394,14 @@ onUnmounted(() => {
   margin-bottom: 20px;
 }
 
+.chart-box {
+  height: 280px;
+}
+
+.chart-box--wide {
+  height: 300px;
+}
+
 .chart-card {
   border-radius: 12px;
   border: 1px solid #f0f0f0;
@@ -364,5 +438,32 @@ onUnmounted(() => {
   font-size: 14px;
   color: #4caf50;
   backdrop-filter: blur(2px);
+}
+
+@media (max-width: 960px) {
+  .welcome-banner {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .banner-actions {
+    width: 100%;
+  }
+
+  .banner-actions .el-button {
+    flex: 1;
+  }
+
+  .stats-row :deep(.el-col),
+  .charts-row :deep(.el-col) {
+    max-width: 100%;
+    flex: 0 0 100%;
+    margin-bottom: 16px;
+  }
+
+  .charts-row {
+    margin-bottom: 4px;
+  }
 }
 </style>

@@ -72,4 +72,17 @@
         GROUP BY p.id, p.name, p.category
         ORDER BY batchCount DESC, p.name ASC
     </select>
+
+    <select id="blockchainActionMix" resultType="map">
+        SELECT CASE action_type
+                   WHEN 'CREATE' THEN '新增'
+                   WHEN 'UPDATE' THEN '更新'
+                   WHEN 'DELETE' THEN '删除'
+                   ELSE COALESCE(action_type, '其他')
+               END AS name,
+               COUNT(*) AS value
+        FROM blockchain_log
+        GROUP BY action_type
+        ORDER BY value DESC
+    </select>
 </mapper>

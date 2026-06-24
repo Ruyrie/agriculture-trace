@@ -44,6 +44,7 @@ public class BlockchainSchemaInitializer implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         boolean productHashColumnCreated = ensureProductHashColumn();
         boolean batchHashColumnCreated = ensureBatchHashColumn();
+        ensureTraceDateTimeColumns();
         ensureBlockchainLogTable();
         ensureBlockchainAnchorTable();
         if (productHashColumnCreated) {
@@ -77,6 +78,32 @@ public class BlockchainSchemaInitializer implements ApplicationRunner {
             return true;
         }
         return false;
+    }
+
+    /**
+     * 生产记录和质检记录需要保留具体时分秒；旧库里的 date 列在这里升级为文本时间。
+     */
+    private void ensureTraceDateTimeColumns() {
+        if (columnExists("production_record", "activity_date")) {
+            if (!"varchar".equalsIgnoreCase(columnDataType("production_record", "activity_date"))) {
+                jdbcTemplate.execute("ALTER TABLE `production_record` MODIFY COLUMN `activity_date` varchar(19) DEFAULT NULL COMMENT '活动时间'");
+            }
+            jdbcTemplate.update("""
+                    UPDATE `production_record`
+                    SET `activity_date` = CONCAT(`activity_date`, ' 00:00:00')
+                    WHERE `activity_date` REGEXP '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
+                    """);
+        }
+        if (columnExists("inspection_record", "inspection_date")) {
+            if (!"varchar".equalsIgnoreCase(columnDataType("inspection_record", "inspection_date"))) {
+                jdbcTemplate.execute("ALTER TABLE `inspection_record` MODIFY COLUMN `inspection_date` varchar(19) DEFAULT NULL COMMENT '检测时间'");
+            }
+            jdbcTemplate.update("""
+                    UPDATE `inspection_record`
+                    SET `inspection_date` = CONCAT(`inspection_date`, ' 00:00:00')
+                    WHERE `inspection_date` REGEXP '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
+                    """);
+        }
     }
 
     /**
@@ -188,6 +215,19 @@ public class BlockchainSchemaInitializer implements ApplicationRunner {
                   AND COLUMN_NAME = ?
                 """, Integer.class, tableName, columnName);
         return count != null && count > 0;
+    }
+
+    /**
+     * 查询列的数据类型，供启动迁移判断是否需要真正改表。
+     */
+    private String columnDataType(String tableName, String columnName) {
+        return jdbcTemplate.queryForObject("""
+                SELECT DATA_TYPE
+                FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = ?
+                  AND COLUMN_NAME = ?
+                """, String.class, tableName, columnName);
     }
 
     /**

@@ -11,7 +11,7 @@ npm run dev
 
 开发环境默认地址：`http://localhost:5173`
 
-接口地址配置在 `.env.development`：
+开发环境接口通过 Vite 代理转发，代理目标配置在 `.env.development`：
 
 ```text
 VITE_API_BASE_URL=http://localhost:8080
@@ -27,7 +27,8 @@ npm run build
 
 项目统一使用 `src/utils/request.js` 封装 Axios：
 
-- `baseURL` 为 `${VITE_API_BASE_URL}/api`
+- 开发环境 `baseURL` 为 `/api`，由 Vite 代理转发到 `VITE_API_BASE_URL`
+- 生产环境 `baseURL` 为 `${VITE_API_BASE_URL}/api`
 - `withCredentials: true`，用于携带 `JSESSIONID`
 - 响应拦截器会把后端 `Result` 拆包后返回给页面
 - 统一处理 `401` 和网络异常
