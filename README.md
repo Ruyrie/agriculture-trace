@@ -108,13 +108,7 @@ npm run dev
 
 前端默认地址：`http://localhost:5173`
 
-前端开发环境接口地址配置在 `frontend/.env.development`：
-
-```text
-VITE_API_BASE_URL=http://localhost:8080
-```
-
-开发环境前端请求 `/api`，由 Vite 代理转发到上面的后端地址；生产环境会使用 `VITE_API_BASE_URL` 直连后端。
+开发环境前端请求 `/api`，由 Vite 代理转发到本地后端 `http://localhost:8080`；生产环境会使用生产配置中的后端域名。
 
 ## 测试账号
 
