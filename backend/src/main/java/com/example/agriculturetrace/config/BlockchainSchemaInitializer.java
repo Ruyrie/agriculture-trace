@@ -44,6 +44,7 @@ public class BlockchainSchemaInitializer implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         boolean productHashColumnCreated = ensureProductHashColumn();
         boolean batchHashColumnCreated = ensureBatchHashColumn();
+        ensureImageColumns();
         ensureTraceDateTimeColumns();
         ensureBlockchainLogTable();
         ensureBlockchainAnchorTable();
@@ -78,6 +79,21 @@ public class BlockchainSchemaInitializer implements ApplicationRunner {
             return true;
         }
         return false;
+    }
+
+    /**
+     * 图片只用于前端展示，不进入既有业务指纹，避免补图影响历史哈希校验。
+     */
+    private void ensureImageColumns() {
+        if (!columnExists("product", "image_urls")) {
+            jdbcTemplate.execute("ALTER TABLE `product` ADD COLUMN `image_urls` text COMMENT '产品图片URL列表JSON'");
+        }
+        if (!columnExists("batch", "image_urls")) {
+            jdbcTemplate.execute("ALTER TABLE `batch` ADD COLUMN `image_urls` text COMMENT '批次图片URL列表JSON'");
+        }
+        if (!columnExists("production_record", "image_urls")) {
+            jdbcTemplate.execute("ALTER TABLE `production_record` ADD COLUMN `image_urls` text COMMENT '生产记录图片URL列表JSON'");
+        }
     }
 
     /**
@@ -244,7 +260,7 @@ public class BlockchainSchemaInitializer implements ApplicationRunner {
         LocalDateTime timestamp = LocalDateTime.now().minusMinutes(5);
 
         List<Map<String, Object>> products = jdbcTemplate.queryForList("""
-                SELECT `id`, `name`, `category`, `origin`, `price`, `create_time`, `data_hash`
+                SELECT `id`, `name`, `category`, `origin`, `price`, `create_time`, `data_hash`, `image_urls`
                 FROM `product`
                 ORDER BY `id`
                 """);
@@ -256,7 +272,7 @@ public class BlockchainSchemaInitializer implements ApplicationRunner {
         List<Map<String, Object>> batches = jdbcTemplate.queryForList("""
                 SELECT b.`id`, b.`batch_no`, b.`product_id`, p.`name` AS `product_name`,
                        DATE_FORMAT(b.`production_date`, '%Y-%m-%d') AS `production_date`,
-                       b.`remark`, b.`create_time`, b.`data_hash`
+                       b.`remark`, b.`create_time`, b.`data_hash`, b.`image_urls`
                 FROM `batch` b
                 LEFT JOIN `product` p ON p.`id` = b.`product_id`
                 ORDER BY b.`create_time`, b.`id`
@@ -309,6 +325,7 @@ public class BlockchainSchemaInitializer implements ApplicationRunner {
         row.put("price", normalizePrice(product.get("price")));
         row.put("createTime", product.get("create_time"));
         row.put("dataHash", product.get("data_hash"));
+        row.put("imageUrls", product.get("image_urls"));
         return row;
     }
 
@@ -325,6 +342,7 @@ public class BlockchainSchemaInitializer implements ApplicationRunner {
         row.put("remark", batch.get("remark"));
         row.put("createTime", batch.get("create_time"));
         row.put("dataHash", batch.get("data_hash"));
+        row.put("imageUrls", batch.get("image_urls"));
         return row;
     }
 

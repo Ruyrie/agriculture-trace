@@ -54,6 +54,18 @@
           </template>
         </el-table-column>
         <el-table-column prop="productName" label="产品名称" min-width="120" />
+        <el-table-column label="图片" width="92" align="center">
+          <template #default="{ row }">
+            <el-image
+              v-if="firstImage(row)"
+              :src="firstImage(row)"
+              :preview-src-list="previewImages(row)"
+              preview-teleported
+              fit="cover"
+              class="batch-thumb"
+            />
+          </template>
+        </el-table-column>
         <el-table-column prop="productionDate" label="生产日期" width="120" align="center" />
         <el-table-column label="数据指纹" min-width="150" align="center">
           <template #default="{ row }">
@@ -133,6 +145,9 @@
                     style="width: 100%"
                   />
                 </el-form-item>
+                <el-form-item label="批次图片" class="span-all">
+                  <ImageUploadGrid v-model="form.imageUrls" />
+                </el-form-item>
               </div>
               <el-form-item label="备注" prop="remark">
                 <el-input v-model="form.remark" type="textarea" :rows="4" maxlength="200" show-word-limit placeholder="可选备注信息" />
@@ -153,6 +168,9 @@
                 <el-date-picker v-model="record.activityDate" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" :disabled-date="disabledDate" placeholder="默认当前时间，可修改" />
                 <el-input v-model="record.remark" placeholder="备注" />
                 <el-button type="danger" plain circle :icon="Delete" @click="removeProduction(index)" />
+                <div class="record-images">
+                  <ImageUploadGrid v-model="record.imageUrls" />
+                </div>
               </div>
               <div v-if="form.productionRecords.length === 0" class="empty-trace-hint">暂无生产记录，保存后也可以从编辑入口继续添加</div>
             </div>
@@ -231,6 +249,8 @@ import { getProductList } from '@/api/product'
 import { getBatchTraceInfo } from '@/api/trace'
 import { verifyAllBatchHashes, verifyBatchHash } from '@/api/integrity'
 import HashTag from '@/components/HashTag.vue'
+import ImageUploadGrid from '@/components/ImageUploadGrid.vue'
+import { parseImageUrls, resolveImageUrl, stringifyImageUrls } from '@/utils/images'
 
 const router = useRouter()
 const tableData = ref([])
@@ -266,6 +286,7 @@ const form = reactive({
   batchNo: '',
   productionDate: '',
   remark: '',
+  imageUrls: [],
   productionRecords: [],
   inspectionRecords: [],
   logisticsRecords: []
@@ -361,6 +382,9 @@ const productOptionLabel = (product) => {
   return sameNameCount > 1 ? `${product.name}（${product.id}）` : product.name
 }
 
+const previewImages = (row) => parseImageUrls(row.imageUrls).map(resolveImageUrl)
+const firstImage = (row) => previewImages(row)[0] || ''
+
 // 新增批次时选择产品后自动生成一个可读批次号。
 const onProductChange = (productId) => {
   const product = productOptions.value.find(p => p.id === productId)
@@ -405,7 +429,7 @@ const handleSizeChange = (val) => { pageSize.value = val; fetchData() }
 const handleCurrentChange = (val) => { page.value = val; fetchData() }
 
 // 新增生产记录行，时间默认当前本地时间。
-const addProduction = () => form.productionRecords.push({ activityName: '', operator: '', activityDate: currentDateTimeText(), remark: '' })
+const addProduction = () => form.productionRecords.push({ activityName: '', operator: '', activityDate: currentDateTimeText(), remark: '', imageUrls: [] })
 // 删除生产记录行。
 const removeProduction = (index) => form.productionRecords.splice(index, 1)
 // 新增质检记录行，时间默认当前本地时间。
@@ -426,7 +450,7 @@ const clearTraceRows = () => {
 
 // 重置批次表单到新增状态。
 const resetForm = () => {
-  Object.assign(form, { id: null, productId: '', batchNo: '', productionDate: currentDateText(), remark: '' })
+  Object.assign(form, { id: null, productId: '', batchNo: '', productionDate: currentDateText(), remark: '', imageUrls: [] })
   clearTraceRows()
   activeTab.value = 'base'
 }
@@ -464,7 +488,8 @@ const loadTraceRows = async (batchId) => {
           activityName: record.activityName || '',
           operator: record.operator || '',
           activityDate: normalizeDateTimeText(record.activityDate || ''),
-          remark: record.remark || ''
+          remark: record.remark || '',
+          imageUrls: parseImageUrls(record.imageUrls)
         }))
       )
       form.inspectionRecords.splice(
@@ -501,7 +526,7 @@ const loadTraceRows = async (batchId) => {
 const handleEdit = async (row) => {
   dialogTitle.value = '编辑批次'
   resetForm()
-  Object.assign(form, { id: row.id, productId: row.productId, batchNo: row.batchNo, productionDate: row.productionDate, remark: row.remark })
+  Object.assign(form, { id: row.id, productId: row.productId, batchNo: row.batchNo, productionDate: row.productionDate, remark: row.remark, imageUrls: parseImageUrls(row.imageUrls) })
   activeTab.value = 'base'
   dialogVisible.value = true
   await loadTraceRows(row.id)
@@ -510,7 +535,7 @@ const handleEdit = async (row) => {
 }
 
 // 过滤掉完全空白的生产记录行，避免提交无意义空对象。
-const compactProductionRows = () => form.productionRecords.filter(record => record.activityName || record.operator || record.activityDate || record.remark)
+const compactProductionRows = () => form.productionRecords.filter(record => record.activityName || record.operator || record.activityDate || record.remark || parseImageUrls(record.imageUrls).length > 0)
 // 过滤掉完全空白的质检记录行。
 const compactInspectionRows = () => form.inspectionRecords.filter(record => record.inspectionItem || record.result || record.inspector || record.inspectionDate)
 // 过滤掉完全空白的物流记录行。
@@ -542,7 +567,8 @@ const submitForm = async () => {
       batchNo: form.batchNo,
       productionDate: form.productionDate,
       remark: form.remark,
-      productionRecords,
+      imageUrls: stringifyImageUrls(form.imageUrls),
+      productionRecords: productionRecords.map(record => ({ ...record, imageUrls: stringifyImageUrls(record.imageUrls) })),
       inspectionRecords,
       logisticsRecords
     }
@@ -675,6 +701,14 @@ onMounted(() => {
   overflow: hidden;
 }
 
+.batch-thumb {
+  width: 52px;
+  height: 52px;
+  border-radius: 6px;
+  display: block;
+  overflow: hidden;
+}
+
 .hash-code {
   display: inline-block;
   max-width: 100%;
@@ -693,6 +727,10 @@ onMounted(() => {
   display: grid;
   grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) minmax(180px, 1fr);
   gap: 12px;
+}
+
+.span-all {
+  grid-column: 1 / -1;
 }
 
 .batch-dialog-form {
@@ -778,6 +816,11 @@ onMounted(() => {
 
 .inspection-grid {
   grid-template-columns: 30px minmax(120px, 1fr) minmax(105px, 0.75fr) minmax(95px, 0.7fr) minmax(190px, 1.25fr) 34px;
+}
+
+.record-images {
+  grid-column: 2 / -1;
+  min-width: 0;
 }
 
 .logistics-grid {

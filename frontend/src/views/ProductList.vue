@@ -100,7 +100,7 @@ const searchKeyword = ref('')
 
 const dialogVisible = ref(false)
 const dialogTitle = ref('新增产品')
-const formData = reactive({ id: null, name: '', category: '', origin: '', price: 0 })
+const formData = reactive({ id: null, name: '', category: '', origin: '', price: 0, imageUrls: '' })
 const verifyingAll = ref(false)
 const verifyDialogVisible = ref(false)
 const verifyResult = ref({ total: 0, invalidCount: 0, invalidItems: [] })
@@ -117,7 +117,7 @@ const fetchData = async () => {
 // 打开新增产品弹窗，并清空表单基础字段。
 const handleAdd = () => {
   dialogTitle.value = '新增产品'
-  Object.assign(formData, { id: null, name: '', category: '', origin: '', price: 0 })
+  Object.assign(formData, { id: null, name: '', category: '', origin: '', price: 0, imageUrls: '' })
   dialogVisible.value = true
 }
 
@@ -142,7 +142,7 @@ const submitForm = async (data) => {
     const { _withTrace, _traceData, ...productData } = data
     res = await addProductWithTrace({
       product: productData,
-      batch: { batchNo: _traceData.batchNo, productionDate: _traceData.productionDate, remark: _traceData.remark },
+      batch: { batchNo: _traceData.batchNo, productionDate: _traceData.productionDate, remark: _traceData.remark, imageUrls: _traceData.imageUrls },
       productionRecords: _traceData.productionRecords,
       inspectionRecords: _traceData.inspectionRecords,
       logisticsRecords: _traceData.logisticsRecords

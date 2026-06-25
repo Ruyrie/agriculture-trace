@@ -10,6 +10,18 @@
             <el-descriptions-item label="产地">{{ productInfo.origin }}</el-descriptions-item>
             <el-descriptions-item label="参考价格">{{ productInfo.price }} 元/kg</el-descriptions-item>
           </el-descriptions>
+          <div v-if="imageList(productInfo.imageUrls).length" class="image-gallery product-gallery">
+            <el-image
+              v-for="(url, index) in imageList(productInfo.imageUrls)"
+              :key="url"
+              :src="url"
+              :preview-src-list="imageList(productInfo.imageUrls)"
+              :initial-index="index"
+              preview-teleported
+              fit="cover"
+              class="gallery-image"
+            />
+          </div>
         </div>
         <div v-else-if="!loadingProduct" class="no-product">暂无产品信息</div>
         <div class="qrcode-panel">
@@ -122,6 +134,18 @@
           </template>
 
           <div class="batch-content">
+            <div v-if="imageList(batch.imageUrls).length" class="image-gallery batch-gallery">
+              <el-image
+                v-for="(url, index) in imageList(batch.imageUrls)"
+                :key="url"
+                :src="url"
+                :preview-src-list="imageList(batch.imageUrls)"
+                :initial-index="index"
+                preview-teleported
+                fit="cover"
+                class="gallery-image"
+              />
+            </div>
             <!-- 生产记录 -->
             <div class="sub-section">
               <div class="sub-header">
@@ -134,6 +158,18 @@
                 <el-table-column prop="activityDate" label="操作时间" width="170" />
                 <el-table-column prop="operator" label="操作员" width="120" />
                 <el-table-column prop="remark" label="备注" min-width="200" show-overflow-tooltip />
+                <el-table-column label="图片" width="110" align="center">
+                  <template #default="{ row }">
+                    <el-image
+                      v-if="firstImage(row.imageUrls)"
+                      :src="firstImage(row.imageUrls)"
+                      :preview-src-list="imageList(row.imageUrls)"
+                      preview-teleported
+                      fit="cover"
+                      class="record-thumb"
+                    />
+                  </template>
+                </el-table-column>
               </el-table>
             </div>
 
@@ -219,6 +255,7 @@ import QRCode from 'qrcode'
 import { ElMessage } from 'element-plus'
 import { Download, Tools, CircleCheck, Promotion, Filter, ArrowDown } from '@element-plus/icons-vue'
 import { getBatchTraceInfo, getTraceInfo } from '@/api/trace'
+import { parseImageUrls, resolveImageUrl } from '@/utils/images'
 
 const route = useRoute()
 const productId = route.params.id
@@ -228,6 +265,7 @@ const productInfo = ref({})
 const productionRecords = ref([])
 const inspectionReports = ref([])
 const logistics = ref([])
+const batchMetas = ref([])
 const qrcodeCanvas = ref(null)
 const loadingProduct = ref(false)
 const loadingTrace = ref(false)
@@ -246,12 +284,20 @@ const isPassResult = (result) => {
 // 提取所有唯一批次，记录最早操作日期
 const allBatches = computed(() => {
   const map = new Map()
+  batchMetas.value.forEach(batch => {
+    if (!batch.batchNo) return
+    map.set(batch.batchNo, {
+      batchNo: batch.batchNo,
+      date: batch.productionDate || '',
+      imageUrls: batch.imageUrls || ''
+    })
+  })
   const addRecord = (r, dateField) => {
     const no = r.batchNo
     if (!no) return
     const d = (r[dateField] || '').substring(0, 10)
     if (!map.has(no)) {
-      map.set(no, { batchNo: no, date: d })
+      map.set(no, { batchNo: no, date: d, imageUrls: '' })
     } else if (d && (!map.get(no).date || d < map.get(no).date)) {
       map.get(no).date = d
     }
@@ -291,6 +337,9 @@ const displayBatchData = computed(() => {
     logistics: logistics.value.filter(r => r.batchNo === b.batchNo)
   }))
 })
+
+const imageList = (value) => parseImageUrls(value).map(resolveImageUrl)
+const firstImage = (value) => imageList(value)[0] || ''
 
 // 没有 batchNo 的物流记录（兜底显示，防止数据丢失）
 const unassignedLogistics = computed(() => {
@@ -412,6 +461,7 @@ const fetchTraceInfo = async () => {
     const res = batchId ? await getBatchTraceInfo(batchId) : await getTraceInfo(productId)
     if (res.code === 200) {
       productInfo.value = res.data.product || {}
+      batchMetas.value = res.data.batches || []
       productionRecords.value = res.data.productionRecords || []
       inspectionReports.value = res.data.inspectionReports || []
       logistics.value = res.data.logistics || []
@@ -461,6 +511,34 @@ onMounted(() => {
 }
 .product-desc :deep(.el-descriptions__body .el-descriptions__table.is-bordered .el-descriptions__cell) {
   padding: 14px 16px;
+}
+.image-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.product-gallery {
+  max-width: 560px;
+  margin-top: 16px;
+}
+.batch-gallery {
+  margin: 10px 0 2px;
+}
+.gallery-image {
+  width: 108px;
+  height: 78px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e7edf5;
+  background: #f8fafc;
+}
+.record-thumb {
+  width: 58px;
+  height: 44px;
+  border-radius: 6px;
+  display: block;
+  overflow: hidden;
+  border: 1px solid #e7edf5;
 }
 .no-product {
   color: #999;

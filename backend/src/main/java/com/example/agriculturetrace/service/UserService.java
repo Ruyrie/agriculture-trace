@@ -25,6 +25,8 @@ import java.util.Optional;
 @Service
 public class UserService {
 
+    private static final String USERNAME_PATTERN = "^[A-Za-z][A-Za-z0-9_]{2,31}$";
+
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final UserRoleRepository userRoleRepository;
@@ -102,6 +104,13 @@ public class UserService {
      */
     @Transactional
     public User create(User user, String rawPassword, String roleName) {
+        String username = normalizeUsername(user.getUsername());
+        String phone = normalizePhone(user.getPhone());
+        validateUsername(username);
+        ensureUsernameAvailable(username, null);
+        ensurePhoneAvailable(phone, null);
+        user.setUsername(username);
+        user.setPhone(phone);
         user.setId(Ids.uuid32());
         user.setPassword(passwordEncoder.encode(rawPassword == null || rawPassword.isBlank() ? "123456" : rawPassword));
         user.setEnabled(user.getEnabled() == null || user.getEnabled());
@@ -117,8 +126,10 @@ public class UserService {
     @Transactional
     public User updateProfile(String id, User input) {
         User user = userRepository.findById(id).orElseThrow();
+        String phone = normalizePhone(input.getPhone());
+        ensurePhoneAvailable(phone, id);
         user.setNickname(input.getNickname());
-        user.setPhone(input.getPhone());
+        user.setPhone(phone);
         if (input.getAvatar() != null) {
             user.setAvatar(input.getAvatar());
         }
@@ -141,8 +152,10 @@ public class UserService {
     @Transactional
     public User updateByAdmin(String id, User input, String roleName) {
         User user = userRepository.findById(id).orElseThrow();
+        String phone = normalizePhone(input.getPhone());
+        ensurePhoneAvailable(phone, id);
         user.setNickname(input.getNickname());
-        user.setPhone(input.getPhone());
+        user.setPhone(phone);
         user.setAvatar(input.getAvatar());
         user.setEnabled(input.getEnabled());
         User saved = userRepository.save(user);
@@ -245,5 +258,41 @@ public class UserService {
             return "ROLE_FARMER";
         }
         return roleName.startsWith("ROLE_") ? roleName : "ROLE_" + roleName.toUpperCase();
+    }
+
+    /**
+     * 用户名用于登录，只允许英文账号；中文姓名应填写到 nickname。
+     */
+    private void validateUsername(String username) {
+        if (username == null || !username.matches(USERNAME_PATTERN)) {
+            throw new IllegalArgumentException("用户名需为3-32位英文、数字或下划线，并以英文字母开头");
+        }
+    }
+
+    private String normalizeUsername(String username) {
+        return username == null ? "" : username.trim();
+    }
+
+    private String normalizePhone(String phone) {
+        return phone == null ? "" : phone.trim();
+    }
+
+    private void ensureUsernameAvailable(String username, String currentId) {
+        userRepository.findByUsername(username)
+                .filter(existing -> currentId == null || !existing.getId().equals(currentId))
+                .ifPresent(existing -> {
+                    throw new IllegalArgumentException("用户名已存在，请更换用户名");
+                });
+    }
+
+    private void ensurePhoneAvailable(String phone, String currentId) {
+        if (phone == null || phone.isBlank()) {
+            return;
+        }
+        userRepository.findByPhone(phone)
+                .filter(existing -> currentId == null || !existing.getId().equals(currentId))
+                .ifPresent(existing -> {
+                    throw new IllegalArgumentException("手机号已存在，请更换手机号");
+                });
     }
 }

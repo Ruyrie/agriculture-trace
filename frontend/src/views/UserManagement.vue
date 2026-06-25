@@ -155,8 +155,13 @@ const form = reactive({
   enabled: true
 })
 
+const usernamePattern = /^[A-Za-z][A-Za-z0-9_]{2,31}$/
+
 const rules = {
-  username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
+  username: [
+    { required: true, message: '请输入用户名', trigger: 'blur' },
+    { pattern: usernamePattern, message: '用户名需为3-32位英文、数字或下划线，并以英文字母开头', trigger: 'blur' }
+  ],
   phone: [{ pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' }],
   role: [{ required: true, message: '请选择角色', trigger: 'change' }]
 }

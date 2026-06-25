@@ -153,6 +153,7 @@ public class TraceDataService {
             record.setActivityDate(notFutureDateTime(row, "activityDate", TimeUtils.nowText(), "生产记录时间不能晚于当前时间"));
             record.setRemark(text(row, "remark"));
             record.setSortOrder(i + 1);
+            record.setImageUrls(text(row, "imageUrls"));
             records.add(record);
         }
         productionRecordRepository.saveAll(records);
@@ -214,6 +215,7 @@ public class TraceDataService {
         row.put("operator", record.getOperator());
         row.put("activityDate", normalizeDateTimeText(record.getActivityDate()));
         row.put("remark", record.getRemark());
+        row.put("imageUrls", record.getImageUrls());
         return row;
     }
 

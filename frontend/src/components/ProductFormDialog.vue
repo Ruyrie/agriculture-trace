@@ -42,6 +42,9 @@
           <el-form-item label="价格(元/kg)" prop="price">
             <el-input-number v-model="mergedForm.price" :min="0" :precision="2" controls-position="right" />
           </el-form-item>
+          <el-form-item label="产品图片" class="span-all image-form-item product-image-item">
+            <ImageUploadGrid v-model="mergedForm.imageUrls" />
+          </el-form-item>
         </div>
       </div>
 
@@ -88,6 +91,9 @@
           <el-form-item label="批次备注" prop="batchRemark" class="span-all">
             <el-input v-model="mergedForm.batchRemark" type="textarea" :rows="2" maxlength="200" show-word-limit placeholder="填写批次备注" />
           </el-form-item>
+          <el-form-item label="批次图片" class="span-all image-form-item">
+            <ImageUploadGrid v-model="mergedForm.batchImageUrls" />
+          </el-form-item>
         </div>
         <div v-else class="empty-hint neutral">当前产品暂无批次，请先在批次管理中新增批次。</div>
       </div>
@@ -117,6 +123,9 @@
               </el-form-item>
               <el-input v-model="rec.remark" placeholder="备注" />
               <el-button class="delete-btn" type="danger" :icon="Delete" circle plain @click="removeProduction(idx)" />
+              <div class="record-images">
+                <ImageUploadGrid v-model="rec.imageUrls" />
+              </div>
             </div>
           </div>
           <div v-if="mergedForm.productionRecords.length === 0" class="empty-hint">请至少添加一条生产记录</div>
@@ -200,6 +209,8 @@ import { Delete, Plus } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 import { getBatchList } from '@/api/batch'
 import { getBatchTraceInfo } from '@/api/trace'
+import ImageUploadGrid from '@/components/ImageUploadGrid.vue'
+import { parseImageUrls, stringifyImageUrls } from '@/utils/images'
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
@@ -220,8 +231,8 @@ let loadSession = 0
 
 // 合并表单：基本信息 + 溯源信息放在同一个 reactive 对象
 const mergedForm = reactive({
-  id: null, name: '', category: '', origin: '', price: 0,
-  batchId: '', batchNo: '', productionDate: '', batchRemark: '',
+  id: null, name: '', category: '', origin: '', price: 0, imageUrls: [],
+  batchId: '', batchNo: '', productionDate: '', batchRemark: '', batchImageUrls: [],
   productionRecords: [],
   inspectionRecords: [],
   logisticsRecords: []
@@ -340,8 +351,8 @@ const fetchOrigins = async () => {
 // 重置弹窗表单到初始空状态，同时清空可选批次列表。
 const resetForm = () => {
   Object.assign(mergedForm, {
-    id: null, name: '', category: '', origin: '', price: 0,
-    batchId: '', batchNo: '', productionDate: '', batchRemark: '',
+    id: null, name: '', category: '', origin: '', price: 0, imageUrls: [],
+    batchId: '', batchNo: '', productionDate: '', batchRemark: '', batchImageUrls: [],
     productionRecords: [],
     inspectionRecords: [],
     logisticsRecords: []
@@ -361,6 +372,7 @@ watch(() => props.visible, async (val) => {
     const session = ++loadSession
     resetForm()
     Object.assign(mergedForm, props.initialData)
+    mergedForm.imageUrls = parseImageUrls(mergedForm.imageUrls)
     if (!mergedForm.id) {
       // 新增产品时，生产日期默认当天，避免每次手动选择。
       if (!mergedForm.productionDate) mergedForm.productionDate = currentDateText()
@@ -387,7 +399,8 @@ const fillBatchBase = (batch) => {
     batchId: batch?.id || '',
     batchNo: batch?.batchNo || '',
     productionDate: batch?.productionDate || '',
-    batchRemark: batch?.remark || ''
+    batchRemark: batch?.remark || '',
+    batchImageUrls: parseImageUrls(batch?.imageUrls)
   })
 }
 
@@ -440,7 +453,8 @@ const loadBatchTraceRows = async (batchId, session = loadSession) => {
         activityName: record.activityName || '',
         operator: record.operator || '',
         activityDate: normalizeDateTimeText(record.activityDate || ''),
-        remark: record.remark || ''
+        remark: record.remark || '',
+        imageUrls: parseImageUrls(record.imageUrls)
       }))
     )
     mergedForm.inspectionRecords.splice(
@@ -469,7 +483,7 @@ const loadBatchTraceRows = async (batchId, session = loadSession) => {
 }
 
 // 新增一行生产记录，时间默认当前本地时间。
-const addProduction = () => mergedForm.productionRecords.push({ activityName: '', operator: '', activityDate: currentDateTimeText(), remark: '' })
+const addProduction = () => mergedForm.productionRecords.push({ activityName: '', operator: '', activityDate: currentDateTimeText(), remark: '', imageUrls: [] })
 // 删除指定生产记录行。
 const removeProduction = (i) => mergedForm.productionRecords.splice(i, 1)
 // 新增一行质检记录，时间默认当前本地时间。
@@ -517,13 +531,18 @@ const handleSubmit = async () => {
 
   submitting.value = true
   try {
-    const { batchId, batchNo, productionDate, batchRemark, productionRecords, inspectionRecords, logisticsRecords, ...productData } = mergedForm
+    const { batchId, batchNo, productionDate, batchRemark, batchImageUrls, productionRecords, inspectionRecords, logisticsRecords, ...productData } = mergedForm
     const isNew = !mergedForm.id
+    productData.imageUrls = stringifyImageUrls(productData.imageUrls)
+    const normalizedProductionRecords = productionRecords.map(record => ({
+      ...record,
+      imageUrls: stringifyImageUrls(record.imageUrls)
+    }))
     emit('submit', {
       ...productData,
       _withTrace: isNew,
-      _traceData: isNew ? { batchNo, productionDate, remark: batchRemark, productionRecords: [...productionRecords], inspectionRecords: [...inspectionRecords], logisticsRecords: [...logisticsRecords] } : null,
-      _batchTraceData: !isNew && batchId ? { id: batchId, productId: mergedForm.id, batchNo, productionDate, remark: batchRemark, productionRecords: [...productionRecords], inspectionRecords: [...inspectionRecords], logisticsRecords: [...logisticsRecords] } : null
+      _traceData: isNew ? { batchNo, productionDate, remark: batchRemark, imageUrls: stringifyImageUrls(batchImageUrls), productionRecords: normalizedProductionRecords, inspectionRecords: [...inspectionRecords], logisticsRecords: [...logisticsRecords] } : null,
+      _batchTraceData: !isNew && batchId ? { id: batchId, productId: mergedForm.id, batchNo, productionDate, remark: batchRemark, imageUrls: stringifyImageUrls(batchImageUrls), productionRecords: normalizedProductionRecords, inspectionRecords: [...inspectionRecords], logisticsRecords: [...logisticsRecords] } : null
     })
   } finally {
     submitting.value = false
@@ -707,6 +726,22 @@ onMounted(() => {
 
 .record-row :deep(.el-form-item__error) {
   padding-top: 4px;
+}
+
+.image-form-item :deep(.el-form-item__label) {
+  white-space: nowrap;
+}
+
+.product-image-item {
+  padding: 12px;
+  border: 1px solid #edf1f7;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.record-images {
+  grid-column: 2 / -1;
+  min-width: 0;
 }
 
 .empty-hint {

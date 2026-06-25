@@ -58,7 +58,8 @@ public class TraceController {
                 "batches", batches.stream().map(batch -> Map.of(
                         "batchNo", batch.getBatchNo(),
                         "productionDate", batch.getProductionDate() == null ? "" : batch.getProductionDate().toString(),
-                        "remark", batch.getRemark() == null ? "" : batch.getRemark()
+                        "remark", batch.getRemark() == null ? "" : batch.getRemark(),
+                        "imageUrls", batch.getImageUrls() == null ? "" : batch.getImageUrls()
                 )).toList(),
                 "productionRecords", traceDataService.productionRows(productId),
                 "inspectionReports", traceDataService.inspectionRows(productId),
@@ -80,7 +81,8 @@ public class TraceController {
                 "batches", List.of(Map.of(
                         "batchNo", batch.getBatchNo(),
                         "productionDate", batch.getProductionDate() == null ? "" : batch.getProductionDate().toString(),
-                        "remark", batch.getRemark() == null ? "" : batch.getRemark()
+                        "remark", batch.getRemark() == null ? "" : batch.getRemark(),
+                        "imageUrls", batch.getImageUrls() == null ? "" : batch.getImageUrls()
                 )),
                 "productionRecords", traceDataService.productionRowsByBatch(batchId),
                 "inspectionReports", traceDataService.inspectionRowsByBatch(batchId),

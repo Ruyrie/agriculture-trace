@@ -120,6 +120,7 @@ public class BatchController {
         Batch batch = new Batch();
         batch.setBatchNo((String) body.get("batchNo"));
         batch.setRemark((String) body.get("remark"));
+        batch.setImageUrls((String) body.get("imageUrls"));
         Object date = body.get("productionDate");
         if (date != null && !date.toString().isBlank()) {
             batch.setProductionDate(java.time.LocalDate.parse(date.toString()));

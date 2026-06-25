@@ -121,6 +121,7 @@ public class ProductController {
             Batch batch = new Batch();
             batch.setBatchNo((String) batchMap.get("batchNo"));
             batch.setRemark((String) batchMap.getOrDefault("remark", ""));
+            batch.setImageUrls((String) batchMap.get("imageUrls"));
             Object date = batchMap.get("productionDate");
             if (date != null && !date.toString().isBlank()) {
                 batch.setProductionDate(LocalDate.parse(date.toString()));
@@ -158,6 +159,7 @@ public class ProductController {
         product.setName((String) map.get("name"));
         product.setCategory((String) map.get("category"));
         product.setOrigin((String) map.get("origin"));
+        product.setImageUrls((String) map.get("imageUrls"));
         if (map.get("price") != null && !map.get("price").toString().isBlank()) {
             product.setPrice(new java.math.BigDecimal(map.get("price").toString()));
         }

@@ -121,6 +121,7 @@ public class ProductService {
         existing.setCategory(product.getCategory());
         existing.setOrigin(product.getOrigin());
         existing.setPrice(product.getPrice());
+        existing.setImageUrls(product.getImageUrls());
         // 只要参与指纹的字段发生变化，就必须同步重算 dataHash。
         existing.setDataHash(computeProductHash(existing));
         Product saved = productRepository.save(existing);
@@ -214,6 +215,7 @@ public class ProductService {
         row.put("price", normalizePrice(product.getPrice()));
         row.put("createTime", product.getCreateTime());
         row.put("dataHash", product.getDataHash());
+        row.put("imageUrls", product.getImageUrls());
         return row;
     }
 
@@ -239,7 +241,8 @@ public class ProductService {
         return !Objects.equals(nullToEmpty(existing.getName()), nullToEmpty(incoming.getName()))
                 || !Objects.equals(nullToEmpty(existing.getCategory()), nullToEmpty(incoming.getCategory()))
                 || !Objects.equals(nullToEmpty(existing.getOrigin()), nullToEmpty(incoming.getOrigin()))
-                || !Objects.equals(normalizePrice(existing.getPrice()), normalizePrice(incoming.getPrice()));
+                || !Objects.equals(normalizePrice(existing.getPrice()), normalizePrice(incoming.getPrice()))
+                || !Objects.equals(nullToEmpty(existing.getImageUrls()), nullToEmpty(incoming.getImageUrls()));
     }
 
     /**

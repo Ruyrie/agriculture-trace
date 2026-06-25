@@ -19,6 +19,11 @@ public interface UserRepository extends JpaRepository<User, String> {
     Optional<User> findByUsername(String username);
 
     /**
+     * 按手机号查询用户，用于新增/编辑用户时给出友好的重复手机号提示。
+     */
+    Optional<User> findByPhone(String phone);
+
+    /**
      * 管理员用户列表的关键字查询，同时匹配用户名和手机号。
      * Page<User>：分页后的用户结果，包含用户列表 + 总条数 + 总页数等信息
      * Pageable：分页查询条件，比如页码、每页大小、排序

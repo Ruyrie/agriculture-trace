@@ -45,4 +45,7 @@ public class Batch {
 
     @Column(name = "data_hash", length = 64)
     private String dataHash;
+
+    @Column(name = "image_urls", columnDefinition = "text")
+    private String imageUrls;
 }

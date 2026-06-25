@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS `product` (
   `price` decimal(10,2) DEFAULT NULL,
   `create_time` varchar(19) DEFAULT NULL COMMENT '创建时间',
   `data_hash` varchar(64) DEFAULT NULL COMMENT '产品数据哈希(SHA-256)',
+  `image_urls` text COMMENT '产品图片URL列表JSON',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -51,6 +52,7 @@ CREATE TABLE IF NOT EXISTS `batch` (
   `remark` varchar(256) DEFAULT NULL COMMENT '备注',
   `create_time` varchar(19) DEFAULT NULL COMMENT '创建时间',
   `data_hash` varchar(64) DEFAULT NULL COMMENT '批次数据哈希(SHA-256)',
+  `image_urls` text COMMENT '批次图片URL列表JSON',
   PRIMARY KEY (`id`),
   UNIQUE KEY `batch_no` (`batch_no`),
   FOREIGN KEY (`product_id`) REFERENCES `product`(`id`) ON DELETE CASCADE
@@ -80,6 +82,7 @@ CREATE TABLE IF NOT EXISTS `production_record` (
   `activity_date` varchar(19) DEFAULT NULL COMMENT '活动时间',
   `remark` varchar(256) DEFAULT NULL COMMENT '备注',
   `sort_order` int DEFAULT 0 COMMENT '排序',
+  `image_urls` text COMMENT '生产记录图片URL列表JSON',
   PRIMARY KEY (`id`),
   KEY `idx_production_batch` (`batch_id`),
   FOREIGN KEY (`batch_id`) REFERENCES `batch`(`id`) ON DELETE CASCADE

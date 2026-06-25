@@ -143,6 +143,7 @@ public class BatchService {
         existing.setBatchNo(batch.getBatchNo());
         existing.setProductionDate(batch.getProductionDate());
         existing.setRemark(batch.getRemark());
+        existing.setImageUrls(batch.getImageUrls());
         // 修改批次关键字段后立即重算指纹，保证正常业务操作不会制造误报。
         existing.setDataHash(computeBatchHash(existing));
         Batch saved = batchRepository.save(existing);
@@ -182,6 +183,7 @@ public class BatchService {
         row.put("remark", batch.getRemark());
         row.put("createTime", batch.getCreateTime());
         row.put("dataHash", batch.getDataHash());
+        row.put("imageUrls", batch.getImageUrls());
         return row;
     }
 
@@ -292,6 +294,7 @@ public class BatchService {
         row.put("remark", batch.getRemark());
         row.put("createTime", batch.getCreateTime());
         row.put("dataHash", batch.getDataHash());
+        row.put("imageUrls", batch.getImageUrls());
         return row;
     }
 
@@ -311,7 +314,8 @@ public class BatchService {
         return !Objects.equals(existingProductId, incomingProductId)
                 || !Objects.equals(nullToEmpty(existing.getBatchNo()), nullToEmpty(incoming.getBatchNo()))
                 || !Objects.equals(existing.getProductionDate(), incoming.getProductionDate())
-                || !Objects.equals(nullToEmpty(existing.getRemark()), nullToEmpty(incoming.getRemark()));
+                || !Objects.equals(nullToEmpty(existing.getRemark()), nullToEmpty(incoming.getRemark()))
+                || !Objects.equals(nullToEmpty(existing.getImageUrls()), nullToEmpty(incoming.getImageUrls()));
     }
 
     /**

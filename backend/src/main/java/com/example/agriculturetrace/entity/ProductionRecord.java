@@ -43,4 +43,7 @@ public class ProductionRecord {
 
     @Column(name = "sort_order")
     private Integer sortOrder;
+
+    @Column(name = "image_urls", columnDefinition = "text")
+    private String imageUrls;
 }
