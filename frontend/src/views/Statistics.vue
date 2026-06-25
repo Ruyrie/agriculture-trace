@@ -209,7 +209,7 @@ const renderMonthlyChart = () => {
       },
       { name: '产品数', type: 'line', data: productCounts, smooth: true, symbol: 'circle', symbolSize: 7, itemStyle: { color: '#1976d2' }, lineStyle: { width: 3 } }
     ]
-  })
+  }, true)
 }
 
 // 渲染近 7 天溯源访问趋势面积图。
@@ -232,7 +232,7 @@ const renderTrendChart = () => {
         ])
       }
     }]
-  })
+  }, true)
 }
 
 // 渲染产地分布饼图。
@@ -250,7 +250,7 @@ const renderOriginChart = () => {
       label: { formatter: '{b}\n{c}' },
       emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.2)' } }
     }]
-  })
+  }, true)
 }
 
 // 渲染类别批次占比环形图。
@@ -268,7 +268,7 @@ const renderCategoryChart = () => {
       label: { formatter: '{b}\n{d}%' },
       emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.2)' } }
     }]
-  })
+  }, true)
 }
 
 // 渲染溯源热度 Top 10 横向条形图。
@@ -297,7 +297,7 @@ const renderRankingChart = () => {
       },
       label: { show: true, position: 'right', color: '#606266' }
     }]
-  })
+  }, true)
 }
 
 // 等 DOM 更新后再初始化/更新 ECharts，避免 ref 还没挂载。

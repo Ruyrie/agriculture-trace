@@ -1,26 +1,25 @@
 package com.example.agriculturetrace.config;
 
+import com.example.agriculturetrace.util.UploadPaths;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-import java.nio.file.Path;
-
 /**
  * Web 静态资源配置。
  *
- * 头像上传到项目运行目录的 uploads 文件夹，通过 /uploads/** 暴露给前端展示。
+ * 上传文件统一放到项目根目录 uploads 文件夹，通过 /uploads/** 暴露给前端展示。
  */
 @Configuration
 public class WebMvcConfig implements WebMvcConfigurer {
 
     /**
-     * 把运行目录下的 uploads 文件夹映射成 /uploads/** 静态资源地址，
-     * 用户上传头像后前端可以直接用返回的 URL 展示图片。
+     * 把项目根目录下的 uploads 文件夹映射成 /uploads/** 静态资源地址，
+     * 避免从不同工作目录启动后端时头像路径漂移。
      */
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        String uploadPath = Path.of(System.getProperty("user.dir"), "uploads").toUri().toString();
+        String uploadPath = UploadPaths.rootUploadDir().toUri().toString();
         registry.addResourceHandler("/uploads/**").addResourceLocations(uploadPath);
     }
 }

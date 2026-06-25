@@ -3,6 +3,7 @@ package com.example.agriculturetrace.controller;
 import com.example.agriculturetrace.entity.User;
 import com.example.agriculturetrace.service.UserService;
 import com.example.agriculturetrace.util.Result;
+import com.example.agriculturetrace.util.UploadPaths;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.data.domain.Page;
 import org.springframework.security.core.Authentication;
@@ -108,7 +109,7 @@ public class UserController {
         String originalName = file.getOriginalFilename() == null ? "" : file.getOriginalFilename();
         String extension = originalName.contains(".") ? originalName.substring(originalName.lastIndexOf(".")) : ".png";
         String filename = UUID.randomUUID() + extension;
-        Path uploadDir = Path.of(System.getProperty("user.dir"), "uploads");
+        Path uploadDir = UploadPaths.rootUploadDir();
         Files.createDirectories(uploadDir);
         Files.write(uploadDir.resolve(filename), file.getBytes());
         String avatarUrl = "/uploads/" + filename;

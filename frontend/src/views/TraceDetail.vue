@@ -134,18 +134,26 @@
           </template>
 
           <div class="batch-content">
-            <div v-if="imageList(batch.imageUrls).length" class="image-gallery batch-gallery">
-              <el-image
-                v-for="(url, index) in imageList(batch.imageUrls)"
-                :key="url"
-                :src="url"
-                :preview-src-list="imageList(batch.imageUrls)"
-                :initial-index="index"
-                preview-teleported
-                fit="cover"
-                class="gallery-image"
-              />
+            <!-- 批次说明 -->
+            <div v-if="imageList(batch.imageUrls).length" class="sub-section batch-note-section">
+              <div class="sub-header">
+                <el-icon color="#909399"><Document /></el-icon>
+                <span class="sub-title">批次说明</span>
+              </div>
+              <div class="image-gallery batch-gallery">
+                <el-image
+                  v-for="(url, index) in imageList(batch.imageUrls)"
+                  :key="url"
+                  :src="url"
+                  :preview-src-list="imageList(batch.imageUrls)"
+                  :initial-index="index"
+                  preview-teleported
+                  fit="cover"
+                  class="gallery-image"
+                />
+              </div>
             </div>
+
             <!-- 生产记录 -->
             <div class="sub-section">
               <div class="sub-header">
@@ -153,24 +161,40 @@
                 <span class="sub-title">生产记录</span>
               </div>
               <el-empty v-if="batch.production.length === 0" description="暂无生产记录" :image-size="50" />
-              <el-table v-else :data="batch.production" border stripe>
-                <el-table-column prop="activityName" label="生产活动" min-width="160" />
-                <el-table-column prop="activityDate" label="操作时间" width="170" />
-                <el-table-column prop="operator" label="操作员" width="120" />
-                <el-table-column prop="remark" label="备注" min-width="200" show-overflow-tooltip />
-                <el-table-column label="图片" width="110" align="center">
-                  <template #default="{ row }">
+              <div v-else class="production-record-list">
+                <div v-for="(record, index) in batch.production" :key="`${record.activityName}-${record.activityDate}-${index}`" class="production-record-card">
+                  <div class="production-record-main">
+                    <div class="production-field production-field-activity">
+                      <span class="field-label">生产活动</span>
+                      <span class="field-value strong">{{ record.activityName }}</span>
+                    </div>
+                    <div class="production-field">
+                      <span class="field-label">操作时间</span>
+                      <span class="field-value">{{ record.activityDate }}</span>
+                    </div>
+                    <div class="production-field">
+                      <span class="field-label">操作员</span>
+                      <span class="field-value">{{ record.operator }}</span>
+                    </div>
+                    <div class="production-field production-field-remark">
+                      <span class="field-label">备注</span>
+                      <span class="field-value">{{ record.remark || '-' }}</span>
+                    </div>
+                  </div>
+                  <div v-if="imageList(record.imageUrls).length" class="image-gallery production-image-gallery">
                     <el-image
-                      v-if="firstImage(row.imageUrls)"
-                      :src="firstImage(row.imageUrls)"
-                      :preview-src-list="imageList(row.imageUrls)"
+                      v-for="(url, imgIndex) in imageList(record.imageUrls)"
+                      :key="url"
+                      :src="url"
+                      :preview-src-list="imageList(record.imageUrls)"
+                      :initial-index="imgIndex"
                       preview-teleported
                       fit="cover"
-                      class="record-thumb"
+                      class="record-image"
                     />
-                  </template>
-                </el-table-column>
-              </el-table>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- 质检报告 -->
@@ -253,7 +277,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import QRCode from 'qrcode'
 import { ElMessage } from 'element-plus'
-import { Download, Tools, CircleCheck, Promotion, Filter, ArrowDown } from '@element-plus/icons-vue'
+import { Download, Tools, CircleCheck, Promotion, Filter, ArrowDown, Picture, Document } from '@element-plus/icons-vue'
 import { getBatchTraceInfo, getTraceInfo } from '@/api/trace'
 import { parseImageUrls, resolveImageUrl } from '@/utils/images'
 
@@ -522,7 +546,7 @@ onMounted(() => {
   margin-top: 16px;
 }
 .batch-gallery {
-  margin: 10px 0 2px;
+  margin: 0;
 }
 .gallery-image {
   width: 108px;
@@ -532,9 +556,9 @@ onMounted(() => {
   border: 1px solid #e7edf5;
   background: #f8fafc;
 }
-.record-thumb {
-  width: 58px;
-  height: 44px;
+.record-image {
+  width: 96px;
+  height: 68px;
   border-radius: 6px;
   display: block;
   overflow: hidden;
@@ -671,6 +695,86 @@ onMounted(() => {
   font-size: 16px;
   font-weight: 600;
   color: #303133;
+}
+
+.batch-note-section {
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #fbfcfe;
+  border: 1px solid #eef2f7;
+}
+
+.production-record-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #ebeef5;
+  border-bottom: none;
+}
+
+.production-record-card {
+  border-bottom: 1px solid #ebeef5;
+  background: #ffffff;
+}
+
+.production-record-card:nth-child(even) {
+  background: #fafcff;
+}
+
+.production-record-main {
+  display: grid;
+  grid-template-columns: minmax(160px, 1.25fr) 170px 120px minmax(220px, 1.4fr);
+}
+
+.production-field {
+  min-width: 0;
+  padding: 10px 12px;
+  border-right: 1px solid #ebeef5;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.production-field:last-child {
+  border-right: none;
+}
+
+.field-label {
+  color: #909399;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.field-value {
+  color: #606266;
+  font-size: 14px;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.field-value.strong {
+  color: #303133;
+  font-weight: 600;
+}
+
+.production-image-gallery {
+  padding: 0 12px 12px;
+  margin-top: -2px;
+}
+
+@media (max-width: 960px) {
+  .production-record-main {
+    grid-template-columns: 1fr;
+  }
+
+  .production-field {
+    border-right: none;
+    border-bottom: 1px solid #ebeef5;
+  }
+
+  .production-field:last-child {
+    border-bottom: none;
+  }
 }
 
 /* 物流时间线 */

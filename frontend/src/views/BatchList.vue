@@ -48,26 +48,28 @@
             {{ (page - 1) * pageSize + $index + 1 }}
           </template>
         </el-table-column>
-        <el-table-column prop="batchNo" label="批次号" min-width="140">
+        <el-table-column prop="batchNo" label="批次号" width="180">
           <template #default="{ row }">
             <el-tag type="info" size="small">{{ row.batchNo }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="productName" label="产品名称" min-width="120" />
-        <el-table-column label="图片" width="92" align="center">
+        <el-table-column label="批次图片" width="110" align="center">
           <template #default="{ row }">
-            <el-image
-              v-if="firstImage(row)"
-              :src="firstImage(row)"
-              :preview-src-list="previewImages(row)"
-              preview-teleported
-              fit="cover"
-              class="batch-thumb"
-            />
+            <div class="batch-thumb-cell">
+              <el-image
+                v-if="firstImage(row)"
+                :src="firstImage(row)"
+                :preview-src-list="previewImages(row)"
+                preview-teleported
+                fit="cover"
+                class="batch-thumb"
+              />
+            </div>
           </template>
         </el-table-column>
-        <el-table-column prop="productionDate" label="生产日期" width="120" align="center" />
-        <el-table-column label="数据指纹" min-width="150" align="center">
+        <el-table-column prop="productName" label="产品名称" min-width="160" align="center" />
+        <el-table-column prop="productionDate" label="生产日期" width="130" align="center" />
+        <el-table-column label="数据指纹" min-width="170" align="center">
           <template #default="{ row }">
             <HashTag :hash="row.dataHash" />
           </template>
@@ -701,12 +703,20 @@ onMounted(() => {
   overflow: hidden;
 }
 
+.batch-thumb-cell {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .batch-thumb {
   width: 52px;
   height: 52px;
   border-radius: 6px;
-  display: block;
   overflow: hidden;
+  border: 1px solid #e7edf5;
+  background: #f8fafc;
 }
 
 .hash-code {

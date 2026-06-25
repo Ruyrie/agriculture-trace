@@ -1,6 +1,7 @@
 package com.example.agriculturetrace.controller;
 
 import com.example.agriculturetrace.util.Result;
+import com.example.agriculturetrace.util.UploadPaths;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -41,7 +42,7 @@ public class UploadController {
         if (!ALLOWED_EXTENSIONS.contains(extension)) {
             return Result.error(400, "仅支持 jpg、png、gif、webp 图片");
         }
-        Path uploadDir = Path.of(System.getProperty("user.dir"), "uploads", "trace-images");
+        Path uploadDir = UploadPaths.rootUploadDir().resolve("trace-images");
         Files.createDirectories(uploadDir);
         String filename = UUID.randomUUID() + extension;
         Files.write(uploadDir.resolve(filename), file.getBytes());
