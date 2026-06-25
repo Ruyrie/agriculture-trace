@@ -12,6 +12,8 @@
       </el-button>
     </div>
 
+    <!-- 内容主体：刷新时通过 key 整体重挂载，重放入场动画，观感等同 F5。 -->
+    <div class="page-body" :key="refreshKey">
     <!-- 概览卡片 -->
     <el-row :gutter="16" class="summary-row">
       <el-col :xs="12" :sm="6" v-for="item in summaryCards" :key="item.label">
@@ -120,6 +122,7 @@
         </el-card>
       </el-col>
     </el-row>
+    </div>
   </div>
 </template>
 
@@ -147,6 +150,9 @@ let rankingChart = null
 
 // 统一的图表配色，绿色为主基调，与系统整体风格保持一致。
 const PALETTE = ['#2e7d32', '#66bb6a', '#ffa726', '#42a5f5', '#ab47bc', '#26a69a', '#ef5350', '#78909c']
+
+// 每次刷新自增，作为内容主体的 key，触发整体重挂载以重放入场动画。
+const refreshKey = ref(0)
 
 const reports = reactive({
   monthlyBatchOutput: [],
@@ -300,6 +306,15 @@ const renderRankingChart = () => {
   }, true)
 }
 
+// 销毁所有图表实例并置空，使下次渲染重新 init 并重放入场动画。
+const disposeCharts = () => {
+  monthlyChart?.dispose(); monthlyChart = null
+  trendChart?.dispose(); trendChart = null
+  originChart?.dispose(); originChart = null
+  categoryChart?.dispose(); categoryChart = null
+  rankingChart?.dispose(); rankingChart = null
+}
+
 // 等 DOM 更新后再初始化/更新 ECharts，避免 ref 还没挂载。
 const renderCharts = async () => {
   await nextTick()
@@ -325,6 +340,9 @@ const loadReports = async () => {
       traceTrend.dates = trendRes.data.dates || []
       traceTrend.counts = trendRes.data.counts || []
     }
+    // 整体重挂载内容主体（重放 CSS 入场动画），并丢弃旧图表实例使其重新 init 重放动画。
+    refreshKey.value++
+    disposeCharts()
     await renderCharts()
   } catch {
     ElMessage.error('统计报表加载失败')
@@ -349,11 +367,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('resize', resizeCharts)
-  monthlyChart?.dispose()
-  trendChart?.dispose()
-  originChart?.dispose()
-  categoryChart?.dispose()
-  rankingChart?.dispose()
+  disposeCharts()
 })
 </script>
 
@@ -362,6 +376,19 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+/* 内容主体：保持原有行间距，并在（重）挂载时重放入场动画。 */
+.page-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: page-enter 0.45s ease;
+}
+
+@keyframes page-enter {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* 顶部渐变横幅 */

@@ -30,14 +30,13 @@
             <el-input v-model="mergedForm.category" placeholder="如：水果、茶叶、粮食" />
           </el-form-item>
           <el-form-item label="产地" prop="origin" class="span-2">
-            <el-select v-model="mergedForm.origin" filterable placeholder="请选择或搜索产地" :loading="originsLoading">
-              <el-option-group label="国际产地">
-                <el-option v-for="item in internationalOrigins" :key="item" :label="item" :value="item" />
-              </el-option-group>
-              <el-option-group label="国内省份">
-                <el-option v-for="item in domesticOrigins" :key="item" :label="item" :value="item" />
-              </el-option-group>
-            </el-select>
+            <el-autocomplete
+              v-model="mergedForm.origin"
+              :fetch-suggestions="queryOrigins"
+              placeholder="请选择、搜索或输入产地"
+              clearable
+              class="origin-autocomplete"
+            />
           </el-form-item>
           <el-form-item label="价格(元/kg)" prop="price">
             <el-input-number v-model="mergedForm.price" :min="0" :precision="2" controls-position="right" />
@@ -322,7 +321,7 @@ const allRules = computed(() => {
   const base = {
     name: [{ required: true, message: '请输入产品名称', trigger: 'blur' }],
     category: [{ required: true, message: '请输入类别', trigger: 'blur' }],
-    origin: [{ required: true, message: '请选择产地', trigger: 'change' }],
+    origin: [{ required: true, message: '请输入或选择产地', trigger: ['blur', 'change'] }],
     price: [{ required: true, type: 'number', message: '请输入价格', trigger: 'blur' }]
   }
   if (!mergedForm.id || mergedForm.batchId) {
@@ -332,7 +331,17 @@ const allRules = computed(() => {
   return base
 })
 
-// 加载产地候选项，供产品产地下拉框分组展示。
+// 产地输入框的候选项：合并国际/国内产地，按输入内容过滤；为空时展示全部建议。
+const queryOrigins = (query, cb) => {
+  const all = [...internationalOrigins.value, ...domesticOrigins.value]
+  const keyword = (query || '').trim().toLowerCase()
+  const matched = keyword
+    ? all.filter(item => item.toLowerCase().includes(keyword))
+    : all
+  cb(matched.map(item => ({ value: item })))
+}
+
+// 加载产地候选项，供产品产地输入框联想展示。
 const fetchOrigins = async () => {
   originsLoading.value = true
   try {
@@ -674,6 +683,7 @@ onMounted(() => {
 
 .product-form :deep(.el-input-number),
 .product-form :deep(.el-select),
+.product-form :deep(.el-autocomplete),
 .product-form :deep(.el-date-editor) {
   width: 100%;
 }
