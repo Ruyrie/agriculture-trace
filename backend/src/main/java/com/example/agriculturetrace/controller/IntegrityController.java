@@ -110,12 +110,16 @@ public class IntegrityController {
      * 将 Product 转为数据指纹展示行，并附带即时计算的 currentHash。
      */
     private Map<String, Object> toIntegrityRow(Product product) {
-        // storedHash 是数据库保存值，currentHash 是当前字段即时计算值；
-        // 前端用 valid 字段直接渲染“一致/异常”。
+        // currentHash：对当前数据库中该产品的字段即时重新计算的 SHA-256 指纹。
         String currentHash = productService.computeProductHash(product);
+        // toAuditRow 已包含 id/name/category/origin/price/createTime 等展示字段；
+        // 用 LinkedHashMap 复制，保证字段顺序稳定，方便前端展示和调试。
         Map<String, Object> row = new LinkedHashMap<>(productService.toAuditRow(product));
+        // storedHash：数据库 data_hash 列存的历史值，代表”系统上次修改时算出的指纹”。
         row.put("storedHash", product.getDataHash());
+        // currentHash：基于当前字段即时计算的指纹，用于与 storedHash 比对。
         row.put("currentHash", currentHash);
+        // valid：两者一致则 true（正常），不一致则 false（字段被直接改库篡改）。
         row.put("valid", currentHash.equals(product.getDataHash()));
         return row;
     }
@@ -124,11 +128,13 @@ public class IntegrityController {
      * 计算简化版全局根哈希：把所有行的 currentHash 按固定顺序连接后再 SHA-256。
      */
     private String calculateRootHash(List<Map<String, Object>> rows) {
-        // 简化版根哈希：将每条产品当前指纹按固定顺序串联后再 SHA-256。
-        // 它不是完整 Merkle Tree，但能模拟“全局数据摘要”的校验效果。
+        // 将所有产品的当前指纹按 “|” 分隔串联成一个字符串，再 SHA-256 得到全局摘要。
+        // 这是简化版 Merkle Root：不是标准二叉树结构，但任意一条产品数据变化都会使根哈希变化。
+        // reduce 的逻辑：第一条不加前缀，后续用 “|” 分隔拼接。
         String joined = rows.stream()
                 .map(row -> String.valueOf(row.get("currentHash")))
                 .reduce("", (left, right) -> left.isEmpty() ? right : left + "|" + right);
+        // 对拼接结果再做 SHA-256，得到固定长度的全局摘要，便于外部存证和比对。
         return HashUtil.sha256(joined);
     }
 }

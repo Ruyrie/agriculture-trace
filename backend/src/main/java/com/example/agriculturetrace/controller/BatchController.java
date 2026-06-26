@@ -62,6 +62,7 @@ public class BatchController {
      */
     public Result<?> create(@RequestBody Map<String, Object> body) {
         // 新增批次时允许同步提交生产、质检、物流明细；
+        //把前端传来的 body 里面的批次字段转换成 Batch 实体对象
         // 与 ProductController#createWithTrace 一样，使用事务保证批次和明细同生共死。
         Batch batch = mapBatch(body);
         String productId = (String) body.get("productId");

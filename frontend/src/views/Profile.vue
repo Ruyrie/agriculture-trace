@@ -114,6 +114,22 @@
 </template>
 
 <script setup>
+/**
+ * Profile.vue — 个人中心页面（所有登录用户均可访问）。
+ *
+ * 功能（两个 Tab）：
+ *   1. 基本信息：展示/修改昵称和手机号；头像通过点击上传区域触发 el-upload。
+ *      保存成功后更新 localStorage.userInfo 并 dispatchEvent(userInfoUpdated)，
+ *      通知 Layout.vue 右上角头像和用户名实时同步。
+ *   2. 修改密码：新密码 + 确认密码 + 图形验证码（一次性，每次修改都需刷新）。
+ *      验证码通过 getCaptcha() 拉取 Base64 图片，后端 Session 存储答案。
+ *      修改成功后清除 localStorage，强制重新登录（router.push('/login')）。
+ *
+ * 关联：
+ *   - api/user.js（updateProfile / changePassword / uploadAvatar / getCaptcha）
+ *   - Layout.vue（监听 userInfoUpdated 自定义事件更新右上角用户信息）
+ *   - router/index.js（修改密码成功后跳转 /login）
+ */
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Camera, EditPen, InfoFilled, Iphone, Key, Lock, Picture, User, UserFilled } from '@element-plus/icons-vue'
@@ -121,19 +137,23 @@ import { updateProfile as updateProfileApi, changePassword as changePasswordApi,
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
+// 当前激活的 Tab 面板：'info'（基本信息）或 'password'（修改密码）。
 const activeTab = ref('info')
+// 保存基本信息时的加载状态，控制"保存修改"按钮 :loading。
 const saving = ref(false)
+// 修改密码时的加载状态，控制"修改密码"按钮 :loading。
 const changing = ref(false)
 
-// 基本信息表单
+// 基本信息表单 ref，用于 .validate()。
 const profileFormRef = ref()
+// 基本信息表单数据；从 localStorage.userInfo 初始化，保存时只提交 nickname/phone/avatar 三个可修改字段。
 const profileForm = reactive({
-  id: null,
-  username: '',
-  nickname: '',
-  phone: '',
-  avatar: '',
-  role: ''
+  id: null,       // 用户 ID，提交时随 payload 带上用于后端定位记录
+  username: '',   // 用户名，禁用不可修改（Spring Security principal）
+  nickname: '',   // 昵称（可修改）
+  phone: '',      // 手机号（可修改，需符合 /^1[3-9]\d{9}$/）
+  avatar: '',     // 头像 URL，上传成功后由 handleAvatarUpload 更新
+  role: ''        // 角色中文标签，由 roleLabel() 转换自 ROLE_* 编码，只读展示
 })
 
 const profileRules = {

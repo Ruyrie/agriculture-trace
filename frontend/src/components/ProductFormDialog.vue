@@ -156,6 +156,9 @@
                 <el-date-picker v-model="rec.inspectionDate" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" :disabled-date="disableFutureDate" placeholder="时间" />
               </el-form-item>
               <el-button class="delete-btn" type="danger" :icon="Delete" circle plain @click="removeInspection(idx)" />
+              <div class="record-images">
+                <ImageUploadGrid v-model="rec.imageUrls" />
+              </div>
             </div>
           </div>
           <div v-if="mergedForm.inspectionRecords.length === 0" class="empty-hint">请至少添加一条质检记录</div>
@@ -202,6 +205,34 @@
 </template>
 
 <script setup>
+/**
+ * ProductFormDialog.vue — 产品新增/编辑弹窗组件。
+ *
+ * 以 el-dialog 形式出现，承载产品基本信息（名称、类别、产地、价格、图片）
+ * 和可选的溯源信息（选择/新建批次 + 生产/质检/物流动态行）。
+ *
+ * 新增产品时：一次性在同一弹窗内填写产品和批次初始溯源记录，
+ *   后端 addProductWithTrace() 在一个事务中保存产品和溯源明细。
+ * 编辑产品时：产品字段单独更新；若选择了某个批次（batchId 有值），
+ *   则同步更新该批次的溯源明细（覆盖式保存）；若未选批次，只更新产品字段。
+ *
+ * 关联：
+ *   - ProductList.vue（打开弹窗的入口）
+ *   - api/product.js（addProduct / updateProduct / addProductWithTrace）
+ *   - api/batch.js（getBatchList 拉取批次下拉选项）
+ *   - api/trace.js（getBatchTraceInfo 回填批次溯源记录）
+ *   - components/ImageUploadGrid.vue（产品和批次图片上传）
+ *   - utils/images.js（图片 URL 序列化/反序列化）
+ *
+ * Props:
+ *   visible     — 弹窗是否显示（v-model:visible）
+ *   title       — 弹窗标题文本
+ *   initialData — 编辑时传入产品初始数据（null 表示新增）
+ *
+ * Emits:
+ *   update:visible — 关闭弹窗时通知父组件
+ *   submit         — 保存成功后通知父组件刷新列表
+ */
 import { ref, reactive, watch, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Delete, Plus } from '@element-plus/icons-vue'
@@ -221,26 +252,43 @@ const props = defineProps({
 })
 const emit = defineEmits(['update:visible', 'submit'])
 
+// 表单 el-form ref，用于 .validate() 触发全字段校验。
 const formRef = ref()
+// 表单提交加载状态，防止重复点击”保存”。
 const submitting = ref(false)
 
 // 每次打开/关闭弹窗自增，异步加载结果若与当前会话不一致则丢弃，
-// 避免上一次编辑的批次/溯源数据在弹窗已重置后回填，造成“数据没清空”。
+// 避免上一次编辑的批次/溯源数据在弹窗已重置后回填，造成”数据没清空”的错觉。
 let loadSession = 0
 
-// 合并表单：基本信息 + 溯源信息放在同一个 reactive 对象
+// 合并表单：基本信息（产品字段）+ 溯源信息（批次 + 三类明细）放在同一 reactive 对象，
+// 减少拆分表单的数据对齐复杂度，提交时按需提取各部分数据构造 payload。
 const mergedForm = reactive({
-  id: null, name: '', category: '', origin: '', price: 0, imageUrls: [],
-  batchId: '', batchNo: '', productionDate: '', batchRemark: '', batchImageUrls: [],
-  productionRecords: [],
-  inspectionRecords: [],
-  logisticsRecords: []
+  id: null,               // 产品 ID（null 表示新增）
+  name: '',               // 产品名称
+  category: '',           // 类别（数据来源：ProductController.getOriginOptions）
+  origin: '',             // 产地（el-autocomplete 支持搜索候选）
+  price: 0,               // 价格 el/kg，BigDecimal
+  imageUrls: [],          // 产品图片 URL 数组
+  batchId: '',            // 编辑时选择的批次 ID（batch_N），用于加载溯源记录回填
+  batchNo: '',            // 批次号（5-20 位字母数字）
+  productionDate: '',     // 批次生产日期 YYYY-MM-DD
+  batchRemark: '',        // 批次备注
+  batchImageUrls: [],     // 批次图片 URL 数组
+  productionRecords: [],  // 生产活动记录动态行
+  inspectionRecords: [],  // 质量检测记录动态行
+  logisticsRecords: []    // 物流节点记录动态行
 })
 
+// 国际产地候选项，从后端 /api/product/origins?type=international 拉取。
 const internationalOrigins = ref([])
+// 国内产地候选项，从后端 /api/product/origins?type=domestic 拉取。
 const domesticOrigins = ref([])
+// 产地候选项加载状态，控制 el-autocomplete 加载中提示。
 const originsLoading = ref(false)
+// 当前产品下的批次列表，用于编辑弹窗”选择维护批次”下拉。
 const batchOptions = ref([])
+// 批次列表加载状态。
 const batchLoading = ref(false)
 
 // 生成动态表格行的必填校验规则，field 用于拼接友好错误消息。
@@ -473,7 +521,8 @@ const loadBatchTraceRows = async (batchId, session = loadSession) => {
         inspectionItem: record.inspectionItem || record.item || '',
         result: record.result || '',
         inspector: record.inspector || '',
-        inspectionDate: normalizeDateTimeText(record.inspectionDate || record.date || '')
+        inspectionDate: normalizeDateTimeText(record.inspectionDate || record.date || ''),
+        imageUrls: parseImageUrls(record.imageUrls)
       }))
     )
     mergedForm.logisticsRecords.splice(
@@ -496,7 +545,7 @@ const addProduction = () => mergedForm.productionRecords.push({ activityName: ''
 // 删除指定生产记录行。
 const removeProduction = (i) => mergedForm.productionRecords.splice(i, 1)
 // 新增一行质检记录，时间默认当前本地时间。
-const addInspection = () => mergedForm.inspectionRecords.push({ inspectionItem: '', result: '', inspector: '', inspectionDate: currentDateTimeText() })
+const addInspection = () => mergedForm.inspectionRecords.push({ inspectionItem: '', result: '', inspector: '', inspectionDate: currentDateTimeText(), imageUrls: [] })
 // 删除指定质检记录行。
 const removeInspection = (i) => mergedForm.inspectionRecords.splice(i, 1)
 // 新增一行物流记录，时间默认当前日期时间。
@@ -547,11 +596,15 @@ const handleSubmit = async () => {
       ...record,
       imageUrls: stringifyImageUrls(record.imageUrls)
     }))
+    const normalizedInspectionRecords = inspectionRecords.map(record => ({
+      ...record,
+      imageUrls: stringifyImageUrls(record.imageUrls)
+    }))
     emit('submit', {
       ...productData,
       _withTrace: isNew,
-      _traceData: isNew ? { batchNo, productionDate, remark: batchRemark, imageUrls: stringifyImageUrls(batchImageUrls), productionRecords: normalizedProductionRecords, inspectionRecords: [...inspectionRecords], logisticsRecords: [...logisticsRecords] } : null,
-      _batchTraceData: !isNew && batchId ? { id: batchId, productId: mergedForm.id, batchNo, productionDate, remark: batchRemark, imageUrls: stringifyImageUrls(batchImageUrls), productionRecords: normalizedProductionRecords, inspectionRecords: [...inspectionRecords], logisticsRecords: [...logisticsRecords] } : null
+      _traceData: isNew ? { batchNo, productionDate, remark: batchRemark, imageUrls: stringifyImageUrls(batchImageUrls), productionRecords: normalizedProductionRecords, inspectionRecords: normalizedInspectionRecords, logisticsRecords: [...logisticsRecords] } : null,
+      _batchTraceData: !isNew && batchId ? { id: batchId, productId: mergedForm.id, batchNo, productionDate, remark: batchRemark, imageUrls: stringifyImageUrls(batchImageUrls), productionRecords: normalizedProductionRecords, inspectionRecords: normalizedInspectionRecords, logisticsRecords: [...logisticsRecords] } : null
     })
   } finally {
     submitting.value = false

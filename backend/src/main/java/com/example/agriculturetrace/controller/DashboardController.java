@@ -51,22 +51,30 @@ public class DashboardController {
      */
     @GetMapping("/traceTrend")
     public Result<?> traceTrend() {
+        // 查数据库：只返回最近 7 天有溯源访问记录的日期和次数；没有访问的日期不在结果里。
         var rows = statisticsMapper.traceTrend();
+
+        // 把查询结果组装成 date(String) → count(Object) 的映射，方便后续按日期查找次数。
         Map<String, Object> countByDate = new LinkedHashMap<>();
         rows.forEach(row -> countByDate.put(String.valueOf(row.get("date")), row.get("count")));
 
+        // 取服务器当天日期，作为"7天区间"的终点。
         LocalDate today = LocalDate.now();
+        // ISO_LOCAL_DATE 即 yyyy-MM-dd 格式，与数据库中存储的 trace_time 前10字符一致。
         DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE;
+        // 生成从 6天前 到 今天 的连续日期列表，offset=0 是 6天前，offset=6 是今天，保证折线图横轴从左到右。
         var dates = java.util.stream.IntStream.rangeClosed(0, 6)
                 .mapToObj(offset -> today.minusDays(6L - offset).format(formatter))
                 .toList();
+
+        // 按日期顺序查访问次数；当天 countByDate 里没有该日期时，用 0 补充，保证折线图横轴不断。
         var counts = dates.stream()
                 .map(date -> Objects.requireNonNullElse(countByDate.get(date), 0))
                 .toList();
 
         return Result.success(Map.of(
-                "dates", dates,
-                "counts", counts
+                "dates", dates,   // 横轴：7天日期字符串数组
+                "counts", counts  // 纵轴：对应日期访问次数数组
         ));
     }
 

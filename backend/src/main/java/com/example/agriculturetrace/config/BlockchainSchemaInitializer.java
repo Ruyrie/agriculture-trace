@@ -94,6 +94,9 @@ public class BlockchainSchemaInitializer implements ApplicationRunner {
         if (!columnExists("production_record", "image_urls")) {
             jdbcTemplate.execute("ALTER TABLE `production_record` ADD COLUMN `image_urls` text COMMENT '生产记录图片URL列表JSON'");
         }
+        if (!columnExists("inspection_record", "image_urls")) {
+            jdbcTemplate.execute("ALTER TABLE `inspection_record` ADD COLUMN `image_urls` text COMMENT '质检记录图片URL列表JSON'");
+        }
     }
 
     /**
@@ -295,6 +298,7 @@ public class BlockchainSchemaInitializer implements ApplicationRunner {
         String timestampText = timestamp.format(TIMESTAMP_FORMATTER);
         String dataAfterJson = toJson(dataAfter);
         String dataHash = HashUtil.sha256(action + targetId + "system" + timestampText + previousHash + dataAfterJson);
+        //jdbcTemplate 向数据库的 blockchain_log 表插入一条审计日志记录
         jdbcTemplate.update("""
                 INSERT INTO `blockchain_log`
                 (`id`, `action_type`, `target_type`, `target_id`, `operator`, `data_before`, `data_after`, `data_hash`, `previous_hash`, `timestamp`)

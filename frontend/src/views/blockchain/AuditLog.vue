@@ -173,6 +173,24 @@
 </template>
 
 <script setup>
+/**
+ * AuditLog.vue — 区块链审计日志页面（仅 ROLE_ADMIN / ROLE_INSPECTOR 可访问）。
+ *
+ * 展示内容：
+ *   - 审计日志分页列表：id / 操作类型 / 对象 / 操作人 / 时间戳 / dataHash。
+ *   - 多字段筛选：操作类型（CREATE/UPDATE/DELETE）、对象类型（PRODUCT/BATCH）、
+ *     操作人、对象 ID、时间范围。
+ *   - "验证链条完整性"：调用 verifyAuditLogChain() 触发三层校验，结果以 el-alert 展示。
+ *     头部同时显示链条完整性 Tag 和链尾锚点 Tag 的实时状态。
+ *   - "查看"按钮：弹出日志详情弹窗，对比操作前（dataBefore）和操作后（dataAfter）字段，
+ *     其中 dataHash 字段通过 HashTag 组件展示（可展开完整哈希）。
+ *   - "导出日志"：将当前筛选条件下所有日志导出为 CSV 文件。
+ *
+ * 关联：
+ *   - api/blockchain.js（getAuditLogs / verifyAuditLogChain）
+ *   - components/Pagination.vue（自定义分页组件）
+ *   - components/HashTag.vue（日志详情中的 dataHash 字段展示）
+ */
 import { computed, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { CircleCheck, Delete, Download, Refresh, Search } from '@element-plus/icons-vue'
@@ -180,22 +198,34 @@ import { getAuditLogs, verifyAuditLogChain } from '@/api/blockchain'
 import Pagination from '@/components/Pagination.vue'
 import HashTag from '@/components/HashTag.vue'
 
+// 当前页审计日志数据，绑定到 el-table :data。
 const logs = ref([])
+// 当前分页页码。
 const page = ref(1)
+// 每页条数。
 const pageSize = ref(10)
+// 日志总条数，来自后端 res.data.total。
 const total = ref(0)
+// 列表加载状态，控制"刷新"按钮 :loading 和表格 v-loading。
 const loading = ref(false)
+// 导出日志时的加载状态，防止重复点击。
 const exporting = ref(false)
+// 链条验证请求的加载状态，控制"验证链条完整性"按钮 :loading。
 const verifying = ref(false)
+// 验证结果；null 表示尚未验证，有值时在页面显示 el-alert 和状态 Tag。
 const verifyResult = ref(null)
+// 日志详情弹窗是否显示。
 const detailVisible = ref(false)
+// 当前查看详情的日志对象；弹窗使用 beforeFields / afterFields 解析其 dataBefore / dataAfter。
 const currentLog = ref(null)
+// 时间范围筛选的日期区间 [startDate, endDate]，由 el-date-picker daterange 绑定。
 const filterTimeRange = ref([])
+// 筛选条件对象，传给 getAuditLogs({ ...filters, startTime, endTime })。
 const filters = ref({
-  actionType: '',
-  targetType: '',
-  operator: '',
-  targetId: ''
+  actionType: '',   // CREATE / UPDATE / DELETE，空字符串表示不筛选
+  targetType: '',   // PRODUCT / BATCH，空字符串表示不筛选
+  operator: '',     // 操作人用户名，模糊匹配
+  targetId: ''      // 对象 ID，模糊匹配（如 prod_1 或 batch_3）
 })
 
 // 顶部标题直接给出“正常/异常”结论，便于一眼判断链条状态。

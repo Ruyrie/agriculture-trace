@@ -177,6 +177,7 @@ public class TraceDataService {
             record.setInspector(text(row, "inspector"));
             record.setInspectionDate(notFutureDateTime(row, "inspectionDate", TimeUtils.nowText(), "质检时间不能晚于当前时间"));
             record.setSortOrder(i + 1);
+            record.setImageUrls(text(row, "imageUrls"));
             records.add(record);
         }
         inspectionRecordRepository.saveAll(records);
@@ -232,6 +233,7 @@ public class TraceDataService {
         row.put("inspector", record.getInspector());
         row.put("inspectionDate", normalizeDateTimeText(record.getInspectionDate()));
         row.put("date", normalizeDateTimeText(record.getInspectionDate()));
+        row.put("imageUrls", record.getImageUrls());
         return row;
     }
 

@@ -203,6 +203,9 @@ public class UserService {
         if (Boolean.FALSE.equals(user.getEnabled())) {
             throw new IllegalArgumentException("账号已被禁用，请联系管理员");
         }
+        if (passwordEncoder.matches(newPassword, user.getPassword())) {
+            throw new IllegalArgumentException("新密码不能与原密码相同");
+        }
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
     }

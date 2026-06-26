@@ -1,12 +1,42 @@
-import { createRouter, createWebHistory } from 'vue-router' 
-import { ElMessage } from 'element-plus' 
-import Layout from '@/layout/Layout.vue' 
+/**
+ * 前端路由配置模块（Vue Router）。
+ *
+ * 路由结构：
+ *   /login            → Login.vue（独立页面，不使用 Layout 框架）
+ *   /                 → Layout.vue（侧边栏 + 顶栏的主布局容器，children 渲染在其 <router-view> 中）
+ *     /dashboard      → Dashboard.vue（仪表盘，所有角色可见）
+ *     /products       → ProductList.vue（产品管理，所有角色可见）
+ *     /batches        → BatchList.vue（批次管理，所有角色可见）
+ *     /integrity      → IntegrityReport.vue（数据指纹，ADMIN/INSPECTOR）
+ *     /blockchain/audit-log → AuditLog.vue（审计日志，ADMIN/INSPECTOR）
+ *     /users          → UserManagement.vue（用户管理，仅 ADMIN）
+ *     /statistics     → Statistics.vue（统计分析，ADMIN/INSPECTOR）
+ *     /trace/batch/:batchId → TraceDetail.vue（批次溯源详情，无需登录）
+ *     /trace/:id      → TraceDetail.vue（产品溯源详情，无需登录）
+ *     /profile        → Profile.vue（个人中心，需登录）
+ *
+ * 权限机制（双层保护）：
+ *   1. 后端 SecurityConfig 的 authorizeHttpRequests 是权威权限来源，接口层强制拦截。
+ *   2. 前端 router.beforeEach 提供体验友好的跳转：
+ *      - 调用 GET /api/user/info 向后端确认 Session 真实有效（防止只改 localStorage 绕过）。
+ *      - 检查 route.meta.roles 是否包含当前用户角色，无权限时重定向到 /dashboard 并提示。
+ *
+ * 登录状态缓存（localStorage）：
+ *   - sessionActive：'1' 表示本轮页面生命周期已向后端确认 Session 有效。
+ *   - userInfo：JSON 字符串，包含 {id, username, nickname, phone, avatar, enabled, role}。
+ *   - userRole：当前用户角色名（ROLE_ADMIN/ROLE_FARMER/ROLE_INSPECTOR），供菜单渲染使用。
+ */
+import { createRouter, createWebHistory } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import Layout from '@/layout/Layout.vue'
 import { getCurrentUser } from '@/api/user'
- 
-/** 
- * 路由表定义 
- * 注意：Layout 作为父路由，其 children 中的组件会渲染在 Layout 的 <router-view /> 中 
- */ 
+
+/**
+ * 路由表。
+ * Layout 作为父路由，其 children 中的组件会渲染在 Layout.vue 的 <router-view /> 中。
+ * requiresAuth: true 的路由会在 beforeEach 守卫中检查 Session 和角色权限。
+ * roles 数组为空或未定义时，所有已登录角色均可访问；有值时仅指定角色可见。
+ */
 const routes = [ 
   { 
     path: '/login', 

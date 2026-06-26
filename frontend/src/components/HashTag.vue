@@ -23,12 +23,25 @@
 </template>
 
 <script setup>
+/**
+ * HashTag.vue — 数据指纹标签组件。
+ *
+ * 在 BatchList.vue 和 IntegrityReport.vue 的表格列中内联使用。
+ * 列表里只展示首 8 + 末 6 的缩略形式（shortHash）；点击后通过 el-popover
+ * 弹出完整 SHA-256（64 位十六进制）并提供"复制"按钮，
+ * 避免用户为核对完整指纹而去翻接口或拼接字符串。
+ * hash 为空时降级展示"未生成"警告标签。
+ *
+ * Props:
+ *   hash — 完整 SHA-256 指纹字符串（64 字符）
+ *   type — el-tag type 颜色值（默认 'success'，异常时外部传 'danger'）
+ */
 import { computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { CopyDocument } from '@element-plus/icons-vue'
 
-// 列表里数据指纹只展示首尾缩略，点击后用 popover 展示完整哈希并提供复制按钮，
-// 避免用户为了拿到完整指纹去翻接口或手动拼接。
+// hash：完整 SHA-256 指纹，来自后端 product.dataHash 或 batch.dataHash 字段。
+// type：el-tag 颜色类型，由外部根据 valid 字段动态传入（'success'/'danger'）。
 const props = defineProps({
   hash: { type: String, default: '' },
   type: { type: String, default: 'success' }

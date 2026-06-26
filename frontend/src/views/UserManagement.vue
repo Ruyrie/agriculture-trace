@@ -129,30 +129,56 @@
 </template>
 
 <script setup>
+/**
+ * UserManagement.vue — 用户管理页面（仅 ROLE_ADMIN 可访问）。
+ *
+ * 功能：
+ *   - 分页展示用户列表，支持按用户名/手机号关键词搜索。
+ *   - 新增用户：用户名 + 初始密码（由后端 BCrypt 加密） + 手机号 + 角色 + 状态。
+ *   - 编辑用户：修改昵称/手机号/角色/状态；用户名不可修改（Spring Security principal 约束）。
+ *   - 重置密码：将密码重置为 "123456" 并提示用户登录后修改。
+ *   - 启用/禁用用户：el-switch + before-change 钩子直接在表格行内切换。
+ *   - 删除用户：弹 ElMessageBox 确认；当前登录账号不允许删除/禁用自己。
+ *
+ * 关联：
+ *   - utils/request.js（直接调用 /api/users 系列接口，未单独抽 api 文件）
+ *   - 后端 UserController（/api/users/*），受 SecurityConfig ROLE_ADMIN 限制
+ */
 import { computed, reactive, ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Delete, Edit, Plus, Refresh, Search } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 
+// 用户列表加载状态，控制 el-table v-loading。
 const loading = ref(false)
+// 新增/编辑表单提交加载状态，防止重复点击"保存"。
 const submitting = ref(false)
+// 当前页用户数据，来自后端 /api/users 分页接口 res.data.records。
 const tableData = ref([])
+// 搜索关键词，模糊匹配用户名或手机号，与 fetchUsers 联动。
 const keyword = ref('')
+// 当前页码，v-model:current-page 双向绑定到 el-pagination。
 const page = ref(1)
+// 每页条数，v-model:page-size 双向绑定到 el-pagination。
 const pageSize = ref(10)
+// 用户总数，来自 res.data.total，用于分页控件。
 const total = ref(0)
+// 新增/编辑弹窗是否显示。
 const dialogVisible = ref(false)
+// 弹窗标题："新增用户" 或 "编辑用户"，由 openCreate / openEdit 设置。
 const dialogTitle = ref('新增用户')
+// 用户表单 el-form ref，用于 .validate() 和 .resetFields()。
 const formRef = ref()
 
+// 用户编辑表单数据；新增时 id 为空字符串，提交给后端 POST；编辑时 id 有值，提交给 PUT。
 const form = reactive({
-  id: '',
-  username: '',
-  password: '',
-  nickname: '',
-  phone: '',
-  role: 'ROLE_FARMER',
-  enabled: true
+  id: '',               // 用户 ID（UUID32），新增时为空，编辑时由 openEdit 填充
+  username: '',         // 用户名（唯一，编辑时禁用不可修改）
+  password: '',         // 初始密码（仅新增时填写，后端 BCrypt 加密；编辑时为空则不修改密码）
+  nickname: '',         // 昵称（可修改）
+  phone: '',            // 手机号（11 位，唯一，用于找回密码）
+  role: 'ROLE_FARMER',  // 角色，新增默认农户
+  enabled: true         // 是否启用，对应 Spring Security loadUserByUsername 的 enabled 检查
 })
 
 const usernamePattern = /^[A-Za-z][A-Za-z0-9_]{2,31}$/

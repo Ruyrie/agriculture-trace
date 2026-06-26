@@ -71,16 +71,36 @@
 </template>
 
 <script setup>
+/**
+ * IntegrityReport.vue — 数据指纹（产品完整性校验）页面。
+ *
+ * 功能：
+ *   - 展示全局根哈希（rootHash）和所有产品的 storedHash vs currentHash 对比结果。
+ *   - 每条记录显示"一致"或"异常"状态标签。
+ *   - "验证"按钮触发单条产品指纹重算对比，刷新该行状态。
+ *   - "导出报告"按钮将当前指纹列表导出为 CSV 文件，方便留存证据。
+ *   - 页面停留时间期间实时更新"生成时间"时钟（前端 setInterval，不重新请求接口）。
+ *
+ * 关联：
+ *   - api/integrity.js（getProductFingerprints / verifyProductHash）
+ *   - 仅 ROLE_ADMIN 和 ROLE_INSPECTOR 可访问（router meta.roles + 后端 SecurityConfig）
+ */
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { CopyDocument, Download, Refresh } from '@element-plus/icons-vue'
 import { getProductFingerprints, verifyProductHash } from '@/api/integrity'
 
+// 指纹列表加载状态，控制表格 v-loading 和刷新按钮 :loading。
 const loading = ref(false)
+// 产品指纹记录列表，每项含 id/name/category/origin/storedHash/currentHash/valid。
 const records = ref([])
+// 产品总数，来自后端 res.data.total，显示在页面标题行。
 const total = ref(0)
+// 全局根哈希，将所有产品的 currentHash 串联后再 SHA-256 得到，显示在摘要卡片中。
 const rootHash = ref('')
+// 指纹生成时间文本；首次加载时由 updateClock() 设置，之后每秒由 clockTimer 刷新。
 const generatedAt = ref('')
+// setInterval 定时器句柄，组件卸载时在 onUnmounted 中 clearInterval 防止内存泄漏。
 let clockTimer = null
 
 // 统计当前指纹列表中不一致的记录数，用于页面头部风险提示。

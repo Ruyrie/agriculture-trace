@@ -41,8 +41,11 @@ public class BlockchainAnchorService {
      * 因为只有合法写入才应推进“期望条数/链尾哈希”，事后的删除不会触发刷新，于是会被验证发现。
      */
     public void refresh(long logCount, String tipHash) {
+        // 记录锚点更新时间，便于后续排查"锚点上次刷新"与"日志最后写入"是否吻合。
         String now = LocalDateTime.now().format(TIMESTAMP_FORMATTER);
-        // 单行 upsert：主键恒为 1，存在则更新、不存在则插入。
+        // ON DUPLICATE KEY UPDATE：表中已有 id=1 的行时执行 UPDATE，否则执行 INSERT。
+        // 这样无论是首次写入还是后续刷新，都能用同一条 SQL 完成。
+        // tipHash == null 时写 "0"（创世值），避免 NULL 存入后与字符串比对时产生歧义。
         jdbcTemplate.update("""
                 INSERT INTO `blockchain_anchor` (`id`, `log_count`, `tip_hash`, `updated_at`)
                 VALUES (?, ?, ?, ?)
@@ -57,6 +60,9 @@ public class BlockchainAnchorService {
      * 初始化器会在启动时补建缺失锚点，验证接口据此判断链尾是否被截断。
      */
     public Anchor getAnchor() {
+        // jdbcTemplate.query 搭配 ResultSetExtractor（rs -> ...）：
+        //   rs.next() 尝试移到第一行；有行时构造 Anchor 对象，无行时返回 null。
+        // 这与 queryForObject 的区别是：queryForObject 在无结果时抛异常，这里直接返回 null 更安全。
         return jdbcTemplate.query("""
                         SELECT `log_count`, `tip_hash`, `updated_at`
                         FROM `blockchain_anchor`
@@ -65,6 +71,6 @@ public class BlockchainAnchorService {
                 rs -> rs.next()
                         ? new Anchor(rs.getLong("log_count"), rs.getString("tip_hash"), rs.getString("updated_at"))
                         : null,
-                ANCHOR_ID);
+                ANCHOR_ID);  // ANCHOR_ID=1：锚点表只有唯一一行，主键固定为 1
     }
 }

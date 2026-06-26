@@ -95,6 +95,7 @@ CREATE TABLE IF NOT EXISTS `inspection_record` (
   `result` varchar(128) DEFAULT NULL COMMENT '检测结果',
   `inspector` varchar(64) DEFAULT NULL COMMENT '检测员',
   `inspection_date` varchar(19) DEFAULT NULL COMMENT '检测时间',
+  `image_urls` text COMMENT '质检记录图片URL列表JSON',
   `sort_order` int DEFAULT 0 COMMENT '排序',
   PRIMARY KEY (`id`),
   KEY `idx_inspection_batch` (`batch_id`),

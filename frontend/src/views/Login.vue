@@ -190,30 +190,53 @@
 </template>
 
 <script setup>
+/**
+ * Login.vue — 系统登录页。
+ *
+ * 功能：
+ *   - 用户名 + 密码表单登录（Spring Security formLogin，x-www-form-urlencoded 格式）。
+ *   - "记住我"勾选后后端设置持久 Cookie，关闭浏览器再打开仍保持登录。
+ *   - "忘记密码"：图形验证码 + 用户名 + 手机号三重校验后重置密码。
+ *   - 登录成功后将用户信息存入 localStorage（sessionActive/userInfo/userRole），
+ *     供 router/index.js 导航守卫和 Layout.vue 菜单过滤使用。
+ *
+ * 关联：
+ *   - api/user.js（login / getCaptcha / forgotPassword）
+ *   - router/index.js（beforeEach 守卫读取 sessionActive/userRole）
+ *   - Layout.vue（读取 userInfo 展示用户名和头像）
+ */
 import { nextTick, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { CircleCheck, Goods, InfoFilled, Iphone, Key, Lock, TrendCharts, User } from '@element-plus/icons-vue'
 import { forgotPassword, getCaptcha, login } from '@/api/user'
 
+// 路由实例，登录成功后用 router.push('/dashboard') 跳转。
 const router = useRouter()
+// 主登录表单的 el-form ref，用于调用 .validate() 触发全字段校验。
 const formRef = ref()
+// 用户名输入框 ref，页面挂载后自动 focus() 减少一次点击。
 const usernameRef = ref()
+// 密码输入框 ref，用户名按回车后 focusPassword() 将焦点移过来。
 const passwordRef = ref()
+// 登录按钮加载状态；置 true 时按钮显示"登录中…"并禁用重复点击。
 const loading = ref(false)
+// 登录表单数据，双向绑定到模板 :model="form"。
+// rememberMe 传入 login() 后由后端决定 Session 过期时间和是否设置持久 Cookie。
 const form = reactive({
   username: '',
   password: '',
   rememberMe: false
 })
 
+// 主登录表单校验规则；传给 el-form :rules="rules"。
 const rules = {
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
 }
 
 onMounted(() => {
-  // 进入页面自动聚焦用户名，减少一次点击
+  // 进入页面自动聚焦用户名，减少一次点击。
   usernameRef.value?.focus()
 })
 
@@ -222,17 +245,22 @@ const focusPassword = () => {
   passwordRef.value?.focus()
 }
 
-/* ===== 忘记密码 ===== */
+/* ===== 忘记密码弹窗 ===== */
+// 弹窗是否可见；openForgot() 置 true，取消按钮 / 成功提交后置 false。
 const forgotVisible = ref(false)
+// 提交找回密码请求的加载状态；防止重复提交。
 const forgotLoading = ref(false)
+// Base64 图形验证码图片数据（src="data:image/png;base64,…"），来自 getCaptcha()。
 const captchaImg = ref('')
+// 忘记密码 el-form ref，用于 .validate() 和 .resetFields()。
 const forgotRef = ref()
+// 忘记密码表单数据；username 会预填为登录框中已输入的用户名。
 const forgotForm = reactive({
-  username: '',
-  phone: '',
-  captcha: '',
-  newPassword: '',
-  confirmPassword: ''
+  username: '',       // 用户名，传给后端做数据库查询
+  phone: '',          // 注册时填写的手机号，与数据库记录比对
+  captcha: '',        // 图形验证码答案，与后端 Session 存储的答案比对
+  newPassword: '',    // 新密码（6-20 位）
+  confirmPassword: '' // 前端二次确认，不发送给后端
 })
 
 const forgotRules = {

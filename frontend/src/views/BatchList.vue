@@ -191,6 +191,9 @@
                 <el-input v-model="record.inspector" placeholder="检测员" />
                 <el-date-picker v-model="record.inspectionDate" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" :disabled-date="disabledDate" placeholder="默认当前时间，可修改" />
                 <el-button type="danger" plain circle :icon="Delete" @click="removeInspection(index)" />
+                <div class="record-images">
+                  <ImageUploadGrid v-model="record.imageUrls" />
+                </div>
               </div>
               <div v-if="form.inspectionRecords.length === 0" class="empty-trace-hint">暂无质检记录，检测完成后可回到编辑继续补充</div>
             </div>
@@ -242,6 +245,26 @@
 </template>
 
 <script setup>
+/**
+ * BatchList.vue — 批次管理页面。
+ *
+ * 功能：
+ *   - 分页展示批次列表，支持按产品名称和批次号筛选。
+ *   - 新增/编辑批次（批次基础信息 + 生产记录 + 质检记录 + 物流记录）。
+ *   - 每条批次展示数据指纹（HashTag）和批次图片缩略图（ImageUploadGrid）。
+ *   - "验证"按钮单条校验指纹，"一键验证"批量校验所有批次指纹（调用 integrity API）。
+ *   - "溯源"按钮跳转 /trace/batch/{id}，为管理员提供消费者视角预览。
+ *   - 删除批次前弹 ElMessageBox 二次确认。
+ *
+ * 关联：
+ *   - api/batch.js（增删改查）
+ *   - api/product.js（下拉产品选项）
+ *   - api/trace.js（getBatchTraceInfo 回填溯源记录）
+ *   - api/integrity.js（verifyAllBatchHashes / verifyBatchHash）
+ *   - components/HashTag.vue（显示数据指纹）
+ *   - components/ImageUploadGrid.vue（批次图片上传）
+ *   - utils/images.js（图片 URL 序列化/解析）
+ */
 import { computed, nextTick, ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -255,12 +278,19 @@ import ImageUploadGrid from '@/components/ImageUploadGrid.vue'
 import { parseImageUrls, resolveImageUrl, stringifyImageUrls } from '@/utils/images'
 
 const router = useRouter()
+// 当前页批次数据，直接绑定到 el-table :data。
 const tableData = ref([])
+// 当前分页页码，v-model:current-page 双向绑定到 el-pagination。
 const page = ref(1)
+// 每页条数，v-model:page-size 双向绑定到 el-pagination。
 const pageSize = ref(10)
+// 批次总条数，来自后端分页接口 res.data.total，用于分页控件显示总数。
 const total = ref(0)
+// 搜索栏产品名过滤值，传给 getBatchList({ productName })。
 const searchProductName = ref('')
+// 搜索栏批次号过滤值，支持模糊匹配，传给 getBatchList({ batchNo })。
 const searchBatchNo = ref('')
+// 从后端拉取的产品列表，用于新增/编辑弹窗的产品下拉选项和搜索栏筛选。
 const productOptions = ref([])
 // 产品下拉按名称去重：同名产品只展示一项，避免筛选框重复拥挤。
 const filterProductOptions = computed(() => {
@@ -274,24 +304,33 @@ const filterProductOptions = computed(() => {
   }).map(product => ({ ...product, name: product.name.trim() }))
 })
 
+// 新增/编辑弹窗是否显示。
 const dialogVisible = ref(false)
+// 弹窗标题："新增批次" 或 "编辑批次"，根据 form.id 是否为 null 区分。
 const dialogTitle = ref('新增批次')
+// 提交表单的加载状态，防止重复点击确定按钮。
 const submitting = ref(false)
+// 一键验证所有批次指纹时的加载状态，控制"一键验证"按钮 loading。
 const verifyingAll = ref(false)
+// 一键验证结果弹窗是否显示，展示异常批次明细列表。
 const verifyDialogVisible = ref(false)
+// 一键验证的结果数据，包含 total、invalidCount 和 invalidItems 列表。
 const verifyResult = ref({ total: 0, invalidCount: 0, invalidItems: [] })
+// 批次表单 el-form ref，用于 .validate() 和 .clearValidate()。
 const formRef = ref()
+// 弹窗当前激活 Tab：'base'（基础信息）、'production'、'inspection'、'logistics'。
 const activeTab = ref('base')
+// 批次编辑表单数据；productionRecords/inspectionRecords/logisticsRecords 为动态行数组。
 const form = reactive({
-  id: null,
-  productId: '',
-  batchNo: '',
-  productionDate: '',
-  remark: '',
-  imageUrls: [],
-  productionRecords: [],
-  inspectionRecords: [],
-  logisticsRecords: []
+  id: null,             // null 表示新增，有值表示编辑（batch_N 格式）
+  productId: '',        // 关联产品 ID，对应 product 表 id（prod_N）
+  batchNo: '',          // 批次号，5-20 位字母数字
+  productionDate: '',   // 生产日期 YYYY-MM-DD，不允许未来日期
+  remark: '',           // 备注说明
+  imageUrls: [],        // 批次图片 URL 数组，提交时序列化为 JSON 字符串
+  productionRecords: [], // 生产活动记录行数组
+  inspectionRecords: [], // 质量检测记录行数组
+  logisticsRecords: []   // 物流节点记录行数组
 })
 
 const rules = {
@@ -435,7 +474,7 @@ const addProduction = () => form.productionRecords.push({ activityName: '', oper
 // 删除生产记录行。
 const removeProduction = (index) => form.productionRecords.splice(index, 1)
 // 新增质检记录行，时间默认当前本地时间。
-const addInspection = () => form.inspectionRecords.push({ inspectionItem: '', result: '', inspector: '', inspectionDate: currentDateTimeText() })
+const addInspection = () => form.inspectionRecords.push({ inspectionItem: '', result: '', inspector: '', inspectionDate: currentDateTimeText(), imageUrls: [] })
 // 删除质检记录行。
 const removeInspection = (index) => form.inspectionRecords.splice(index, 1)
 // 新增物流记录行，时间默认当前日期时间。
@@ -501,7 +540,8 @@ const loadTraceRows = async (batchId) => {
           inspectionItem: record.inspectionItem || record.item || '',
           result: record.result || '',
           inspector: record.inspector || '',
-          inspectionDate: normalizeDateTimeText(record.inspectionDate || record.date || '')
+          inspectionDate: normalizeDateTimeText(record.inspectionDate || record.date || ''),
+          imageUrls: parseImageUrls(record.imageUrls)
         }))
       )
       form.logisticsRecords.splice(
@@ -571,7 +611,7 @@ const submitForm = async () => {
       remark: form.remark,
       imageUrls: stringifyImageUrls(form.imageUrls),
       productionRecords: productionRecords.map(record => ({ ...record, imageUrls: stringifyImageUrls(record.imageUrls) })),
-      inspectionRecords,
+      inspectionRecords: inspectionRecords.map(record => ({ ...record, imageUrls: stringifyImageUrls(record.imageUrls) })),
       logisticsRecords
     }
     const res = form.id ? await updateBatch(payload) : await addBatch(payload)

@@ -92,39 +92,69 @@
 </template>
 
 <script setup>
+/**
+ * Layout.vue — 后台主布局框架。
+ *
+ * 负责：
+ *   1. 左侧侧边栏：Logo + 动态菜单（按用户角色过滤）+ 折叠按钮。
+ *   2. 顶部导航栏：当前页面标题 + 刷新按钮 + 用户信息下拉（个人中心/退出登录）。
+ *   3. 内容区：<router-view>，所有子路由页面在此渲染。
+ *
+ * 权限菜单逻辑：
+ *   allMenus 列表中每项有 roles 数组；fetchMenu() 根据 localStorage.userInfo.role
+ *   筛选出该角色可见的菜单项（前端展示层，后端接口层另有 SecurityConfig 鉴权）。
+ *
+ * 关联：
+ *   - router/index.js（路由定义与守卫）
+ *   - api/user.js（logout）
+ *   - views/Profile.vue（派发 userInfoUpdated 事件更新头像）
+ */
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Fold, Expand, ArrowDown, Refresh, User, SwitchButton, Goods } from '@element-plus/icons-vue'
 import { logout } from '@/api/user'
 
+// 用户手动点击折叠按钮后的收起状态；移动端通过 isMobile 自动触发收起。
 const isCollapse = ref(false)
+// 是否是移动端（窗口宽度 ≤ 768px）；resize 事件实时更新，用于自动折叠菜单。
 const isMobile = ref(window.innerWidth <= 768)
+// 当前激活菜单项的路径，与 route.path 同步，传给 el-menu :default-active。
 const activeMenu = computed(() => route.path)
+// 菜单最终是否折叠：移动端 或 手动收起 均触发折叠模式。
 const menuCollapsed = computed(() => isMobile.value || isCollapse.value)
+// 侧边栏宽度：展开 220px / 折叠 64px（只显示图标）。
 const asideWidth = computed(() => menuCollapsed.value ? '64px' : '220px')
 
+// 内置 Base64 默认头像 SVG，避免在无头像时发起额外网络请求。
 const defaultAvatar = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjAiIGhlaWdodD0iMTIwIiB2aWV3Qm94PSIwIDAgMTIwIDEyMCI+PHJlY3Qgd2lkdGg9IjEyMCIgaGVpZ2h0PSIxMjAiIGZpbGw9IiNFMEUwRTAiLz48Y2lyY2xlIGN4PSI2MCIgY3k9IjQ1IiByPSIyMCIgZmlsbD0iIzlFOUU5RSIvPjxwYXRoIGZpbGw9IiM5RTlFOUUiIGQ9Ik0zMCA4MCBMOTAgODAgTDgwIDY1IEw3MCA2NSBMNzAgNzUgTDUwIDc1IEw1MCA2NSBMNDAgNjVaIi8+PC9zdmc+'
 
+// 顶部右侧显示的用户名（从 localStorage.userInfo 读取）。
 const username = ref('')
+// 顶部右侧头像 URL；resolveAssetUrl() 处理相对路径，默认值为内置 SVG。
 const userAvatar = ref(defaultAvatar)
+// 经角色过滤后实际渲染到侧边栏的菜单数组，由 fetchMenu() 赋值。
 const menuList = ref([])
 
 const router = useRouter()
 const route = useRoute()
 
+// 角色标识到中文显示名的映射，用于顶部用户信息区展示角色。
 const roleMap = { ROLE_ADMIN: '管理员', ROLE_FARMER: '农户', ROLE_INSPECTOR: '监管员' }
+// 顶部用户信息区的角色文字，从 localStorage 实时读取（computed 每次访问 route 时重算）。
 const userRoleLabel = computed(() => {
   const info = JSON.parse(localStorage.getItem('userInfo') || '{}')
   return roleMap[info.role] || '用户'
 })
 
+// 顶部导航栏当前页面标题，与 menuList 中的 meta.title 匹配 route.path 得出。
 const currentPageTitle = computed(() => {
   const matched = menuList.value.flatMap(m => m.children ? m.children : [m])
   const current = matched.find(m => m.path === route.path)
   return current?.meta?.title || '首页'
 })
 
+// 统计分析页（/statistics）中的刷新操作意义不同，隐藏通用刷新按钮避免误操作。
 const showHeaderRefresh = computed(() => route.path !== '/statistics')
 
 const resolveAssetUrl = (url) => {

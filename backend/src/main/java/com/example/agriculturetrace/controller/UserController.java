@@ -106,18 +106,24 @@ public class UserController {
         if (file.isEmpty()) {
             return Result.error(400, "上传文件不能为空");
         }
+        // 从浏览器上传的原始文件名提取扩展名，保留格式信息；无扩展名时默认 .png。
         String originalName = file.getOriginalFilename() == null ? "" : file.getOriginalFilename();
         String extension = originalName.contains(".") ? originalName.substring(originalName.lastIndexOf(".")) : ".png";
+        // UUID 随机文件名防止同名文件互相覆盖，同时避免路径遍历漏洞（../）。
         String filename = UUID.randomUUID() + extension;
+        // 头像直接存 uploads/ 根目录（与溯源图片的 uploads/trace-images/ 区分）。
         Path uploadDir = UploadPaths.rootUploadDir();
+        // createDirectories 首次运行时自动创建目录，目录已存在时不抛异常。
         Files.createDirectories(uploadDir);
         Files.write(uploadDir.resolve(filename), file.getBytes());
+        // 生成可访问的 URL 路径，由 WebMvcConfig 静态资源映射提供服务。
         String avatarUrl = "/uploads/" + filename;
+        // 将新 URL 持久化到数据库，下次登录获取 userInfo 时就会读到新头像。
         User current = userService.getByUsername(authentication.getName());
         User updated = userService.updateAvatar(current.getId(), avatarUrl);
         return Result.success(Map.of(
-                "url", avatarUrl,
-                "user", userService.toUserInfo(updated)
+                "url", avatarUrl,               // 前端用于立即预览的图片 URL
+                "user", userService.toUserInfo(updated) // 更新后的完整用户信息，前端可直接写入 store
         ));
     }
 
@@ -143,12 +149,15 @@ public class UserController {
      */
     @PostMapping("/users")
     public Result<?> createUser(@RequestBody Map<String, Object> body) {
+        // 用 Map 接收而非直接绑定 User 实体，是为了同时获取 password 和 role 这两个 User 实体里没有的字段。
         User user = new User();
         user.setUsername((String) body.get("username"));
         user.setNickname((String) body.get("nickname"));
         user.setPhone((String) body.get("phone"));
         user.setAvatar((String) body.get("avatar"));
+        // getOrDefault 保证前端未传 enabled 时默认启用，避免创建出来就是禁用状态。
         user.setEnabled((Boolean) body.getOrDefault("enabled", true));
+        // Service 负责 BCrypt 哈希密码和绑定角色；password 为空时 Service 使用 "123456" 作为默认密码。
         User saved = userService.create(user, (String) body.get("password"), (String) body.get("role"));
         return Result.success(userService.toUserInfo(saved));
     }
@@ -159,7 +168,9 @@ public class UserController {
      */
     @PutMapping("/users/{id}")
     public Result<?> updateUser(Authentication authentication, @PathVariable String id, @RequestBody Map<String, Object> body) {
+        // 先取 enabled 值再做保护检查，避免先改库再发现不该改的问题。
         Boolean enabled = (Boolean) body.getOrDefault("enabled", true);
+        // 禁止管理员把"自己"标记为禁用：如果允许，管理员会立刻失去访问权限，无法再解禁。
         if (isCurrentUser(authentication, id) && Boolean.FALSE.equals(enabled)) {
             return Result.error(400, "不能禁用当前登录账号");
         }
@@ -168,6 +179,7 @@ public class UserController {
         user.setPhone((String) body.get("phone"));
         user.setAvatar((String) body.get("avatar"));
         user.setEnabled(enabled);
+        // role 字段由 Service 单独处理角色绑定，Controller 只负责传递角色名称字符串。
         User saved = userService.updateByAdmin(id, user, (String) body.get("role"));
         return Result.success(userService.toUserInfo(saved));
     }

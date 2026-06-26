@@ -35,9 +35,15 @@ public final class Ids {
      * 链式哈希（previous_hash -> data_hash）不会再因排序歧义而误报“日志链断裂”。
      */
     public static String logId() {
+        // 获取当前 UTC 毫秒时间戳（13 位数字），作为主键的有序前缀。
+        // 字典序 == 数值序的前提是定宽补零，所以格式化时指定 %013d。
         long millis = System.currentTimeMillis();
+        // 原子递增保证同一毫秒内也是严格递增；% 1_000_000 让序号在 0~999999 区间循环，定宽 6 位。
+        // 进程重启后 LOG_COUNTER 从 0 重新开始，但毫秒前缀已推进，不会产生重复主键。
         long seq = LOG_COUNTER.getAndIncrement() % 1_000_000L;
+        // 随机后缀仅防止极端并发（同毫秒 + 相同序号）时的碰撞，取 UUID 去横线的前 13 位即可。
         String random = UUID.randomUUID().toString().replace("-", "").substring(0, 13);
+        // 拼接：13 位时间戳 + 6 位序号 + 13 位随机 = 32 位，满足 varchar(32) 主键要求。
         return String.format("%013d%06d%s", millis, seq, random);
     }
 }

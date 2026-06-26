@@ -34,17 +34,34 @@
 </template> 
  
 <script setup>
+/**
+ * ProductTable.vue — 产品列表表格纯展示组件。
+ *
+ * 纯展示组件（dumb component），不包含任何业务逻辑：
+ *   - 接收产品数组 data，渲染 el-table（包含产品缩略图、数据指纹 HashTag、操作按钮）。
+ *   - 操作按钮（编辑/删除/溯源/验证哈希）全部以 emit 事件抛出，由 ProductList.vue 处理。
+ *   - 图片通过 parseImageUrls + resolveImageUrl 将存储格式转为可访问 URL。
+ *
+ * Props:
+ *   data — 产品列表数组，每项含 id/name/category/origin/price/dataHash/imageUrls
+ *
+ * Emits:
+ *   edit   — 编辑产品，产品 row 对象作参数
+ *   delete — 删除产品，产品 row 对象作参数
+ *   trace  — 打开溯源详情页，产品 row 对象作参数
+ *   verify — 校验产品数据指纹，产品 row 对象作参数
+ */
 import HashTag from '@/components/HashTag.vue'
 import { parseImageUrls, resolveImageUrl } from '@/utils/images'
 
-// 产品表格只负责展示数据和向父组件抛出操作事件，业务处理留给 ProductList.vue。
+// data：产品列表数组，来自 ProductList.vue 的 tableData 分页数据。
 defineProps({
   data: {
     type: Array,
     default: () => []
   }
 })
-// edit/delete/trace/verify 分别对应编辑、删除、打开溯源页、校验产品哈希。
+// edit/delete/trace/verify 分别对应编辑、删除、打开溯源页、校验产品哈希四个操作。
 const emit = defineEmits(['edit', 'delete', 'trace', 'verify'])
 
 const previewImages = (row) => parseImageUrls(row.imageUrls).map(resolveImageUrl)

@@ -161,40 +161,31 @@
                 <span class="sub-title">生产记录</span>
               </div>
               <el-empty v-if="batch.production.length === 0" description="暂无生产记录" :image-size="50" />
-              <div v-else class="production-record-list">
-                <div v-for="(record, index) in batch.production" :key="`${record.activityName}-${record.activityDate}-${index}`" class="production-record-card">
-                  <div class="production-record-main">
-                    <div class="production-field production-field-activity">
-                      <span class="field-label">生产活动</span>
-                      <span class="field-value strong">{{ record.activityName }}</span>
+              <el-table v-else :data="batch.production" border stripe>
+                <el-table-column prop="activityName" label="生产活动" min-width="160" />
+                <el-table-column prop="activityDate" label="操作时间" width="170" />
+                <el-table-column prop="operator" label="操作员" width="120" />
+                <el-table-column prop="remark" label="备注" min-width="140">
+                  <template #default="{ row }">{{ row.remark || '-' }}</template>
+                </el-table-column>
+                <el-table-column label="记录图片" width="120" align="center">
+                  <template #default="{ row }">
+                    <div v-if="imageList(row.imageUrls).length" class="inspection-image-cell">
+                      <el-image
+                        v-for="(url, imgIndex) in imageList(row.imageUrls)"
+                        :key="url"
+                        :src="url"
+                        :preview-src-list="imageList(row.imageUrls)"
+                        :initial-index="imgIndex"
+                        preview-teleported
+                        fit="cover"
+                        class="record-image"
+                      />
                     </div>
-                    <div class="production-field">
-                      <span class="field-label">操作时间</span>
-                      <span class="field-value">{{ record.activityDate }}</span>
-                    </div>
-                    <div class="production-field">
-                      <span class="field-label">操作员</span>
-                      <span class="field-value">{{ record.operator }}</span>
-                    </div>
-                    <div class="production-field production-field-remark">
-                      <span class="field-label">备注</span>
-                      <span class="field-value">{{ record.remark || '-' }}</span>
-                    </div>
-                  </div>
-                  <div v-if="imageList(record.imageUrls).length" class="image-gallery production-image-gallery">
-                    <el-image
-                      v-for="(url, imgIndex) in imageList(record.imageUrls)"
-                      :key="url"
-                      :src="url"
-                      :preview-src-list="imageList(record.imageUrls)"
-                      :initial-index="imgIndex"
-                      preview-teleported
-                      fit="cover"
-                      class="record-image"
-                    />
-                  </div>
-                </div>
-              </div>
+                    <span v-else class="no-image">—</span>
+                  </template>
+                </el-table-column>
+              </el-table>
             </div>
 
             <!-- 质检报告 -->
@@ -215,6 +206,23 @@
                 </el-table-column>
                 <el-table-column prop="inspector" label="检测员" width="120" />
                 <el-table-column prop="inspectionDate" label="检测时间" width="170" />
+                <el-table-column label="质检图片" width="120" align="center">
+                  <template #default="{ row }">
+                    <div v-if="imageList(row.imageUrls).length" class="inspection-image-cell">
+                      <el-image
+                        v-for="(url, imgIndex) in imageList(row.imageUrls)"
+                        :key="url"
+                        :src="url"
+                        :preview-src-list="imageList(row.imageUrls)"
+                        :initial-index="imgIndex"
+                        preview-teleported
+                        fit="cover"
+                        class="record-image"
+                      />
+                    </div>
+                    <span v-else class="no-image">—</span>
+                  </template>
+                </el-table-column>
               </el-table>
             </div>
 
@@ -273,6 +281,25 @@
 </template>
 
 <script setup>
+/**
+ * TraceDetail.vue — 产品溯源详情页（公开页面，无需登录）。
+ *
+ * 功能：
+ *   - 展示产品基本信息（名称、类别、产地、价格、产品图片）。
+ *   - 生成产品溯源二维码（qrcode 库渲染到 <canvas>），支持下载。
+ *   - 展示所有批次的生产记录、质检报告和物流时间线。
+ *   - 支持按日期范围和批次号筛选，点击批次标签切换为单批次视图。
+ *   - 导出功能：将当前展示的溯源数据导出为 CSV 或 JSON 文件。
+ *
+ * 路由参数：
+ *   /trace/:id       — 按产品 ID 加载所有批次溯源数据（调用 getTraceInfo）
+ *   /trace/batch/:batchId — 按批次 ID 加载单批次溯源数据（调用 getBatchTraceInfo）
+ *
+ * 关联：
+ *   - api/trace.js（getTraceInfo / getBatchTraceInfo）
+ *   - utils/images.js（parseImageUrls / resolveImageUrl）
+ *   - qrcode 库（将溯源 URL 编码为二维码图像）
+ */
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import QRCode from 'qrcode'
@@ -282,21 +309,35 @@ import { getBatchTraceInfo, getTraceInfo } from '@/api/trace'
 import { parseImageUrls, resolveImageUrl } from '@/utils/images'
 
 const route = useRoute()
+// 路由参数：产品 ID（/trace/:id 路由时有值）。
 const productId = route.params.id
+// 路由参数：批次 ID（/trace/batch/:batchId 路由时有值，优先级高于 productId）。
 const batchId = route.params.batchId
 
+// 产品基础信息，来自 getTraceInfo / getBatchTraceInfo 返回的 product 字段。
 const productInfo = ref({})
+// 全部生产活动记录，包含 batchNo、activityName、activityDate、operator、remark、imageUrls。
 const productionRecords = ref([])
+// 全部质检报告记录，包含 batchNo、inspectionItem、result、inspector、inspectionDate。
 const inspectionReports = ref([])
+// 全部物流节点记录，包含 batchNo、nodeName、location、operator、updateTime。
 const logistics = ref([])
+// 批次元数据列表，来自接口返回的 batches 字段，含 batchNo、productionDate、imageUrls。
 const batchMetas = ref([])
+// 二维码 canvas DOM 节点 ref，qrcode.toCanvas() 将二维码渲染到此元素上。
 const qrcodeCanvas = ref(null)
+// 产品信息区块加载状态。
 const loadingProduct = ref(false)
+// 溯源记录区块加载状态。
 const loadingTrace = ref(false)
 
+// 日期范围筛选，[startDate, endDate] 格式，通过 filteredBatches 计算属性过滤批次。
 const dateRange = ref(null)
+// 批次号关键词搜索，模糊匹配 filteredBatches。
 const searchBatchNo = ref('')
+// 当前激活批次：'all' 表示全部批次，字符串值表示某个具体 batchNo。
 const activeBatch = ref('all')
+// el-collapse 展开的批次号列表，控制溯源详情的折叠/展开。
 const expandedBatches = ref([])
 
 // 判断质检结果是否可视为通过，用于给结果标签设置 success/danger 类型。
@@ -557,12 +598,22 @@ onMounted(() => {
   background: #f8fafc;
 }
 .record-image {
-  width: 96px;
-  height: 68px;
-  border-radius: 6px;
-  display: block;
+  width: 48px;
+  height: 48px;
+  border-radius: 4px;
+  display: inline-block;
   overflow: hidden;
   border: 1px solid #e7edf5;
+}
+.inspection-image-cell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+}
+.no-image {
+  color: #c0c4cc;
+  font-size: 14px;
 }
 .no-product {
   color: #999;
@@ -705,77 +756,6 @@ onMounted(() => {
   border: 1px solid #eef2f7;
 }
 
-.production-record-list {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid #ebeef5;
-  border-bottom: none;
-}
-
-.production-record-card {
-  border-bottom: 1px solid #ebeef5;
-  background: #ffffff;
-}
-
-.production-record-card:nth-child(even) {
-  background: #fafcff;
-}
-
-.production-record-main {
-  display: grid;
-  grid-template-columns: minmax(160px, 1.25fr) 170px 120px minmax(220px, 1.4fr);
-}
-
-.production-field {
-  min-width: 0;
-  padding: 10px 12px;
-  border-right: 1px solid #ebeef5;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.production-field:last-child {
-  border-right: none;
-}
-
-.field-label {
-  color: #909399;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.field-value {
-  color: #606266;
-  font-size: 14px;
-  line-height: 1.45;
-  word-break: break-word;
-}
-
-.field-value.strong {
-  color: #303133;
-  font-weight: 600;
-}
-
-.production-image-gallery {
-  padding: 0 12px 12px;
-  margin-top: -2px;
-}
-
-@media (max-width: 960px) {
-  .production-record-main {
-    grid-template-columns: 1fr;
-  }
-
-  .production-field {
-    border-right: none;
-    border-bottom: 1px solid #ebeef5;
-  }
-
-  .production-field:last-child {
-    border-bottom: none;
-  }
-}
 
 /* 物流时间线 */
 .batch-timeline {

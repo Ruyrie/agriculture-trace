@@ -99,6 +99,21 @@
 </template>
 
 <script setup>
+/**
+ * Dashboard.vue — 数据概览页（仪表盘首页）。
+ *
+ * 展示内容：
+ *   1. 欢迎横幅：显示当前登录用户名和今日日期，提供产品/批次管理快捷入口。
+ *   2. 统计卡片：产品总数、批次总数、溯源查询次数（来自 getStatistics）。
+ *   3. 饼图：产品类别分布（来自 getCategoryDistribution）。
+ *   4. 折线图：近 7 天溯源访问趋势（来自 getTraceTrend，后端保证连续 7 天补零）。
+ *   5. 柱状图：审计日志操作类型分布——CREATE/UPDATE/DELETE（来自 getOverviewCharts）。
+ *
+ * 关联：
+ *   - api/dashboard.js（所有数据接口）
+ *   - utils/echarts.js（按需引入的 ECharts 实例，减少打包体积）
+ *   - Layout.vue（本页嵌套在 <router-view> 中）
+ */
 import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
@@ -107,18 +122,26 @@ import echarts from '@/utils/echarts'
 import { getCategoryDistribution, getOverviewCharts, getStatistics, getTraceTrend } from '@/api/dashboard'
 
 const router = useRouter()
+// 全局加载遮罩，Promise.all 全部完成后置 false。
 const loading = ref(true)
+// 顶部三张统计卡片数据；初始值 0 避免 ?? '--' 短路出现空白。
 const stats = ref({ productCount: 0, batchCount: 0, traceCount: 0 })
+// 饼图挂载的 DOM 节点 ref；echarts.init(pieChartRef.value) 后赋值给 pieChart。
 const pieChartRef = ref(null)
+// 折线图挂载的 DOM 节点 ref。
 const lineChartRef = ref(null)
+// 柱状图挂载的 DOM 节点 ref。
 const blockchainChartRef = ref(null)
+// ECharts 实例；使用 ||= 确保同一节点只 init 一次，resize 时复用。
 let pieChart = null
 let lineChart = null
 let blockchainChart = null
+// 链上操作类型分布数据，blockchainActionMix 数组格式 [{name, value}]。
 const overviewCharts = ref({
   blockchainActionMix: []
 })
 
+// 从 localStorage 读取登录时缓存的用户名，显示在欢迎横幅。
 const username = computed(() => {
   const info = JSON.parse(localStorage.getItem('userInfo') || '{}')
   return info.username || '用户'
@@ -162,7 +185,7 @@ const fetchCategoryDistribution = async () => {
   } catch { ElMessage.error('获取类别分布失败') }
 }
 
-// 获取近 7 天溯源趋势并初始化/更新折线图。
+// 获取近 7 天溯源趋势并初始化/更新折线图。  ||= 是 逻辑或赋值运算符。如果 lineChart 为空，就给它赋值，如果 lineChart 已经有值，就保持原来的值
 const fetchTraceTrend = async () => {
   try {
     const res = await getTraceTrend()

@@ -127,6 +127,25 @@
 </template>
 
 <script setup>
+/**
+ * Statistics.vue — 统计分析页面（仅 ROLE_ADMIN / ROLE_INSPECTOR 可访问）。
+ *
+ * 展示内容：
+ *   1. 顶部概览卡片：月度批次合计、溯源查询合计、有批次产品数、产地数量（计算属性汇总）。
+ *   2. 月度批次产量图：柱状（批次数）+ 折线（产品数）复合图，数据来自 getReports。
+ *   3. 近 7 天溯源趋势面积图，数据来自 getTraceTrend（与 Dashboard.vue 共用同一接口）。
+ *   4. 产地分布环形饼图，数据来自 getReports.originDistribution。
+ *   5. 类别批次占比环形图，由 productBatchOutput 按类别聚合计算（前端 computed）。
+ *   6. 溯源热度 Top 10 横向条形图 + 溯源排行榜明细表 + 产品批次统计明细表。
+ *
+ * 刷新机制：
+ *   点击"刷新数据"按钮时 refreshKey 自增，触发内容主体 <div :key="refreshKey"> 整体
+ *   重挂载，从而重放 CSS 入场动画，视觉上等同 F5 刷新但不重载整个页面。
+ *
+ * 关联：
+ *   - api/dashboard.js（getReports / getTraceTrend）
+ *   - utils/echarts.js（按需引入的 ECharts 实例）
+ */
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
@@ -136,12 +155,15 @@ import {
 import echarts from '@/utils/echarts'
 import { getReports, getTraceTrend } from '@/api/dashboard'
 
+// 全局加载状态，控制"刷新数据"按钮 :loading 以及图表渲染时机。
 const loading = ref(false)
+// 各图表 DOM 节点 ref；echarts.init() 后赋值给对应实例变量，resize 时复用。
 const monthlyChartRef = ref(null)
 const trendChartRef = ref(null)
 const originChartRef = ref(null)
 const categoryChartRef = ref(null)
 const rankingChartRef = ref(null)
+// ECharts 实例，模块级变量（非响应式），||= 确保同一节点只 init 一次。
 let monthlyChart = null
 let trendChart = null
 let originChart = null
@@ -154,12 +176,14 @@ const PALETTE = ['#2e7d32', '#66bb6a', '#ffa726', '#42a5f5', '#ab47bc', '#26a69a
 // 每次刷新自增，作为内容主体的 key，触发整体重挂载以重放入场动画。
 const refreshKey = ref(0)
 
+// 后端 getReports() 返回的四组报表数据；reactive 展开后各字段可直接作为图表数据源。
 const reports = reactive({
-  monthlyBatchOutput: [],
-  traceRanking: [],
-  originDistribution: [],
-  productBatchOutput: []
+  monthlyBatchOutput: [],   // 近 12 个月批次产量（month, batchCount, productCount）
+  traceRanking: [],         // 溯源访问 Top N（productName, category, traceCount, lastTraceTime）
+  originDistribution: [],   // 产地产品分布（name, value）
+  productBatchOutput: []    // 各产品批次统计（productName, category, batchCount, lastProductionDate）
 })
+// 近 7 天溯源访问趋势，来自 getTraceTrend()，后端保证 7 天连续（无访问日填 0）。
 const traceTrend = reactive({ dates: [], counts: [] })
 
 // 根据报表数据汇总顶部四张概览卡片。
