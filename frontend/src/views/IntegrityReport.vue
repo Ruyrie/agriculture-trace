@@ -5,9 +5,14 @@
         <h3 class="page-title">数据指纹</h3>
         <span class="page-subtitle">共 {{ total }} 个产品</span>
       </div>
-      <el-button type="primary" plain @click="fetchData" :loading="loading">
-        <el-icon><Refresh /></el-icon> 刷新
-      </el-button>
+      <div class="page-actions">
+        <el-button type="success" plain @click="exportFingerprintReport" :disabled="loading || records.length === 0">
+          <el-icon><Download /></el-icon> 导出报告
+        </el-button>
+        <el-button type="primary" plain @click="fetchData" :loading="loading">
+          <el-icon><Refresh /></el-icon> 刷新
+        </el-button>
+      </div>
     </div>
 
     <div class="summary-grid">
@@ -68,7 +73,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { CopyDocument, Refresh } from '@element-plus/icons-vue'
+import { CopyDocument, Download, Refresh } from '@element-plus/icons-vue'
 import { getProductFingerprints, verifyProductHash } from '@/api/integrity'
 
 const loading = ref(false)
@@ -130,6 +135,56 @@ const copyRootHash = async () => {
   }
 }
 
+const csvCell = (value) => {
+  const text = value == null ? '' : String(value)
+  return `"${text.replace(/"/g, '""')}"`
+}
+
+const reportTimestamp = () => {
+  const now = new Date()
+  const pad = value => String(value).padStart(2, '0')
+  return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
+}
+
+// 导出当前数据指纹报告，包含摘要和每条产品的存储/当前指纹。
+const exportFingerprintReport = () => {
+  if (records.value.length === 0) {
+    ElMessage.warning('暂无可导出的数据指纹')
+    return
+  }
+
+  const summaryRows = [
+    ['报告名称', '数据指纹报告'],
+    ['生成时间', generatedAt.value || formatDateTime(new Date())],
+    ['全局根哈希', rootHash.value || '-'],
+    ['产品总数', total.value],
+    ['异常数量', invalidCount.value],
+    [],
+    ['产品ID', '产品名称', '类别', '产地', '存储指纹', '当前指纹', '校验状态']
+  ]
+  const dataRows = records.value.map(item => [
+    item.id,
+    item.name,
+    item.category,
+    item.origin,
+    item.storedHash || '未生成',
+    item.currentHash || '',
+    item.valid ? '一致' : '异常'
+  ])
+  const csv = [...summaryRows, ...dataRows]
+    .map(row => row.map(csvCell).join(','))
+    .join('\r\n')
+
+  const blob = new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `数据指纹报告_${reportTimestamp()}.csv`
+  link.click()
+  URL.revokeObjectURL(url)
+  ElMessage.success('报告导出成功')
+}
+
 onMounted(() => {
   updateClock()
   clockTimer = window.setInterval(updateClock, 1000)
@@ -152,12 +207,19 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
 }
 
 .page-header-left {
   display: flex;
   align-items: baseline;
   gap: 10px;
+}
+
+.page-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .page-title {
@@ -229,6 +291,11 @@ onUnmounted(() => {
 }
 
 @media (max-width: 980px) {
+  .page-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .summary-grid {
     grid-template-columns: 1fr;
   }

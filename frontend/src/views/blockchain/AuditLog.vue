@@ -22,6 +22,9 @@
         </el-tag>
       </div>
       <div class="page-actions">
+        <el-button type="success" plain @click="exportAuditLogs" :loading="exporting" :disabled="loading || total === 0">
+          <el-icon><Download /></el-icon> 导出日志
+        </el-button>
         <el-button type="success" plain @click="verifyChain" :loading="verifying">
           <el-icon><CircleCheck /></el-icon> 验证链条完整性
         </el-button>
@@ -47,6 +50,55 @@
         </div>
       </template>
     </el-alert>
+
+    <el-card shadow="never" class="filter-card">
+      <div class="filter-header">
+        <div class="filter-title">筛选条件</div>
+        <el-tag v-if="activeFilterCount" type="info" size="small">已选 {{ activeFilterCount }} 项</el-tag>
+      </div>
+      <el-form :model="filters" class="filter-form" label-position="top">
+        <div class="filter-grid">
+          <el-form-item label="操作类型">
+            <el-select v-model="filters.actionType" clearable placeholder="全部" class="filter-control">
+              <el-option label="新增" value="CREATE" />
+              <el-option label="更新" value="UPDATE" />
+              <el-option label="删除" value="DELETE" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="对象类型">
+            <el-select v-model="filters.targetType" clearable placeholder="全部" class="filter-control">
+              <el-option label="产品" value="PRODUCT" />
+              <el-option label="批次" value="BATCH" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="操作人">
+            <el-input v-model.trim="filters.operator" clearable placeholder="输入操作人" class="filter-control" />
+          </el-form-item>
+          <el-form-item label="对象ID">
+            <el-input v-model.trim="filters.targetId" clearable placeholder="输入对象ID" class="filter-control" />
+          </el-form-item>
+          <el-form-item label="时间范围" class="time-form-item">
+            <el-date-picker
+              v-model="filterTimeRange"
+              type="datetimerange"
+              range-separator="至"
+              start-placeholder="开始时间"
+              end-placeholder="结束时间"
+              value-format="YYYY-MM-DD HH:mm:ss"
+              class="time-range"
+            />
+          </el-form-item>
+        </div>
+        <div class="filter-actions">
+          <el-button type="primary" plain @click="searchLogs" :loading="loading">
+            <el-icon><Search /></el-icon> 筛选
+          </el-button>
+          <el-button plain @click="resetFilters" :disabled="loading || activeFilterCount === 0">
+            <el-icon><Delete /></el-icon> 重置
+          </el-button>
+        </div>
+      </el-form>
+    </el-card>
 
     <el-card shadow="never" class="content-card">
       <el-table :data="logs" stripe class="log-table" v-loading="loading">
@@ -123,7 +175,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { CircleCheck, Refresh } from '@element-plus/icons-vue'
+import { CircleCheck, Delete, Download, Refresh, Search } from '@element-plus/icons-vue'
 import { getAuditLogs, verifyAuditLogChain } from '@/api/blockchain'
 import Pagination from '@/components/Pagination.vue'
 import HashTag from '@/components/HashTag.vue'
@@ -133,10 +185,18 @@ const page = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
 const loading = ref(false)
+const exporting = ref(false)
 const verifying = ref(false)
 const verifyResult = ref(null)
 const detailVisible = ref(false)
 const currentLog = ref(null)
+const filterTimeRange = ref([])
+const filters = ref({
+  actionType: '',
+  targetType: '',
+  operator: '',
+  targetId: ''
+})
 
 // 顶部标题直接给出“正常/异常”结论，便于一眼判断链条状态。
 const verifyTitle = computed(() => {
@@ -171,11 +231,38 @@ const verifyDescription = computed(() => {
     .join('；')
 })
 
+const activeFilterCount = computed(() => {
+  return [
+    filters.value.actionType,
+    filters.value.targetType,
+    filters.value.operator,
+    filters.value.targetId,
+    filterTimeRange.value?.length ? 'timeRange' : ''
+  ].filter(Boolean).length
+})
+
+const buildLogParams = () => {
+  const [startTime, endTime] = filterTimeRange.value || []
+  const params = {
+    page: page.value,
+    pageSize: pageSize.value,
+    actionType: filters.value.actionType,
+    targetType: filters.value.targetType,
+    operator: filters.value.operator,
+    targetId: filters.value.targetId,
+    startTime,
+    endTime
+  }
+  return Object.fromEntries(
+    Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== '')
+  )
+}
+
 // 分页拉取审计日志列表。
 const fetchLogs = async () => {
   loading.value = true
   try {
-    const res = await getAuditLogs({ page: page.value, pageSize: pageSize.value })
+    const res = await getAuditLogs(buildLogParams())
     if (res.code === 200) {
       logs.value = res.data?.records || []
       total.value = res.data?.total || 0
@@ -184,6 +271,119 @@ const fetchLogs = async () => {
     }
   } finally {
     loading.value = false
+  }
+}
+
+const searchLogs = () => {
+  page.value = 1
+  fetchLogs()
+}
+
+const resetFilters = () => {
+  filters.value = {
+    actionType: '',
+    targetType: '',
+    operator: '',
+    targetId: ''
+  }
+  filterTimeRange.value = []
+  page.value = 1
+  fetchLogs()
+}
+
+const csvCell = (value) => {
+  const text = value == null ? '' : String(value)
+  return `"${text.replace(/"/g, '""')}"`
+}
+
+const reportTimestamp = () => {
+  const now = new Date()
+  const pad = value => String(value).padStart(2, '0')
+  return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
+}
+
+const actionLabel = (type) => {
+  if (type === 'CREATE') return '新增'
+  if (type === 'UPDATE') return '更新'
+  if (type === 'DELETE') return '删除'
+  return type || ''
+}
+
+const targetLabel = (type) => {
+  if (type === 'PRODUCT') return '产品'
+  if (type === 'BATCH') return '批次'
+  return type || ''
+}
+
+const filterSummaryRows = () => {
+  const [startTime, endTime] = filterTimeRange.value || []
+  return [
+    ['导出范围', activeFilterCount.value ? '当前筛选结果' : '全部日志'],
+    ['操作类型', actionLabel(filters.value.actionType) || '全部'],
+    ['对象类型', targetLabel(filters.value.targetType) || '全部'],
+    ['操作人', filters.value.operator || '全部'],
+    ['对象ID', filters.value.targetId || '全部'],
+    ['开始时间', startTime || '不限'],
+    ['结束时间', endTime || '不限'],
+    ['匹配总数', total.value]
+  ]
+}
+
+const exportAuditLogs = async () => {
+  if (total.value === 0) {
+    ElMessage.warning('暂无可导出的审计日志')
+    return
+  }
+  exporting.value = true
+  try {
+    const res = await getAuditLogs({
+      ...buildLogParams(),
+      page: 1,
+      pageSize: Math.max(total.value, 1)
+    })
+    if (res.code !== 200) {
+      ElMessage.error(res.message || '审计日志导出失败')
+      return
+    }
+    const exportRows = res.data?.records || []
+    if (exportRows.length === 0) {
+      ElMessage.warning('暂无可导出的审计日志')
+      return
+    }
+
+    const summaryRows = [
+      ['报告名称', '审计日志导出'],
+      ['导出时间', new Date().toLocaleString()],
+      ...filterSummaryRows(),
+      [],
+      ['日志ID', '时间', '操作人', '操作类型', '对象类型', '对象ID', '上一哈希', '本条哈希', '操作前', '操作后']
+    ]
+    const dataRows = exportRows.map(item => [
+      item.id,
+      item.timestamp,
+      item.operator,
+      actionLabel(item.actionType),
+      targetLabel(item.targetType),
+      item.targetId,
+      item.previousHash,
+      item.dataHash,
+      item.dataBefore || '',
+      item.dataAfter || ''
+    ])
+    const csv = [...summaryRows, ...dataRows]
+      .map(row => row.map(csvCell).join(','))
+      .join('\r\n')
+
+    const blob = new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `审计日志_${reportTimestamp()}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+    ElMessage.success(`已导出 ${exportRows.length} 条审计日志`)
+  } finally {
+    exporting.value = false
   }
 }
 
@@ -319,9 +519,77 @@ fetchLogs()
   font-weight: 600;
 }
 
+.filter-card,
 .content-card {
   border-radius: 8px;
   border: 1px solid #f0f0f0;
+  min-width: 0;
+}
+
+.filter-card :deep(.el-card__body) {
+  padding-bottom: 14px;
+}
+
+.filter-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.filter-title {
+  color: #1f2937;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.filter-form :deep(.el-form-item) {
+  margin-bottom: 0;
+  min-width: 0;
+}
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(160px, 1fr));
+  gap: 14px;
+  min-width: 0;
+}
+
+.filter-grid :deep(.el-form-item__label) {
+  line-height: 20px;
+  padding-bottom: 6px;
+  color: #606266;
+}
+
+.time-form-item {
+  grid-column: span 2;
+}
+
+.filter-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 14px;
+}
+
+.filter-control {
+  width: 100%;
+  min-width: 0;
+}
+
+.time-range {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.filter-card :deep(.el-date-editor),
+.filter-card :deep(.el-date-editor.el-input__wrapper) {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .log-table {
@@ -408,6 +676,18 @@ fetchLogs()
   .page-header {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .filter-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .time-form-item {
+    grid-column: auto;
+  }
+
+  .filter-actions {
+    justify-content: flex-start;
   }
 
   .detail-grid {

@@ -11,6 +11,7 @@ import com.example.agriculturetrace.service.BlockchainAnchorService;
 import com.example.agriculturetrace.service.ProductService;
 import com.example.agriculturetrace.util.HashUtil;
 import com.example.agriculturetrace.util.Result;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -60,7 +61,13 @@ public class BlockchainLogController {
      */
     @GetMapping("/logs")
     public Result<?> logs(@RequestParam(defaultValue = "1") int page,
-                          @RequestParam(defaultValue = "10") int pageSize) {
+                          @RequestParam(defaultValue = "10") int pageSize,
+                          @RequestParam(required = false) String actionType,
+                          @RequestParam(required = false) String targetType,
+                          @RequestParam(required = false) String operator,
+                          @RequestParam(required = false) String targetId,
+                          @RequestParam(required = false) String startTime,
+                          @RequestParam(required = false) String endTime) {
         // 按 id（logId，UTC 毫秒前缀、单调、与时区无关）升序，保证展示顺序与链条验证顺序一致。
         // 不能按 timestamp 排序：timestamp 是本地墙钟字符串，跨时区会乱序导致链条误判断裂。
         PageRequest request = PageRequest.of(
@@ -68,13 +75,64 @@ public class BlockchainLogController {
                 Math.max(pageSize, 1),
                 Sort.by(Sort.Direction.ASC, "id")
         );
-        Page<BlockchainLog> logs = logRepository.findAll(request);
+        Page<BlockchainLog> logs = logRepository.findAll(
+                buildLogSpecification(actionType, targetType, operator, targetId, startTime, endTime),
+                request
+        );
         return Result.success(Map.of(
                 "records", logs.getContent().stream().map(this::toLogRow).toList(),
                 "total", logs.getTotalElements(),
                 "page", logs.getNumber() + 1,
                 "pageSize", logs.getSize()
         ));
+    }
+
+    /**
+     * 审计日志筛选条件。
+     * timestamp 使用 yyyy-MM-dd HH:mm:ss 字符串，按字典序比较即可保持时间顺序。
+     */
+    private Specification<BlockchainLog> buildLogSpecification(String actionType,
+                                                               String targetType,
+                                                               String operator,
+                                                               String targetId,
+                                                               String startTime,
+                                                               String endTime) {
+        return (root, query, builder) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new java.util.ArrayList<>();
+            addEqualsPredicate(predicates, builder, root.get("actionType"), actionType);
+            addEqualsPredicate(predicates, builder, root.get("targetType"), targetType);
+            addLikePredicate(predicates, builder, root.get("operator"), operator);
+            addLikePredicate(predicates, builder, root.get("targetId"), targetId);
+            if (hasText(startTime)) {
+                predicates.add(builder.greaterThanOrEqualTo(root.get("timestamp"), startTime.trim()));
+            }
+            if (hasText(endTime)) {
+                predicates.add(builder.lessThanOrEqualTo(root.get("timestamp"), endTime.trim()));
+            }
+            return builder.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+    }
+
+    private void addEqualsPredicate(List<jakarta.persistence.criteria.Predicate> predicates,
+                                    jakarta.persistence.criteria.CriteriaBuilder builder,
+                                    jakarta.persistence.criteria.Path<String> path,
+                                    String value) {
+        if (hasText(value)) {
+            predicates.add(builder.equal(path, value.trim()));
+        }
+    }
+
+    private void addLikePredicate(List<jakarta.persistence.criteria.Predicate> predicates,
+                                  jakarta.persistence.criteria.CriteriaBuilder builder,
+                                  jakarta.persistence.criteria.Path<String> path,
+                                  String value) {
+        if (hasText(value)) {
+            predicates.add(builder.like(path, "%" + value.trim() + "%"));
+        }
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
     }
 
     /**
