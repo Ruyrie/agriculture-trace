@@ -11,6 +11,10 @@
  *     /blockchain/audit-log → AuditLog.vue（审计日志，ADMIN/INSPECTOR）
  *     /users          → UserManagement.vue（用户管理，仅 ADMIN）
  *     /statistics     → Statistics.vue（统计分析，ADMIN/INSPECTOR）
+ *     /feedback       → Feedback.vue（意见反馈，所有角色；管理员看全量并回复，普通用户提交并查看自己的反馈）
+ *     /warnings       → WarningCenter.vue（批次预警，ADMIN/INSPECTOR；以批次为单位实时扫描质检不合格/缺质检/缺物流）
+ *     /login-logs     → LoginLog.vue（登录日志，ADMIN/INSPECTOR；登录成功/失败安全审计）
+ *     /announcements  → Announcement.vue（系统公告，所有角色；管理员管理，普通用户只读浏览）
  *     /trace/batch/:batchId → TraceDetail.vue（批次溯源详情，无需登录）
  *     /trace/:id      → TraceDetail.vue（产品溯源详情，无需登录）
  *     /profile        → Profile.vue（个人中心，需登录）
@@ -84,11 +88,35 @@ const routes = [
         component: () => import('@/views/UserManagement.vue'), 
         meta: { requiresAuth: true, title: '用户管理', icon: 'User', roles: ['ROLE_ADMIN'] } 
       }, 
-      { 
-        path: 'statistics', 
-        name: 'Statistics', 
-        component: () => import('@/views/Statistics.vue'), 
-        meta: { requiresAuth: true, title: '统计分析', icon: 'DataAnalysis', roles: ['ROLE_ADMIN', 'ROLE_INSPECTOR'] } 
+      {
+        path: 'statistics',
+        name: 'Statistics',
+        component: () => import('@/views/Statistics.vue'),
+        meta: { requiresAuth: true, title: '统计分析', icon: 'DataAnalysis', roles: ['ROLE_ADMIN', 'ROLE_INSPECTOR'] }
+      },
+      {
+        path: 'feedback',
+        name: 'Feedback',
+        component: () => import('@/views/Feedback.vue'),
+        meta: { requiresAuth: true, title: '意见反馈', icon: 'ChatDotRound' }
+      },
+      {
+        path: 'warnings',
+        name: 'WarningCenter',
+        component: () => import('@/views/WarningCenter.vue'),
+        meta: { requiresAuth: true, title: '批次预警', icon: 'Warning', roles: ['ROLE_ADMIN', 'ROLE_INSPECTOR'] }
+      },
+      {
+        path: 'login-logs',
+        name: 'LoginLog',
+        component: () => import('@/views/LoginLog.vue'),
+        meta: { requiresAuth: true, title: '登录日志', icon: 'Tickets', roles: ['ROLE_ADMIN', 'ROLE_INSPECTOR'] }
+      },
+      {
+        path: 'announcements',
+        name: 'Announcement',
+        component: () => import('@/views/Announcement.vue'),
+        meta: { requiresAuth: true, title: '系统公告', icon: 'Bell' }
       },
       {
         path: 'trace/batch/:batchId',

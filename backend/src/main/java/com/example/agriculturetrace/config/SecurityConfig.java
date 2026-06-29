@@ -1,6 +1,7 @@
 package com.example.agriculturetrace.config;
 
 import com.example.agriculturetrace.entity.User;
+import com.example.agriculturetrace.service.LoginLogService;
 import com.example.agriculturetrace.service.UserService;
 import com.example.agriculturetrace.util.Result;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -27,13 +28,16 @@ public class SecurityConfig {
     private final ObjectMapper objectMapper;
     private final UserService userService;
     private final UserDetailsService userDetailsService;
+    private final LoginLogService loginLogService;
 
     public SecurityConfig(ObjectMapper objectMapper,
                           UserService userService,
-                          UserDetailsService userDetailsService) {
+                          UserDetailsService userDetailsService,
+                          LoginLogService loginLogService) {
         this.objectMapper = objectMapper;
         this.userService = userService;
         this.userDetailsService = userDetailsService;
+        this.loginLogService = loginLogService;
     }
 
     /**
@@ -55,8 +59,16 @@ public class SecurityConfig {
                                 "/api/trace/**", "/uploads/**").permitAll()
                         // 用户管理只给管理员；数据指纹和审计日志给管理员、监管员。
                         .requestMatchers("/api/users/**").hasRole("ADMIN")
+                        // 反馈管理（列表/汇总/回复/关闭/删除）只给管理员；
+                        // 提交反馈和查看自己的反馈走下方 anyRequest().authenticated()，任意登录用户可用。
+                        .requestMatchers("/api/feedback/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/dashboard/reports").hasAnyRole("ADMIN", "INSPECTOR")
                         .requestMatchers("/api/blockchain/**").hasAnyRole("ADMIN", "INSPECTOR")
+                        // 登录日志、预警中心面向管理员与监管员（安全/质量监督）。
+                        .requestMatchers("/api/login-logs/**").hasAnyRole("ADMIN", "INSPECTOR")
+                        .requestMatchers("/api/warnings/**").hasAnyRole("ADMIN", "INSPECTOR")
+                        // 公告：管理端（增删改）仅管理员；公告浏览走 anyRequest().authenticated()，所有登录用户可见。
+                        .requestMatchers("/api/announcements/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/integrity/fingerprints", "/api/integrity/products", "/api/integrity/root-hash").hasAnyRole("ADMIN", "INSPECTOR")
                         .anyRequest().authenticated()
                 )
@@ -65,10 +77,16 @@ public class SecurityConfig {
                         .successHandler((request, response, authentication) -> {
                             // Spring Security 完成认证后立即返回前端需要缓存的用户和角色信息。
                             User user = userService.getByUsername(authentication.getName());
+                            // 记录一次成功登录日志，供安全审计；记录失败不影响登录响应。
+                            loginLogService.record(request, authentication.getName(), "SUCCESS", "登录成功");
                             writeJson(response, Result.success(userService.toUserInfo(user)));
                         })
-                        .failureHandler((request, response, exception) ->
-                                writeJson(response, Result.error(401, loginFailureMessage(request, exception))))
+                        .failureHandler((request, response, exception) -> {
+                            String message = loginFailureMessage(request, exception);
+                            // 失败也要记录用户名与原因，便于发现暴力破解/异常登录。
+                            loginLogService.record(request, request.getParameter("username"), "FAILURE", message);
+                            writeJson(response, Result.error(401, message));
+                        })
                         .permitAll()
                 )
                 .logout(logout -> logout

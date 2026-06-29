@@ -39,4 +39,10 @@ public interface LogisticsRecordRepository extends JpaRepository<LogisticsRecord
      * 删除某批次下全部物流记录，用于批次溯源明细覆盖式更新。
      */
     void deleteByBatch_Id(String batchId);
+
+    /**
+     * 取出所有"已存在物流记录"的批次 ID（去重），供预警中心计算"缺少物流轨迹"的批次集合。
+     */
+    @Query("select distinct record.batch.id from LogisticsRecord record")
+    List<String> findDistinctBatchIds();
 }

@@ -1,145 +1,89 @@
 <template>
   <div class="login-page">
-    <!-- 装饰性背景 -->
-    <div class="bg-decor" aria-hidden="true">
-      <span class="orb orb-1"></span>
-      <span class="orb orb-2"></span>
-      <span class="orb orb-3"></span>
-      <span class="grid-overlay"></span>
+    <!-- ===== 晨光田野背景 ===== -->
+    <div class="bg-photo" aria-hidden="true"></div>
+    <div class="bg-overlay" aria-hidden="true"></div>
+
+    <!-- ===== 左上角品牌标识 ===== -->
+    <div class="brand-mark">
+      <span class="brand-word">农产品溯源</span>
     </div>
 
-    <div class="login-shell">
-      <!-- 左侧品牌区 -->
-      <div class="login-brand">
-        <div class="brand-content">
-          <div class="brand-logo">
-            <el-icon><Goods /></el-icon>
-          </div>
-          <h1 class="brand-title">农产品溯源系统</h1>
-          <p class="brand-subtitle">从田间到餐桌，每一步都可追溯</p>
+    <!-- ===== 左侧主标语 ===== -->
+    <div class="hero">
+      <span class="hero-accent"></span>
+      <h1 class="hero-title">农产品全链路溯源平台</h1>
+      <p class="hero-subtitle">从田间到餐桌，全程透明可追溯</p>
+    </div>
 
-          <ul class="brand-features">
-            <li class="feature-item">
-              <span class="feature-icon"><el-icon><CircleCheck /></el-icon></span>
-              <div class="feature-text">
-                <strong>全程追溯</strong>
-                <small>安全透明，来源可查</small>
-              </div>
-            </li>
-            <li class="feature-item">
-              <span class="feature-icon"><el-icon><TrendCharts /></el-icon></span>
-              <div class="feature-text">
-                <strong>数据可视化</strong>
-                <small>一目了然，洞察全局</small>
-              </div>
-            </li>
-            <li class="feature-item">
-              <span class="feature-icon"><el-icon><Lock /></el-icon></span>
-              <div class="feature-text">
-                <strong>权限管理</strong>
-                <small>分级管控，安全可靠</small>
-              </div>
-            </li>
-          </ul>
-
-          <div class="brand-stats">
-            <div class="stat">
-              <span class="stat-num">100%</span>
-              <span class="stat-label">可追溯</span>
-            </div>
-            <div class="stat-divider"></div>
-            <div class="stat">
-              <span class="stat-num">24h</span>
-              <span class="stat-label">实时监测</span>
-            </div>
-            <div class="stat-divider"></div>
-            <div class="stat">
-              <span class="stat-num">3级</span>
-              <span class="stat-label">权限体系</span>
-            </div>
-          </div>
-        </div>
+    <!-- ===== 右侧登录卡 ===== -->
+    <div class="login-card">
+      <div class="login-header">
+        <h2>欢迎回来</h2>
+        <p>登录后继续管理您的溯源网络</p>
       </div>
 
-      <!-- 右侧登录区 -->
-      <div class="login-form-area">
-        <div class="login-card">
-          <!-- 移动端品牌头（仅窄屏显示） -->
-          <div class="login-brand-mobile">
-            <span class="mobile-logo"><el-icon><Goods /></el-icon></span>
-            <span class="mobile-name">农产品溯源系统</span>
-          </div>
-
-          <div class="login-header">
-            <h2>欢迎登录</h2>
-            <p>请输入您的账号信息</p>
-          </div>
-
-          <el-form
-            :model="form"
-            :rules="rules"
-            ref="formRef"
-            class="login-form"
-            @submit.prevent="handleLogin"
+      <el-form
+        :model="form"
+        :rules="rules"
+        ref="formRef"
+        class="login-form"
+        label-position="top"
+        @submit.prevent="handleLogin"
+      >
+        <el-form-item label="用户名" prop="username">
+          <el-input
+            ref="usernameRef"
+            v-model="form.username"
+            placeholder="请输入用户名"
+            :prefix-icon="User"
+            size="large"
+            name="username"
+            autocomplete="username"
+            autocapitalize="off"
+            autocorrect="off"
+            spellcheck="false"
+            clearable
+            aria-label="用户名"
+            @keyup.enter="focusPassword"
+          />
+        </el-form-item>
+        <el-form-item label="密码" prop="password">
+          <el-input
+            ref="passwordRef"
+            v-model="form.password"
+            type="password"
+            placeholder="请输入密码"
+            :prefix-icon="Lock"
+            show-password
+            size="large"
+            name="password"
+            autocomplete="current-password"
+            aria-label="密码"
+            @keyup.enter="handleLogin"
+          />
+        </el-form-item>
+        <div class="login-options">
+          <el-checkbox v-model="form.rememberMe">记住我</el-checkbox>
+          <el-link type="primary" underline="never" class="forgot-link" @click="openForgot">忘记密码？</el-link>
+        </div>
+        <el-form-item class="submit-item">
+          <el-button
+            type="primary"
+            native-type="submit"
+            class="login-btn"
+            :loading="loading"
+            size="large"
           >
-            <el-form-item prop="username">
-              <el-input
-                ref="usernameRef"
-                v-model="form.username"
-                placeholder="请输入用户名"
-                :prefix-icon="User"
-                size="large"
-                name="username"
-                autocomplete="username"
-                autocapitalize="off"
-                autocorrect="off"
-                spellcheck="false"
-                clearable
-                aria-label="用户名"
-                @keyup.enter="focusPassword"
-              />
-            </el-form-item>
-            <el-form-item prop="password">
-              <el-input
-                ref="passwordRef"
-                v-model="form.password"
-                type="password"
-                placeholder="请输入密码"
-                :prefix-icon="Lock"
-                show-password
-                size="large"
-                name="password"
-                autocomplete="current-password"
-                aria-label="密码"
-                @keyup.enter="handleLogin"
-              />
-            </el-form-item>
-            <div class="login-options">
-              <el-checkbox v-model="form.rememberMe">记住登录状态</el-checkbox>
-              <el-link type="primary" :underline="false" class="forgot-link" @click="openForgot">忘记密码？</el-link>
-            </div>
-            <el-form-item>
-              <el-button
-                type="primary"
-                native-type="submit"
-                class="login-btn"
-                :loading="loading"
-                size="large"
-              >
-                {{ loading ? '登录中...' : '登 录' }}
-              </el-button>
-            </el-form-item>
-          </el-form>
+            {{ loading ? '登录中...' : '登 录' }}
+          </el-button>
+        </el-form-item>
+      </el-form>
 
-          <div class="login-tips">
-            <el-icon class="tips-icon"><InfoFilled /></el-icon>
-            <div class="tips-text">
-              <p>测试账号：<b>admin</b> / <b>farmer</b> / <b>inspector</b></p>
-              <p>密码均为：<b>123456</b></p>
-            </div>
-          </div>
-        </div>
-      </div>
+      <p class="login-tips">
+        测试账号 <b>admin</b> / <b>farmer</b> / <b>inspector</b>
+        <span class="tips-dot">·</span> 密码 <b class="tips-pwd">123456</b>
+      </p>
     </div>
 
     <!-- 忘记密码：图形验证码 + 用户名 + 手机号 校验后重置 -->
@@ -200,6 +144,10 @@
  *   - 登录成功后将用户信息存入 localStorage（sessionActive/userInfo/userRole），
  *     供 router/index.js 导航守卫和 Layout.vue 菜单过滤使用。
  *
+ * 视觉：
+ *   - 全屏背景使用真实晨光农田图片 public/login-bg-real.png。
+ *   - 左侧为品牌标语，右侧为玻璃拟态登录卡。
+ *
  * 关联：
  *   - api/user.js（login / getCaptcha / forgotPassword）
  *   - router/index.js（beforeEach 守卫读取 sessionActive/userRole）
@@ -208,7 +156,7 @@
 import { nextTick, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
-import { CircleCheck, Goods, InfoFilled, Iphone, Key, Lock, TrendCharts, User } from '@element-plus/icons-vue'
+import { Iphone, Key, Lock, User } from '@element-plus/icons-vue'
 import { forgotPassword, getCaptcha, login } from '@/api/user'
 
 // 路由实例，登录成功后用 router.push('/dashboard') 跳转。
@@ -385,274 +333,149 @@ const handleLogin = async () => {
 <style scoped>
 .login-page {
   position: relative;
+  box-sizing: border-box;
   min-height: 100vh;
   min-height: 100dvh;
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 24px;
+  justify-content: flex-end;
+  padding: 48px clamp(32px, 6vw, 110px);
   overflow: hidden;
-  background: linear-gradient(135deg, #0f3d1c 0%, #1a6b2a 45%, #2d9e4f 100%);
+  isolation: isolate;
+  background: #17351f;
 }
 
-/* ===== 装饰背景 ===== */
-.bg-decor {
+/* 真实农田摄影背景 */
+.bg-photo {
   position: absolute;
   inset: 0;
   z-index: 0;
+  background-image: url('/login-bg-real.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  transform: scale(1.01);
 }
 
-.orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(8px);
-  opacity: 0.5;
-}
-
-.orb-1 {
-  width: 520px;
-  height: 520px;
-  top: -180px;
-  left: -160px;
-  background: radial-gradient(circle at 30% 30%, rgba(129, 199, 132, 0.55), transparent 70%);
-  animation: float 14s ease-in-out infinite;
-}
-
-.orb-2 {
-  width: 420px;
-  height: 420px;
-  bottom: -140px;
-  right: -120px;
-  background: radial-gradient(circle at 70% 70%, rgba(76, 175, 80, 0.5), transparent 70%);
-  animation: float 18s ease-in-out infinite reverse;
-}
-
-.orb-3 {
-  width: 300px;
-  height: 300px;
-  top: 55%;
-  left: 8%;
-  background: radial-gradient(circle, rgba(255, 235, 153, 0.35), transparent 70%);
-  animation: float 16s ease-in-out infinite 2s;
-}
-
-.grid-overlay {
+/* 聚焦中心内容，同时提升左侧白字和右侧卡片的对比度 */
+.bg-overlay {
   position: absolute;
   inset: 0;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-  background-size: 48px 48px;
-  mask-image: radial-gradient(ellipse at center, #000 35%, transparent 80%);
+  z-index: 0;
+  background:
+    linear-gradient(90deg, rgba(5, 22, 12, 0.56) 0%, rgba(8, 26, 15, 0.23) 43%, rgba(55, 34, 8, 0.08) 100%),
+    linear-gradient(180deg, rgba(7, 19, 12, 0.06), rgba(5, 20, 11, 0.2));
 }
 
-/* ===== 主体卡壳 ===== */
-.login-shell {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  width: 100%;
-  max-width: 960px;
-  min-height: 580px;
-  border-radius: 24px;
-  overflow: hidden;
-  background: rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
-  animation: fade-up 0.6s ease both;
-}
-
-/* ===== 左侧品牌区 ===== */
-.login-brand {
-  flex: 1.1;
-  position: relative;
+/* ===== 品牌标识 ===== */
+.brand-mark {
+  position: absolute;
+  top: 40px;
+  left: clamp(28px, 5vw, 64px);
+  z-index: 2;
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 48px 44px;
-  background:
-    radial-gradient(circle at 20% 15%, rgba(255, 255, 255, 0.12), transparent 45%),
-    linear-gradient(150deg, #1a6b2a 0%, #2d9e4f 55%, #43b05a 100%);
   color: #fff;
 }
 
-.brand-content {
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  max-width: 320px;
-}
-
-.brand-logo {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 72px;
-  height: 72px;
-  border-radius: 20px;
-  font-size: 38px;
-  margin-bottom: 22px;
-  background: rgba(255, 255, 255, 0.16);
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
-}
-
-.brand-title {
-  font-size: 30px;
-  font-weight: 800;
-  margin: 0 0 12px;
-  letter-spacing: 2px;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-}
-
-.brand-subtitle {
-  font-size: 15px;
-  opacity: 0.92;
-  margin: 0 0 36px;
-  letter-spacing: 0.5px;
-}
-
-.brand-features {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  margin: 0 0 36px;
-  padding: 0;
-  list-style: none;
-}
-
-.feature-item {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.feature-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
-  border-radius: 12px;
-  font-size: 20px;
-  background: rgba(255, 255, 255, 0.16);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-}
-
-.feature-text {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.4;
-}
-
-.feature-text strong {
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.feature-text small {
-  font-size: 12px;
-  opacity: 0.82;
-}
-
-.brand-stats {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding-top: 24px;
-  border-top: 1px solid rgba(255, 255, 255, 0.18);
-}
-
-.stat {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.stat-num {
+.brand-word {
   font-size: 22px;
   font-weight: 800;
-  letter-spacing: 0.5px;
+  letter-spacing: 3px;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
 }
 
-.stat-label {
-  font-size: 12px;
-  opacity: 0.82;
+/* ===== 左侧主标语 ===== */
+.hero {
+  position: absolute;
+  left: clamp(28px, 6vw, 96px);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  max-width: 760px;
+  color: #fff;
+  animation: fade-in 0.8s ease both;
 }
 
-.stat-divider {
-  width: 1px;
-  height: 32px;
-  background: rgba(255, 255, 255, 0.2);
+.hero-accent {
+  display: block;
+  width: 64px;
+  height: 5px;
+  border-radius: 3px;
+  margin-bottom: 26px;
+  background: linear-gradient(90deg, #f0b73f, #e8c069);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
 }
 
-/* ===== 右侧登录区 ===== */
-.login-form-area {
-  width: 440px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.96);
-  padding: 48px 44px;
+.hero-title {
+  font-size: clamp(34px, 3.4vw, 56px);
+  font-weight: 800;
+  line-height: 1.18;
+  margin: 0 0 20px;
+  letter-spacing: 2px;
+  white-space: nowrap;
+  text-shadow: 0 3px 18px rgba(0, 0, 0, 0.4);
 }
 
+.hero-subtitle {
+  font-size: clamp(16px, 1.5vw, 20px);
+  font-weight: 400;
+  margin: 0;
+  letter-spacing: 3px;
+  opacity: 0.94;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+}
+
+/* ===== 右侧登录卡（保留玻璃拟态） ===== */
 .login-card {
+  position: relative;
+  z-index: 2;
   width: 100%;
-  max-width: 340px;
-}
-
-/* 移动端品牌头：默认隐藏，窄屏显示 */
-.login-brand-mobile {
-  display: none;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  margin-bottom: 28px;
-  color: #2d9e4f;
-}
-
-.mobile-logo {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  font-size: 24px;
-  background: #f0f9f0;
-}
-
-.mobile-name {
-  font-size: 19px;
-  font-weight: 700;
-  letter-spacing: 1px;
+  max-width: 440px;
+  padding: 44px 44px 30px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 30px 70px rgba(15, 40, 22, 0.32);
+  animation: card-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .login-header {
-  margin-bottom: 30px;
+  margin-bottom: 26px;
 }
 
 .login-header h2 {
-  font-size: 27px;
+  font-size: 30px;
   font-weight: 800;
-  color: #1a1a2e;
+  color: #16261a;
   margin: 0 0 8px;
 }
 
 .login-header p {
   font-size: 14px;
-  color: #909399;
+  color: #8a9a8e;
   margin: 0;
 }
 
+.login-form :deep(.el-form-item__label) {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #44604b;
+  padding-bottom: 6px;
+  line-height: 1.2;
+}
+
+.login-form :deep(.el-form-item) {
+  margin-bottom: 20px;
+}
+
 .login-form :deep(.el-input__wrapper) {
-  border-radius: 10px;
-  padding: 4px 14px;
-  box-shadow: 0 0 0 1px #e4e7ed;
-  background: #f8fafb;
+  border-radius: 11px;
+  padding: 6px 14px;
+  box-shadow: 0 0 0 1px #dfe5e0;
+  background: #f7faf8;
   transition: box-shadow 0.2s, background 0.2s;
 }
 
@@ -663,34 +486,83 @@ const handleLogin = async () => {
 
 .login-form :deep(.el-input__wrapper.is-focus) {
   background: #fff;
-  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.35);
+  box-shadow: 0 0 0 2px rgba(45, 110, 60, 0.45);
 }
 
 .login-form :deep(.el-input__prefix) {
-  color: #9aa3a8;
+  color: #7d957f;
 }
 
 .login-options {
-  min-height: 28px;
-  margin: -4px 0 18px;
+  min-height: 26px;
+  margin: -2px 0 22px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 12px;
-  color: #909399;
-}
-
-.login-options :deep(.el-checkbox) {
-  height: 24px;
 }
 
 .login-options :deep(.el-checkbox__label) {
-  font-size: 13px;
-  color: #606266;
+  font-size: 13.5px;
+  color: #44604b;
 }
 
 .forgot-link {
+  font-size: 13.5px;
+}
+
+.submit-item {
+  margin-bottom: 0 !important;
+}
+
+.login-btn {
+  width: 100%;
+  border-radius: 11px;
+  font-size: 16px;
+  letter-spacing: 6px;
+  font-weight: 600;
+  height: 50px;
+  color: #fff;
+  background: #245c30;
+  border: none;
+  box-shadow: 0 10px 24px rgba(28, 76, 40, 0.35);
+  transition: all 0.25s;
+}
+
+.login-btn:hover {
+  background: #1c4a26;
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px rgba(28, 76, 40, 0.45);
+}
+
+.login-btn:active {
+  transform: translateY(0);
+}
+
+.login-btn:focus-visible {
+  outline: 2px solid #16331f;
+  outline-offset: 2px;
+}
+
+.login-tips {
+  margin: 22px 0 0;
   font-size: 13px;
+  color: #8a9a8e;
+  text-align: left;
+  line-height: 1.6;
+}
+
+.login-tips b {
+  color: #2f6b3a;
+  font-weight: 700;
+}
+
+.login-tips .tips-pwd {
+  color: #c98a2e;
+}
+
+.tips-dot {
+  margin: 0 6px;
+  color: #c7d2c9;
 }
 
 /* ===== 找回密码弹窗 ===== */
@@ -739,148 +611,91 @@ const handleLogin = async () => {
   background: #f5f7fa;
 }
 
-.login-btn {
-  width: 100%;
-  border-radius: 10px;
-  font-size: 16px;
-  letter-spacing: 4px;
-  font-weight: 600;
-  background: linear-gradient(135deg, #2d9e4f, #4caf50);
-  border: none;
-  height: 46px;
-  box-shadow: 0 6px 16px rgba(45, 158, 79, 0.32);
-  transition: all 0.25s;
-}
-
-.login-btn:hover {
-  background: linear-gradient(135deg, #1a6b2a, #2d9e4f);
-  transform: translateY(-2px);
-  box-shadow: 0 10px 22px rgba(45, 158, 79, 0.42);
-}
-
-.login-btn:active {
-  transform: translateY(0);
-}
-
-.login-btn:focus-visible {
-  outline: 2px solid #1a6b2a;
-  outline-offset: 2px;
-}
-
-.login-tips {
-  margin-top: 26px;
-  padding: 14px 16px;
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  background: linear-gradient(135deg, #f0f9f0, #f3fbf4);
-  border-radius: 12px;
-  border: 1px solid #d9efdb;
-}
-
-.tips-icon {
-  font-size: 18px;
-  color: #4caf50;
-  margin-top: 1px;
-  flex-shrink: 0;
-}
-
-.tips-text {
-  text-align: left;
-}
-
-.tips-text p {
-  font-size: 12.5px;
-  color: #5a8a5e;
-  margin: 0;
-  line-height: 1.7;
-}
-
-.tips-text b {
-  color: #2d9e4f;
-  font-weight: 700;
-}
-
-@keyframes fade-up {
+/* ===== 动画 ===== */
+@keyframes card-in {
   from {
     opacity: 0;
-    transform: translateY(16px);
+    transform: translateY(22px) scale(0.98);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 }
 
-@keyframes float {
-  0%, 100% {
-    transform: translate(0, 0) scale(1);
-  }
-  50% {
-    transform: translate(30px, -24px) scale(1.06);
-  }
+@keyframes fade-in {
+  from { opacity: 0; transform: translate(0, calc(-50% + 14px)); }
+  to { opacity: 1; transform: translate(0, -50%); }
 }
 
-/* 平板：收窄右侧栏 */
-@media (max-width: 992px) {
-  .login-shell {
-    max-width: 760px;
-    min-height: 540px;
-  }
-
-  .login-form-area {
-    width: 380px;
-    padding: 40px 32px;
-  }
-
-  .login-brand {
-    padding: 40px 32px;
-  }
-}
-
-/* 移动端：隐藏左侧品牌区，登录卡片占满 */
-@media (max-width: 768px) {
+/* 平板及以下：标语下移为顶部信息，卡片居中 */
+@media (max-width: 900px) {
   .login-page {
-    padding: 16px;
+    justify-content: center;
+    padding: 96px 24px 40px;
   }
 
-  .login-shell {
-    max-width: 440px;
-    min-height: auto;
-    background: rgba(255, 255, 255, 0.98);
-    border: none;
+  .bg-overlay {
+    background:
+      linear-gradient(180deg, rgba(6, 24, 13, 0.46) 0%, rgba(8, 28, 14, 0.18) 44%, rgba(5, 20, 11, 0.55) 100%);
   }
 
-  .login-brand {
+  .hero {
+    position: absolute;
+    top: 96px;
+    transform: none;
+    left: 50%;
+    margin-left: -50vw;
+    width: 100vw;
+    max-width: none;
+    padding: 0 24px;
+    text-align: center;
+    animation: none;
+  }
+
+  .hero-title {
+    white-space: normal;
+  }
+
+  .hero-accent {
+    margin: 0 auto 18px;
+  }
+}
+
+@media (max-width: 768px) {
+  .hero {
     display: none;
   }
 
-  .login-form-area {
-    width: 100%;
-    padding: 36px 28px;
-    background: transparent;
+  .login-page {
+    align-items: center;
+    padding: 88px 20px 40px;
   }
 
-  .login-brand-mobile {
-    display: flex;
+  .brand-mark {
+    top: 28px;
+    left: 24px;
+  }
+
+  .brand-word {
+    font-size: 19px;
   }
 }
 
-/* 小屏手机：进一步压缩留白 */
 @media (max-width: 360px) {
-  .login-form-area {
-    padding: 28px 20px;
+  .login-card {
+    padding: 32px 22px 24px;
   }
 
-  .login-header {
-    margin-bottom: 24px;
+  .login-header h2 {
+    font-size: 26px;
   }
 }
 
 /* 尊重用户的减弱动画偏好 */
 @media (prefers-reduced-motion: reduce) {
-  .login-shell,
-  .orb {
+  .login-card,
+  .hero {
     animation: none;
   }
 

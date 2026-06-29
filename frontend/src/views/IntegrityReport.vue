@@ -39,7 +39,28 @@
     </div>
 
     <el-card shadow="never" class="content-card">
-      <el-table :data="records" stripe class="integrity-table" v-loading="loading">
+      <!-- 筛选栏 -->
+      <div class="search-bar">
+        <el-input
+          v-model="searchKeyword"
+          placeholder="搜索产品名称 / 产地..."
+          :prefix-icon="Search"
+          clearable
+          style="width: 240px"
+        />
+        <el-select v-model="filterCategory" placeholder="按类别筛选" clearable style="width: 160px">
+          <el-option v-for="item in categoryOptions" :key="item" :label="item" :value="item" />
+        </el-select>
+        <el-select v-model="filterStatus" placeholder="按状态筛选" clearable style="width: 140px">
+          <el-option label="一致" value="valid" />
+          <el-option label="异常" value="invalid" />
+        </el-select>
+        <el-button v-if="hasActiveFilter" @click="resetFilters">
+          <el-icon><RefreshLeft /></el-icon> 重置
+        </el-button>
+      </div>
+
+      <el-table :data="pagedRecords" stripe class="integrity-table" v-loading="loading">
         <el-table-column prop="name" label="产品名称" min-width="130" />
         <el-table-column prop="category" label="类别" width="110" />
         <el-table-column prop="origin" label="产地" min-width="140" />
@@ -65,7 +86,21 @@
             <el-button type="primary" link @click="verify(row)">验证</el-button>
           </template>
         </el-table-column>
+        <template #empty>
+          <el-empty :description="records.length === 0 ? '暂无数据' : '没有符合筛选条件的产品'" />
+        </template>
       </el-table>
+
+      <!-- 分页 -->
+      <div class="pagination-wrapper">
+        <el-pagination
+          v-model:current-page="page"
+          v-model:page-size="pageSize"
+          :total="filteredRecords.length"
+          :page-sizes="[5, 10, 20]"
+          layout="total, sizes, prev, pager, next, jumper"
+        />
+      </div>
     </el-card>
   </div>
 </template>
@@ -85,9 +120,9 @@
  *   - api/integrity.js（getProductFingerprints / verifyProductHash）
  *   - 仅 ROLE_ADMIN 和 ROLE_INSPECTOR 可访问（router meta.roles + 后端 SecurityConfig）
  */
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { CopyDocument, Download, Refresh } from '@element-plus/icons-vue'
+import { CopyDocument, Download, Refresh, RefreshLeft, Search } from '@element-plus/icons-vue'
 import { getProductFingerprints, verifyProductHash } from '@/api/integrity'
 
 // 指纹列表加载状态，控制表格 v-loading 和刷新按钮 :loading。
@@ -102,6 +137,70 @@ const rootHash = ref('')
 const generatedAt = ref('')
 // setInterval 定时器句柄，组件卸载时在 onUnmounted 中 clearInterval 防止内存泄漏。
 let clockTimer = null
+
+/* ===== 筛选与分页（前端处理，接口一次性返回全部指纹） ===== */
+// 关键字搜索，匹配产品名称或产地。
+const searchKeyword = ref('')
+// 按类别筛选，选项由当前记录动态去重生成。
+const filterCategory = ref('')
+// 按校验状态筛选：'valid'（一致）/ 'invalid'（异常）/ ''（全部）。
+const filterStatus = ref('')
+// 当前分页页码，v-model:current-page 双向绑定到 el-pagination。
+const page = ref(1)
+// 每页条数，v-model:page-size 双向绑定到 el-pagination。
+const pageSize = ref(10)
+
+// 类别下拉选项：从记录中去重提取，过滤空值。
+const categoryOptions = computed(() => {
+  const set = new Set()
+  records.value.forEach(item => {
+    const category = (item.category || '').trim()
+    if (category) set.add(category)
+  })
+  return [...set]
+})
+
+// 是否存在任一生效的筛选条件，用于决定是否展示"重置"按钮。
+const hasActiveFilter = computed(() => Boolean(searchKeyword.value || filterCategory.value || filterStatus.value))
+
+// 按关键字、类别、状态过滤后的记录集合，作为分页和分页总数的数据源。
+const filteredRecords = computed(() => {
+  const keyword = searchKeyword.value.trim().toLowerCase()
+  return records.value.filter(item => {
+    if (keyword) {
+      const haystack = `${item.name || ''} ${item.origin || ''}`.toLowerCase()
+      if (!haystack.includes(keyword)) return false
+    }
+    if (filterCategory.value && item.category !== filterCategory.value) return false
+    if (filterStatus.value === 'valid' && !item.valid) return false
+    if (filterStatus.value === 'invalid' && item.valid) return false
+    return true
+  })
+})
+
+// 当前页要展示的记录，按 page/pageSize 对过滤结果切片。
+const pagedRecords = computed(() => {
+  const start = (page.value - 1) * pageSize.value
+  return filteredRecords.value.slice(start, start + pageSize.value)
+})
+
+// 筛选条件变化时回到第一页，避免停留在越界的空白页。
+watch([searchKeyword, filterCategory, filterStatus, pageSize], () => {
+  page.value = 1
+})
+
+// 过滤结果变少导致当前页越界时，自动回退到最后一页。
+watch(filteredRecords, (list) => {
+  const maxPage = Math.max(1, Math.ceil(list.length / pageSize.value))
+  if (page.value > maxPage) page.value = maxPage
+})
+
+// 一键清空所有筛选条件。
+const resetFilters = () => {
+  searchKeyword.value = ''
+  filterCategory.value = ''
+  filterStatus.value = ''
+}
 
 // 统计当前指纹列表中不一致的记录数，用于页面头部风险提示。
 const invalidCount = computed(() => records.value.filter(item => !item.valid).length)
@@ -305,9 +404,22 @@ onUnmounted(() => {
   overflow-wrap: anywhere;
 }
 
+.search-bar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
 .integrity-table {
   border-radius: 8px;
   overflow: hidden;
+}
+
+.pagination-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
 }
 
 @media (max-width: 980px) {

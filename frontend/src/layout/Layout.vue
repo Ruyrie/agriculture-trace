@@ -203,6 +203,16 @@ const allMenus = [
     roles: ['ROLE_ADMIN', 'ROLE_INSPECTOR']
   },
   {
+    path: '/login-logs',
+    meta: { title: '登录日志', icon: 'Tickets' },
+    roles: ['ROLE_ADMIN', 'ROLE_INSPECTOR']
+  },
+  {
+    path: '/warnings',
+    meta: { title: '批次预警', icon: 'Warning' },
+    roles: ['ROLE_ADMIN', 'ROLE_INSPECTOR']
+  },
+  {
     path: '/statistics',
     meta: { title: '统计分析', icon: 'DataAnalysis' },
     roles: ['ROLE_ADMIN', 'ROLE_INSPECTOR']
@@ -211,6 +221,16 @@ const allMenus = [
     path: '/users',
     meta: { title: '用户管理', icon: 'User' },
     roles: ['ROLE_ADMIN']
+  },
+  {
+    path: '/feedback',
+    meta: { title: '意见反馈', icon: 'ChatDotRound' },
+    roles: ['ROLE_ADMIN', 'ROLE_FARMER', 'ROLE_INSPECTOR']
+  },
+  {
+    path: '/announcements',
+    meta: { title: '系统公告', icon: 'Bell' },
+    roles: ['ROLE_ADMIN', 'ROLE_FARMER', 'ROLE_INSPECTOR']
   }
 ]
 

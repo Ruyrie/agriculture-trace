@@ -124,6 +124,51 @@ CREATE TABLE IF NOT EXISTS `trace_record` (
   FOREIGN KEY (`product_id`) REFERENCES `product`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS `feedback` (
+  `id` varchar(32) NOT NULL COMMENT '反馈ID (UUID)',
+  `user_id` varchar(32) NOT NULL COMMENT '提交人用户ID',
+  `username` varchar(64) DEFAULT NULL COMMENT '提交人用户名(冗余)',
+  `type` varchar(20) DEFAULT NULL COMMENT '类型: BUG/SUGGESTION/OTHER',
+  `title` varchar(128) NOT NULL COMMENT '反馈标题',
+  `content` text NOT NULL COMMENT '反馈内容',
+  `status` varchar(20) DEFAULT 'PENDING' COMMENT '状态: PENDING/REPLIED/CLOSED',
+  `reply` text COMMENT '管理员回复内容',
+  `reply_by` varchar(64) DEFAULT NULL COMMENT '回复人用户名',
+  `reply_time` varchar(19) DEFAULT NULL COMMENT '回复时间 yyyy-MM-dd HH:mm:ss',
+  `create_time` varchar(19) DEFAULT NULL COMMENT '提交时间 yyyy-MM-dd HH:mm:ss',
+  PRIMARY KEY (`id`),
+  KEY `idx_feedback_user` (`user_id`),
+  KEY `idx_feedback_status` (`status`),
+  KEY `idx_feedback_create_time` (`create_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `login_log` (
+  `id` varchar(32) NOT NULL COMMENT '日志ID (UUID)',
+  `username` varchar(64) DEFAULT NULL COMMENT '登录用户名',
+  `ip` varchar(64) DEFAULT NULL COMMENT '客户端IP',
+  `status` varchar(16) DEFAULT NULL COMMENT '结果: SUCCESS/FAILURE',
+  `message` varchar(128) DEFAULT NULL COMMENT '结果说明',
+  `user_agent` varchar(256) DEFAULT NULL COMMENT '浏览器UA',
+  `login_time` varchar(19) DEFAULT NULL COMMENT '登录时间 yyyy-MM-dd HH:mm:ss',
+  PRIMARY KEY (`id`),
+  KEY `idx_login_log_status` (`status`),
+  KEY `idx_login_log_time` (`login_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `announcement` (
+  `id` varchar(32) NOT NULL COMMENT '公告ID (UUID)',
+  `title` varchar(128) NOT NULL COMMENT '公告标题',
+  `content` text NOT NULL COMMENT '公告内容',
+  `status` varchar(20) DEFAULT 'PUBLISHED' COMMENT '状态: DRAFT/PUBLISHED',
+  `pinned` tinyint(1) DEFAULT '0' COMMENT '是否置顶',
+  `creator` varchar(64) DEFAULT NULL COMMENT '发布人用户名',
+  `create_time` varchar(19) DEFAULT NULL COMMENT '创建时间 yyyy-MM-dd HH:mm:ss',
+  `update_time` varchar(19) DEFAULT NULL COMMENT '更新时间 yyyy-MM-dd HH:mm:ss',
+  PRIMARY KEY (`id`),
+  KEY `idx_announcement_status` (`status`),
+  KEY `idx_announcement_create_time` (`create_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 INSERT IGNORE INTO `role` (`id`, `name`, `description`) VALUES
 ('role_admin', 'ROLE_ADMIN', '系统管理员，拥有所有权限'),
 ('role_farmer', 'ROLE_FARMER', '农户，可管理自己的产品和批次'),
